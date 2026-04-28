@@ -16,6 +16,10 @@
         "backgroundColor": "#FF6B35"
       }
     },
-    "newArchEnabled": true
+    "newArchEnabled": true,
+    "plugins": [
+      "expo-asset",
+      "expo-font"
+    ]
   }
 }
