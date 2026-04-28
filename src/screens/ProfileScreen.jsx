@@ -19,6 +19,21 @@ import { getReliabilityBadge } from '../utils/helpers';
 import RatingStars from '../components/RatingStars';
 import UserAvatar from '../components/UserAvatar';
 
+const PROFILE_ICONS = {
+  user: require('../../assets/branding/user.png'),
+  bell: require('../../assets/branding/bell.png'),
+  safety: require('../../assets/branding/safety.png'),
+  dietary: require('../../assets/branding/button.png'),
+  payment: require('../../assets/branding/cashless-payment.png'),
+  rating: require('../../assets/branding/rating.png'),
+  faq: require('../../assets/branding/faq.png'),
+  contact: require('../../assets/branding/contact-us.png'),
+  info: require('../../assets/branding/information.png'),
+  logout: require('../../assets/branding/log-out.png'),
+  close: require('../../assets/branding/cross.png'),
+  delete: require('../../assets/branding/delete.png'),
+};
+
 export default function ProfileScreen({ navigation }) {
   const { user, logout, meals, bookings, setUser } = useApp();
 
@@ -203,7 +218,7 @@ export default function ProfileScreen({ navigation }) {
   // ─────────────────────────────────────
   // REUSABLE MENU ITEM
   // ─────────────────────────────────────
-  const MenuItem = ({ icon, label, value, onPress, color }) => (
+  const MenuItem = ({ iconSource, label, value, onPress, color }) => (
     <TouchableOpacity
       style={styles.menuItem}
       onPress={onPress}
@@ -215,7 +230,7 @@ export default function ProfileScreen({ navigation }) {
           { backgroundColor: (color || '#FF6B35') + '15' },
         ]}
       >
-        <Text style={styles.menuIconText}>{icon}</Text>
+        <Image source={iconSource} style={styles.menuIconImage} />
       </View>
       <Text style={styles.menuLabel}>{label}</Text>
       <View style={styles.menuRight}>
@@ -328,7 +343,7 @@ export default function ProfileScreen({ navigation }) {
               <Text style={styles.activityLabel}>Listed</Text>
             </View>
             <View style={styles.activityItem}>
-              <Text style={styles.activityEmoji}>✅</Text>
+              <Image source={PROFILE_ICONS.dietary} style={styles.activityIconImage} />
               <Text style={styles.activityValue}>
                 {activeBookings.length}
               </Text>
@@ -401,19 +416,19 @@ export default function ProfileScreen({ navigation }) {
         <View style={styles.menuSection}>
           <Text style={styles.menuSectionTitle}>ACCOUNT</Text>
           <MenuItem
-            icon="👤"
+            iconSource={PROFILE_ICONS.user}
             label="Edit Profile"
             color="#2196F3"
             onPress={() => setEditModalVisible(true)}
           />
           <MenuItem
-            icon="🔔"
+            iconSource={PROFILE_ICONS.bell}
             label="Notifications"
             color="#9C27B0"
             onPress={() => setNotifModalVisible(true)}
           />
           <MenuItem
-            icon="🛡️"
+            iconSource={PROFILE_ICONS.safety}
             label="Privacy & Safety"
             color="#4CAF50"
             onPress={() => setPrivacyModalVisible(true)}
@@ -423,19 +438,19 @@ export default function ProfileScreen({ navigation }) {
         <View style={styles.menuSection}>
           <Text style={styles.menuSectionTitle}>PREFERENCES</Text>
           <MenuItem
-            icon="🌿"
+            iconSource={PROFILE_ICONS.dietary}
             label="Dietary Preferences"
             color="#4CAF50"
             onPress={() => setDietModalVisible(true)}
           />
           <MenuItem
-            icon="💳"
+            iconSource={PROFILE_ICONS.payment}
             label="Payment Methods"
             color="#FF6B35"
             onPress={() => setPaymentModalVisible(true)}
           />
           <MenuItem
-            icon="⭐"
+            iconSource={PROFILE_ICONS.rating}
             label="My Reviews"
             value={`${mockReviews.length} reviews`}
             color="#FFC107"
@@ -446,7 +461,7 @@ export default function ProfileScreen({ navigation }) {
         <View style={styles.menuSection}>
           <Text style={styles.menuSectionTitle}>SUPPORT</Text>
           <MenuItem
-            icon="❓"
+            iconSource={PROFILE_ICONS.faq}
             label="Help & FAQ"
             color="#607D8B"
             onPress={() =>
@@ -457,7 +472,7 @@ export default function ProfileScreen({ navigation }) {
               )
             }
           />
-          <MenuItem
+          {/* <MenuItem
             icon="📄"
             label="Terms of Service"
             color="#607D8B"
@@ -468,9 +483,9 @@ export default function ProfileScreen({ navigation }) {
                 [{ text: 'I Understand' }]
               )
             }
-          />
+          /> */}
           <MenuItem
-            icon="📧"
+            iconSource={PROFILE_ICONS.contact}
             label="Contact Us"
             color="#607D8B"
             onPress={() =>
@@ -489,7 +504,7 @@ export default function ProfileScreen({ navigation }) {
             }
           />
           <MenuItem
-            icon="ℹ️"
+            iconSource={PROFILE_ICONS.info}
             label="About Plato"
             color="#607D8B"
             onPress={() =>
@@ -507,7 +522,7 @@ export default function ProfileScreen({ navigation }) {
           style={styles.logoutButton}
           onPress={handleLogout}
         >
-          <Text style={styles.logoutIcon}>🚪</Text>
+          <Image source={PROFILE_ICONS.logout} style={styles.logoutIconImage} />
           <Text style={styles.logoutText}>Log Out</Text>
         </TouchableOpacity>
 
@@ -530,7 +545,7 @@ export default function ProfileScreen({ navigation }) {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>✏️ Edit Profile</Text>
               <TouchableOpacity onPress={() => setEditModalVisible(false)}>
-                <Text style={styles.modalClose}>✕</Text>
+                <Image source={PROFILE_ICONS.close} style={styles.modalCloseIcon} />
               </TouchableOpacity>
             </View>
 
@@ -577,7 +592,7 @@ export default function ProfileScreen({ navigation }) {
                       style={[styles.modalAvatarBtn, styles.modalAvatarBtnRed]}
                       onPress={removeAvatar}
                     >
-                      <Text style={styles.modalAvatarBtnIcon}>🗑️</Text>
+                      <Image source={PROFILE_ICONS.delete} style={styles.modalAvatarBtnIconImage} />
                       <Text style={[styles.modalAvatarBtnText, { color: '#FF5252' }]}>
                         Remove
                       </Text>
@@ -669,7 +684,7 @@ export default function ProfileScreen({ navigation }) {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>🔔 Notifications</Text>
               <TouchableOpacity onPress={() => setNotifModalVisible(false)}>
-                <Text style={styles.modalClose}>✕</Text>
+                <Image source={PROFILE_ICONS.close} style={styles.modalCloseIcon} />
               </TouchableOpacity>
             </View>
             <Text style={styles.modalSubtitle}>
@@ -727,7 +742,7 @@ export default function ProfileScreen({ navigation }) {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>🌿 Dietary Preferences</Text>
               <TouchableOpacity onPress={() => setDietModalVisible(false)}>
-                <Text style={styles.modalClose}>✕</Text>
+                <Image source={PROFILE_ICONS.close} style={styles.modalCloseIcon} />
               </TouchableOpacity>
             </View>
             <Text style={styles.modalSubtitle}>
@@ -789,7 +804,7 @@ export default function ProfileScreen({ navigation }) {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>💳 Payment Methods</Text>
               <TouchableOpacity onPress={() => setPaymentModalVisible(false)}>
-                <Text style={styles.modalClose}>✕</Text>
+                <Image source={PROFILE_ICONS.close} style={styles.modalCloseIcon} />
               </TouchableOpacity>
             </View>
             <Text style={styles.modalSubtitle}>
@@ -873,7 +888,7 @@ export default function ProfileScreen({ navigation }) {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>⭐ My Reviews</Text>
               <TouchableOpacity onPress={() => setReviewsModalVisible(false)}>
-                <Text style={styles.modalClose}>✕</Text>
+                <Image source={PROFILE_ICONS.close} style={styles.modalCloseIcon} />
               </TouchableOpacity>
             </View>
 
@@ -947,7 +962,7 @@ export default function ProfileScreen({ navigation }) {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>🛡️ Privacy & Safety</Text>
               <TouchableOpacity onPress={() => setPrivacyModalVisible(false)}>
-                <Text style={styles.modalClose}>✕</Text>
+                <Image source={PROFILE_ICONS.close} style={styles.modalCloseIcon} />
               </TouchableOpacity>
             </View>
 
@@ -1000,7 +1015,10 @@ export default function ProfileScreen({ navigation }) {
                   )
                 }
               >
-                <Text style={styles.reportButtonText}>🚨 Report a User</Text>
+                <View style={styles.actionButtonRow}>
+                  <Image source={PROFILE_ICONS.safety} style={styles.actionButtonIcon} />
+                  <Text style={styles.reportButtonText}>Report a User</Text>
+                </View>
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -1013,9 +1031,10 @@ export default function ProfileScreen({ navigation }) {
                   )
                 }
               >
-                <Text style={styles.deleteButtonText}>
-                  🗑️ Request Account Deletion
-                </Text>
+                <View style={styles.actionButtonRow}>
+                  <Image source={PROFILE_ICONS.delete} style={styles.actionButtonIcon} />
+                  <Text style={styles.deleteButtonText}>Request Account Deletion</Text>
+                </View>
               </TouchableOpacity>
             </ScrollView>
 
@@ -1162,6 +1181,12 @@ const styles = StyleSheet.create({
   },
   activityItem: { alignItems: 'center' },
   activityEmoji: { fontSize: 24, marginBottom: 6 },
+  activityIconImage: {
+    width: 33,
+    height: 33,
+    resizeMode: 'contain',
+    marginBottom: 6,
+  },
   activityValue: {
     fontSize: 20,
     fontWeight: '800',
@@ -1254,7 +1279,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  menuIconText: { fontSize: 20 },
+  menuIconImage: {
+    width: 22,
+    height: 22,
+    resizeMode: 'contain',
+  },
   menuLabel: {
     flex: 1,
     fontSize: 15,
@@ -1283,7 +1312,11 @@ const styles = StyleSheet.create({
     borderColor: '#FFCDD2',
     gap: 10,
   },
-  logoutIcon: { fontSize: 20 },
+  logoutIconImage: {
+    width: 20,
+    height: 20,
+    resizeMode: 'contain',
+  },
   logoutText: { fontSize: 16, fontWeight: '700', color: '#FF5252' },
 
   // Footer
@@ -1319,11 +1352,11 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: '#1A1A1A',
   },
-  modalClose: {
-    fontSize: 20,
-    color: '#9E9E9E',
-    fontWeight: '700',
-    padding: 4,
+  modalCloseIcon: {
+    width: 20,
+    height: 20,
+    resizeMode: 'contain',
+    tintColor: '#9E9E9E',
   },
   modalSubtitle: {
     fontSize: 13,
@@ -1374,6 +1407,12 @@ const styles = StyleSheet.create({
     borderColor: '#FFCDD2',
   },
   modalAvatarBtnIcon: { fontSize: 20 },
+  modalAvatarBtnIconImage: {
+    width: 20,
+    height: 20,
+    resizeMode: 'contain',
+    tintColor: '#FF5252',
+  },
   modalAvatarBtnText: {
     fontSize: 12,
     fontWeight: '700',
@@ -1636,5 +1675,15 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
     color: '#FF5252',
+  },
+  actionButtonRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  actionButtonIcon: {
+    width: 18,
+    height: 18,
+    resizeMode: 'contain',
   },
 });

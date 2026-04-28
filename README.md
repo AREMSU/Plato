@@ -3,6 +3,8 @@
 Plato is a React Native + Expo mobile app for student-to-student meal sharing.
 Users can list home-cooked meals, discover nearby listings, book portions, and manage bookings.
 
+The current branch targets Expo SDK 54.
+
 This README is written as both:
 - Product documentation for humans
 - A reconstruction blueprint for AI agents
@@ -24,17 +26,17 @@ Students cook and share extra meals with other students on campus.
 
 ## 2) Tech Stack
 
-- React `18.2.0`
-- React Native `0.73.6`
-- Expo `~50.0.0`
+- React `19.1.0`
+- React Native `0.81.5`
+- Expo `54.0.34`
 - React Navigation:
   - `@react-navigation/native` `6.1.9`
   - `@react-navigation/stack` `6.3.20`
   - `@react-navigation/bottom-tabs` `6.5.11`
-- expo-image-picker `~14.7.1`
-- expo-linear-gradient `~12.7.0`
+- expo-image-picker `17.0.11`
+- expo-linear-gradient `15.0.8`
 - AsyncStorage `1.21.0` (installed, not actively used for persistence)
-- react-native-reanimated `3.6.0`
+- react-native-reanimated `4.1.1`
 - Babel + `react-native-reanimated/plugin`
 
 ## 3) Scripts

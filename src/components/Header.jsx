@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 
 export default function Header({ title, subtitle, onBack, rightIcon, onRightPress }) {
@@ -18,7 +18,10 @@ export default function Header({ title, subtitle, onBack, rightIcon, onRightPres
           </TouchableOpacity>
         )}
         <View style={styles.titleContainer}>
-          <Text style={styles.title}>{title}</Text>
+          <View style={styles.titleRow}>
+            <Image source={require('../../assets/branding/icon.png')} style={styles.logo} />
+            <Text style={styles.title}>{title}</Text>
+          </View>
           {subtitle && <Text style={styles.subtitle}>{subtitle}</Text>}
         </View>
         {rightIcon && (
@@ -41,6 +44,8 @@ const styles = StyleSheet.create({
   },
   backText: { fontSize: 22, color: '#fff', fontWeight: '700' },
   titleContainer: { flex: 1 },
+  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  logo: { width: 26, height: 26, borderRadius: 6 },
   title: { fontSize: 22, fontWeight: '800', color: '#fff' },
   subtitle: { fontSize: 13, color: 'rgba(255,255,255,0.8)', marginTop: 2, fontWeight: '500' },
   rightButton: {
