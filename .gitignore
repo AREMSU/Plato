@@ -14,4 +14,4 @@ db.sqlite3
 .env
 
 # VS Code
-.vscode/
+.vscode/node_modules/
