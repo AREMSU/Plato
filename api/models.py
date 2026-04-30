@@ -38,6 +38,13 @@ class Meal(models.Model):
         ('Snacks', 'Snacks'),
         ('Breakfast', 'Breakfast'),
     ]
+    
+    STATUS_CHOICES = [
+    ('pending_review', 'Pending Review'),
+    ('approved', 'Approved'),
+    ('rejected', 'Rejected'),
+    ]
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='approved')
 
     title = models.CharField(max_length=200)
     description = models.TextField()
