@@ -1,6 +1,9 @@
 
 from django.contrib.auth.models import AbstractUser
 from django.db import models
+import random
+from django.utils import timezone
+from datetime import timedelta
 
 
 class User(AbstractUser):
@@ -44,7 +47,7 @@ class Meal(models.Model):
     category = models.CharField(max_length=50, choices=CATEGORIES, default='Nepali')
     price_per_portion = models.FloatField()
     total_portions = models.IntegerField()
-    available_portions = models.IntegerField()
+    available_portions = models.IntegerField()     
     bookings = models.IntegerField(default=0)
     is_vegetarian = models.BooleanField(default=False)
     image = models.URLField(blank=True)
@@ -61,7 +64,7 @@ class Meal(models.Model):
 
     def __str__(self):
         return self.title
-
+ 
 
 class Booking(models.Model):
     STATUS = [
@@ -79,3 +82,23 @@ class Booking(models.Model):
     def __str__(self):
         return f"{self.user.email} booked {self.meal.title}"
     
+
+
+
+class OTP(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='otps', null=True, blank=True)
+    email = models.EmailField()
+    code = models.CharField(max_length=6)
+    created_at = models.DateTimeField(auto_now_add=True)
+    is_used = models.BooleanField(default=False)
+
+    def is_valid(self):
+        expiry = self.created_at + timedelta(minutes=5)
+        return timezone.now() < expiry and not self.is_used
+
+    @staticmethod
+    def generate_otp():
+        return str(random.randint(100000, 999999))
+
+    def __str__(self):
+        return f"{self.email} - {self.code}"

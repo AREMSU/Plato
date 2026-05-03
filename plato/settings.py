@@ -148,3 +148,7 @@ SIMPLE_JWT = {
 CSRF_TRUSTED_ORIGINS = [
     'https://acquire-ultra-thigh.ngrok-free.dev',
 ]
+
+# Email configuration for development (using Resend)
+RESEND_API_KEY = os.getenv('RESEND_API_KEY')
+EMAIL_FROM = os.getenv('EMAIL_FROM')
