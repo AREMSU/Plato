@@ -28,34 +28,43 @@ class RegisterView(APIView):
 
         data = serializer.validated_data
 
-        # Check if email already exists
-        if User.objects.filter(email=data['email']).exists():
+        # Check if active user already exists
+        if User.objects.filter(email=data['email'], is_active=True).exists():
             return Response({'error': 'Email already exists'}, status=400)
 
-        # Create inactive user
-        user = User.objects.create_user(
-            username=data['email'],
-            email=data['email'],
-            password=data['password'],
-            first_name=data.get('first_name', ''),
-            university=data.get('university', ''),
-            is_active=False,  # ← inactive until OTP verified
-        )
+        # Delete any previous inactive user with same email
+        User.objects.filter(email=data['email'], is_active=False).delete()
 
-        # Generate and save OTP
+        # Invalidate old OTPs for this email
+        OTP.objects.filter(email=data['email'], is_used=False).update(is_used=True)
+
+        # Generate OTP and save temporarily WITHOUT creating user
         otp_code = OTP.generate_otp()
         OTP.objects.create(
-            user=user,
-            email=user.email,
+            email=data['email'],
             code=otp_code,
         )
 
+        # Store registration data in OTP record temporarily
+        # We'll create user only after OTP verification
+        import json
+        otp = OTP.objects.filter(email=data['email'], is_used=False).latest('created_at')
+        otp.temp_data = json.dumps({
+            'first_name': data.get('first_name', ''),
+            'email': data['email'],
+            'password': data['password'],
+            'university': data.get('university', ''),
+        })
+        otp.save()
+
         # Send OTP email
-        send_otp_email(user.email, otp_code, user.first_name)
+        sent = send_otp_email(data['email'], otp_code, data.get('first_name', ''))
+        if not sent:
+            return Response({'error': 'Failed to send OTP email. Please try again.'}, status=500)
 
         return Response({
             'message': 'OTP sent to your email. Please verify to complete registration.',
-            'email': user.email,
+            'email': data['email'],
         }, status=201)
 
 class VerifyOTPView(APIView):
@@ -68,15 +77,10 @@ class VerifyOTPView(APIView):
         if not email or not code:
             return Response({'error': 'Email and OTP code are required'}, status=400)
 
-        try:
-            user = User.objects.get(email=email)
-        except User.DoesNotExist:
-            return Response({'error': 'User not found'}, status=404)
-
-        # Get latest OTP
+        # Get latest unused OTP
         try:
             otp = OTP.objects.filter(
-                user=user,
+                email=email,
                 code=code,
                 is_used=False
             ).latest('created_at')
@@ -86,13 +90,29 @@ class VerifyOTPView(APIView):
         if not otp.is_valid():
             return Response({'error': 'OTP has expired. Please request a new one.'}, status=400)
 
-        # Activate user
-        user.is_active = True
-        user.save()
-
         # Mark OTP as used
         otp.is_used = True
         otp.save()
+
+        # Create user from temp_data
+        import json
+        if otp.temp_data:
+            temp = json.loads(otp.temp_data)
+            user = User.objects.create_user(
+                username=temp['email'],
+                email=temp['email'],
+                password=temp['password'],
+                first_name=temp.get('first_name', ''),
+                university=temp.get('university', ''),
+                is_active=True,
+            )
+            
+        elif otp.user:
+            user = otp.user
+            user.is_active = True
+            user.save()
+        else:
+            return Response({'error': 'Registration data not found. Please register again.'}, status=400)
 
         # Generate tokens
         refresh = RefreshToken.for_user(user)
@@ -104,7 +124,6 @@ class VerifyOTPView(APIView):
                 'access': str(refresh.access_token),
             }
         })
-
 
 class ResendOTPView(APIView):
     permission_classes = [AllowAny]

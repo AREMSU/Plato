@@ -12,8 +12,9 @@ class User(AbstractUser):
     avatar = models.URLField(blank=True)
     rating = models.FloatField(default=0.0)
     meals_shared = models.IntegerField(default=0)
-
     email = models.EmailField(unique=True)
+    is_email_verified = models.BooleanField(default=False)
+
 
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['username']
@@ -84,13 +85,13 @@ class Booking(models.Model):
     
 
 
-
 class OTP(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='otps', null=True, blank=True)
     email = models.EmailField()
     code = models.CharField(max_length=6)
     created_at = models.DateTimeField(auto_now_add=True)
     is_used = models.BooleanField(default=False)
+    temp_data = models.TextField(blank=True, null=True)  # ← add this
 
     def is_valid(self):
         expiry = self.created_at + timedelta(minutes=5)

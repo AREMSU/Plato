@@ -1,15 +1,14 @@
-import resend
+from django.core.mail import send_mail
 from django.conf import settings
-
-resend.api_key = settings.RESEND_API_KEY
 
 def send_otp_email(email, otp_code, name):
     try:
-        response = resend.Emails.send({
-            "from": settings.EMAIL_FROM,
-            "to": [email],
-            "subject": "Plato - Your Verification Code",
-            "html": f"""
+        send_mail(
+            subject='Plato - Your Verification Code',
+            message=f'Your OTP code is: {otp_code}\nThis code expires in 5 minutes.',
+            from_email=settings.EMAIL_FROM,
+            recipient_list=[email],
+            html_message=f"""
             <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
                 <div style="background: linear-gradient(135deg, #FF6B35, #FF8C42); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
                     <h1 style="color: white; margin: 0; font-size: 28px;">🍽️ Plato</h1>
@@ -28,8 +27,9 @@ def send_otp_email(email, otp_code, name):
                 </div>
             </div>
             """
-        })
+        )
+        print(f"✅ OTP email sent to {email}")
         return True
     except Exception as e:
-        print(f"Email error: {e}")
+        print(f"❌ Email error: {e}")
         return False
