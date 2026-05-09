@@ -131,27 +131,35 @@ class ResendOTPView(APIView):
     def post(self, request):
         email = request.data.get('email')
 
-        try:
-            user = User.objects.get(email=email, is_active=False)
-        except User.DoesNotExist:
-            return Response({'error': 'User not found or already verified'}, status=404)
+        # Check if OTP exists for this email
+        if not OTP.objects.filter(email=email, is_used=False).exists():
+            return Response({'error': 'No pending verification found. Please register again.'}, status=404)
 
         # Invalidate old OTPs
-        OTP.objects.filter(user=user, is_used=False).update(is_used=True)
+        OTP.objects.filter(email=email, is_used=False).update(is_used=True)
+
+        # Get temp data from old OTP
+        old_otp = OTP.objects.filter(email=email).latest('created_at')
+        temp_data = old_otp.temp_data
 
         # Generate new OTP
         otp_code = OTP.generate_otp()
-        OTP.objects.create(
-            user=user,
-            email=user.email,
+        new_otp = OTP.objects.create(
+            email=email,
             code=otp_code,
+            temp_data=temp_data,
         )
 
+        # Get name from temp data
+        import json
+        name = ''
+        if temp_data:
+            name = json.loads(temp_data).get('first_name', '')
+
         # Send email
-        send_otp_email(user.email, otp_code, user.first_name)
+        send_otp_email(email, otp_code, name)
 
         return Response({'message': 'New OTP sent to your email!'})
-
 class LoginView(APIView):
     permission_classes = [AllowAny]
 
