@@ -16,6 +16,7 @@ import random
 from .models import OTP
 from django.conf import settings
 from .email_service import send_otp_email
+from django.utils import timezone
 # ─── AUTH VIEWS ───────────────────────────────────────────────
 
 class RegisterView(APIView):
@@ -106,7 +107,10 @@ class VerifyOTPView(APIView):
                 university=temp.get('university', ''),
                 is_active=True,
             )
-            
+            #set last login
+            user.last_login = timezone.now()
+            user.save(update_fields=['last_login'])
+                
         elif otp.user:
             user = otp.user
             user.is_active = True
@@ -160,6 +164,8 @@ class ResendOTPView(APIView):
         send_otp_email(email, otp_code, name)
 
         return Response({'message': 'New OTP sent to your email!'})
+
+
 class LoginView(APIView):
     permission_classes = [AllowAny]
 
@@ -181,6 +187,10 @@ class LoginView(APIView):
                 status=status.HTTP_401_UNAUTHORIZED
             )
 
+        # Update last_login
+        user.last_login = timezone.now()
+        user.save(update_fields=['last_login'])
+
         refresh = RefreshToken.for_user(user)
         return Response({
             'user': UserSerializer(user).data,
@@ -189,8 +199,6 @@ class LoginView(APIView):
                 'access': str(refresh.access_token),
             }
         })
-
-
 class LogoutView(APIView):
     permission_classes = [IsAuthenticated]
 
