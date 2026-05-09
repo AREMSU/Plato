@@ -183,87 +183,76 @@ export default function AddMealScreen({ navigation }) {
   // ── Validate ──
   const validate = () => {
     const newErrors = {};
-    if (!selectedImage) newErrors.image = 'Please add a photo of your meal';
+    // Remove image validation for now
     if (!form.title.trim()) newErrors.title = 'Title is required';
     if (!form.description.trim()) newErrors.description = 'Description is required';
-    if (
-      !form.pricePerPortion ||
-      isNaN(Number(form.pricePerPortion)) ||
-      Number(form.pricePerPortion) <= 0
-    )
-      newErrors.pricePerPortion = 'Enter a valid price';
-    if (
-      !form.totalPortions ||
-      isNaN(Number(form.totalPortions)) ||
-      Number(form.totalPortions) <= 0
-    )
-      newErrors.totalPortions = 'Enter valid portions';
+    if (!form.pricePerPortion || isNaN(Number(form.pricePerPortion)) || Number(form.pricePerPortion) <= 0)
+        newErrors.pricePerPortion = 'Enter a valid price';
+    if (!form.totalPortions || isNaN(Number(form.totalPortions)) || Number(form.totalPortions) <= 0)
+        newErrors.totalPortions = 'Enter valid portions';
     if (!form.pickupTime.trim()) newErrors.pickupTime = 'Pickup time required';
     if (!form.pickupLocation.trim()) newErrors.pickupLocation = 'Location required';
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
-  };
+};
 
   // ── Submit ──
-  const handleAddMeal = () => {
+ const handleAddMeal = async () => {
     if (!validate()) {
-      Alert.alert('⚠️ Missing Info', 'Please fill all required fields including a meal photo.');
-      return;
+        Alert.alert('⚠️ Missing Info', 'Please fill all required fields including a meal photo.');
+        return;
     }
     setLoading(true);
-    setTimeout(() => {
-      const tagsArray = form.tags
-        .split(',')
-        .map((t) => t.trim().toLowerCase())
-        .filter((t) => t.length > 0);
+    try {
+        const tagsArray = form.tags
+            .split(',')
+            .map((t) => t.trim().toLowerCase())
+            .filter((t) => t.length > 0);
 
-      addMeal({
-        title: form.title.trim(),
-        description: form.description.trim(),
-        category: form.category,
-        pricePerPortion: Number(form.pricePerPortion),
-        totalPortions: Number(form.totalPortions),
-        availablePortions: Number(form.totalPortions),
-        pickupTime: form.pickupTime.trim(),
-        pickupLocation: form.pickupLocation.trim(),
-        isVegetarian: form.isVegetarian,
-        tags: tagsArray,
-        image: selectedImage,
-        rating: 0,
-        reviews: 0,
-        calories: 400,
-        protein: 15,
-        mealDate: new Date().toISOString().split('T')[0],
-      });
+        const result = await addMeal({
+            title: form.title.trim(),
+            description: form.description.trim(),
+            category: form.category,
+            pricePerPortion: Number(form.pricePerPortion),
+            totalPortions: Number(form.totalPortions),
+            pickupTime: form.pickupTime.trim(),
+            pickupLocation: form.pickupLocation.trim(),
+            isVegetarian: form.isVegetarian,
+            tags: tagsArray,
+            image: '',
+            calories: 400,
+            protein: 15,
+            mealDate: new Date().toISOString().split('T')[0],
+        });
 
-      setLoading(false);
-      Alert.alert(
-        '🎉 Meal Listed!',
-        'Your meal has been successfully added to the platform.',
-        [
-          {
-            text: 'View Home',
-            onPress: () => {
-              navigation.navigate('Home');
-              setForm({
-                title: '',
-                description: '',
-                category: 'Nepali',
-                pricePerPortion: '',
-                totalPortions: '',
-                pickupTime: '',
-                pickupLocation: '',
-                isVegetarian: false,
-                tags: '',
-              });
-              setSelectedImage(null);
-              setErrors({});
-            },
-          },
-        ]
-      );
-    }, 1200);
-  };
+        if (result.success) {
+            Alert.alert(
+                '🎉 Meal Listed!',
+                'Your meal has been successfully added to the platform.',
+                [{
+                    text: 'View Home',
+                    onPress: () => {
+                        navigation.navigate('Home');
+                        setForm({
+                            title: '', description: '', category: 'Nepali',
+                            pricePerPortion: '', totalPortions: '',
+                            pickupTime: '', pickupLocation: '',
+                            isVegetarian: false, tags: '',
+                        });
+                        setSelectedImage(null);
+                        setErrors({});
+                    },
+                }]
+            );
+        } else {
+            Alert.alert('Error', result.error || 'Failed to add meal');
+        }
+    } catch (error) {
+        Alert.alert('Error', 'Something went wrong. Please try again.');
+    } finally {
+        setLoading(false);
+    }
+};
 
   return (
     <KeyboardAvoidingView

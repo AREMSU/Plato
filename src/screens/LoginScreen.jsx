@@ -24,17 +24,20 @@ export default function LoginScreen({ navigation }) {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleLogin = () => {
+const handleLogin = async () => {
     if (!validate()) return;
     setLoading(true);
-    setTimeout(() => {
-      const result = login(email.trim(), password);
-      setLoading(false);
-      if (!result.success) {
-        Alert.alert('Login Failed', result.message || 'Invalid credentials');
-      }
-    }, 1000);
-  };
+    try {
+        const result = await login(email.trim(), password);
+        if (!result.success) {
+            Alert.alert('Login Failed', result.error || 'Invalid credentials');
+        }
+    } catch (error) {
+        Alert.alert('Error', 'Something went wrong. Please try again.');
+    } finally {
+        setLoading(false);
+    }
+};
 
   const fillDemo = () => {
     setEmail('aarnav@student.edu');

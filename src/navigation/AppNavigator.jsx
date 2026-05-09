@@ -13,6 +13,7 @@ import MyMealsScreen from '../screens/MyMealsScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import MealDetailScreen from '../screens/MealDetailScreen';
 import BookingScreen from '../screens/BookingScreen';
+import OTPScreen from '../screens/OTPScreen';
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -69,6 +70,7 @@ export default function AppNavigator() {
           <Stack.Screen name="Onboarding" component={OnboardingScreen} />
           <Stack.Screen name="Login" component={LoginScreen} />
           <Stack.Screen name="Register" component={RegisterScreen} />
+          <Stack.Screen name="OTP" component={OTPScreen} />
         </>
       ) : (
         <>
