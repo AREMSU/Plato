@@ -1,0 +1,83 @@
+# Dependencies
+node_modules/
+/.pnp
+.pnp.js
+
+# Testing
+/coverage
+
+# Production
+/build
+/dist
+
+# Misc
+.DS_Store
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# Editor directories and files
+.vscode
+.idea
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+*.swp
+*.swo
+*~
+
+# OS files
+Thumbs.db
+.DS_Store
+
+# Android
+android/.gradle
+android/local.properties
+android/*/build/
+android/*/.gradle
+*.apk
+*.aar
+*.jks
+*.keystore
+
+# iOS
+ios/Pods
+ios/Podfile.lock
+ios/.xcodeproj/xcuserdata/
+ios/.xcodeproj/project.xcworkspace/xcuserdata/
+ios/DerivedData/
+*.xcarchive
+*.ipa
+
+# Xcode
+*.pbxuser
+*.mode1v3
+*.mode2v3
+*.perspectivev3
+**/xcuserdata
+**/*.xcworkspace/xcuserdata
+
+# Gradle
+gradle-wrapper.jar
+.gradle
+
+# Expo
+.expo/
+dist/
+npm-debug.*
+.env
+
+# Watchman
+.watchmanconfig
+
+# Ruby
+Gemfile.lock

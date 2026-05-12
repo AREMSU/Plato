@@ -1,0 +1,24 @@
+{
+  "expo": {
+    "name": "Plato",
+    "slug": "plato",
+    "icon": "./assets/branding/icon.png",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.anonymous.plato"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/branding/icon-foreground.png",
+        "backgroundColor": "#FF6B35"
+      },
+      "package": "com.anonymous.plato"
+    }
+  }
+}

@@ -1,0 +1,123 @@
+# Plato Project Documentation
+
+Date: 2026-04-16
+
+## 1) Existing Project Structure (Before Changes)
+
+The repository was already organized as a React Native (Expo prebuild) app with:
+
+- Root config and app entry:
+  - app.json
+  - App.jsx
+  - package.json
+  - babel.config.js
+- Android native project:
+  - android/app/src/main/AndroidManifest.xml
+  - android/app/src/main/res/*
+- App source code:
+  - src/components/*
+  - src/screens/*
+  - src/navigation/*
+  - src/context/*
+  - src/data/*
+  - src/utils/*
+- Existing assets folder:
+  - assets/
+
+Branding state before updates:
+- Android launcher icon references already pointed to @mipmap/ic_launcher and @mipmap/ic_launcher_round.
+- Mipmap folders already contained icon files.
+- Splash XML used only a background color (no centered logo image).
+- No dedicated branded logo asset set in assets.
+
+## 2) What Was Done
+
+### A. Added New Logo Asset Set
+Created a dedicated branding folder:
+- assets/branding/icon.png
+- assets/branding/icon-round.png
+- assets/branding/icon-foreground.png
+
+Purpose:
+- icon.png: general app icon/logo asset
+- icon-round.png: round variant for launcher round icon
+- icon-foreground.png: adaptive icon foreground for Expo/Android
+
+### B. Replaced Android Launcher Icons
+Updated launcher icons in all Android density buckets:
+- android/app/src/main/res/mipmap-mdpi/ic_launcher.png
+- android/app/src/main/res/mipmap-mdpi/ic_launcher_round.png
+- android/app/src/main/res/mipmap-hdpi/ic_launcher.png
+- android/app/src/main/res/mipmap-hdpi/ic_launcher_round.png
+- android/app/src/main/res/mipmap-xhdpi/ic_launcher.png
+- android/app/src/main/res/mipmap-xhdpi/ic_launcher_round.png
+- android/app/src/main/res/mipmap-xxhdpi/ic_launcher.png
+- android/app/src/main/res/mipmap-xxhdpi/ic_launcher_round.png
+- android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
+- android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_round.png
+
+### C. Added Splash Logo Asset
+Created splash logo image:
+- android/app/src/main/res/drawable-nodpi/splash_logo.png
+
+Updated splash layout:
+- android/app/src/main/res/drawable/splashscreen.xml
+
+Change made:
+- Added centered bitmap item pointing to @drawable/splash_logo while keeping existing splash background.
+
+### D. Updated Expo App Config
+Updated app.json:
+- Added expo.icon: ./assets/branding/icon.png
+- Added expo.android.adaptiveIcon.foregroundImage: ./assets/branding/icon-foreground.png
+
+### E. Added In-App Header Logo
+Updated reusable header component:
+- src/components/Header.jsx
+
+Change made:
+- Added Image import and displayed the logo (assets/branding/icon.png) next to the screen title.
+
+## 3) Notes
+
+- Android manifest already points launcher icons to mipmap resources, so icon replacement is active for Android builds.
+- Existing .gitignore at root and android/.gitignore remain suitable for these assets (images are not ignored).
+- A validation warning exists in app.json about newArchEnabled in the current schema tooling; this key existed in the project and was not introduced by this branding change.
+
+## 4) How To Update Branding Later
+
+1. Replace files in assets/branding with new versions using same names.
+2. Regenerate Android mipmap launcher files if shape/style changes.
+3. Keep splash logo at android/app/src/main/res/drawable-nodpi/splash_logo.png or replace with same filename.
+4. Rebuild Android app to verify launcher + splash updates.
+
+## 5) Branding Refinement (Round 2)
+
+As requested, the branding was upgraded to a cleaner food-themed style and editable source files were added.
+
+### New editable source files
+- assets/branding/logo-mark.svg
+- assets/branding/logo-foreground.svg
+- assets/branding/logo-lockup.svg
+
+### Updated generated outputs from SVG
+- assets/branding/icon.png
+- assets/branding/icon-round.png
+- assets/branding/icon-foreground.png
+- android/app/src/main/res/drawable-nodpi/splash_logo.png
+
+### Regenerated Android launcher outputs
+- android/app/src/main/res/mipmap-mdpi/ic_launcher.png
+- android/app/src/main/res/mipmap-mdpi/ic_launcher_round.png
+- android/app/src/main/res/mipmap-hdpi/ic_launcher.png
+- android/app/src/main/res/mipmap-hdpi/ic_launcher_round.png
+- android/app/src/main/res/mipmap-xhdpi/ic_launcher.png
+- android/app/src/main/res/mipmap-xhdpi/ic_launcher_round.png
+- android/app/src/main/res/mipmap-xxhdpi/ic_launcher.png
+- android/app/src/main/res/mipmap-xxhdpi/ic_launcher_round.png
+- android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
+- android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_round.png
+
+### Result
+- A more intentional food-themed visual mark (plate + cutlery concept).
+- SVG sources are now available for future iteration without quality loss.
