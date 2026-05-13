@@ -1,3 +1,5 @@
+// src/data/mockData.js
+
 export const mockUsers = [
   {
     id: '1',
@@ -29,6 +31,8 @@ export const mockUsers = [
   },
 ];
 
+// ─── Subscription Plans ───────────────────────────────────────────────────────
+// Simplified to just Free + Premium (Rs. 199/month)
 export const subscriptionPlans = [
   {
     id: 'free',
@@ -44,95 +48,44 @@ export const subscriptionPlans = [
       'View seller ratings',
       'Basic customer support',
     ],
-    benefits: ['No hidden charges', 'Cancel anytime', '0% booking fee'],
-  },
-  {
-    id: 'basic',
-    name: 'Basic',
-    price: 99,
-    currency: 'Rs',
-    duration: 'month',
-    priceDisplay: 'Rs. 99/month',
-    color: '#4CAF50',
-    icon: '⭐',
-    features: [
-      'All Free features',
-      '10% discount on all bookings',
-      'List unlimited meals',
-      'Priority meal visibility',
-      'Seller badge on profile',
-      'Weekly meal analytics',
-      'Priority customer support',
+    benefits: [
+      'No hidden charges',
+      'Cancel anytime',
+      '0% booking fee',
     ],
-    benefits: ['Save on orders', 'More bookings', '24/7 support'],
-  },
-  {
-    id: 'standard',
-    name: 'Standard',
-    price: 199,
-    currency: 'Rs',
-    duration: 'month',
-    priceDisplay: 'Rs. 199/month',
-    color: '#2196F3',
-    icon: '✨',
-    features: [
-      'All Basic features',
-      '15% discount on all bookings',
-      'Increased meal suggestions to customers',
-      'More meal recommendations priority',
-      'Reduced platform commission (2% vs 5%)',
-      'Enhanced meal visibility',
-      'Advanced meal analytics',
-      'Priority seller support',
-    ],
-    benefits: ['More visibility', 'More suggestions', 'Higher earnings'],
-  },
-  {
-    id: 'pro',
-    name: 'Pro',
-    price: 299,
-    currency: 'Rs',
-    duration: 'month',
-    priceDisplay: 'Rs. 299/month',
-    color: '#FF9800',
-    icon: '🚀',
-    features: [
-      'All Basic features',
-      '20% discount on all bookings',
-      'Featured meal spot (24 hours)',
-      'VIP customer badge',
-      'Detailed sales analytics',
-      'Custom meal promotions',
-      'Premium customer support',
-      'Quick messaging priority',
-    ],
-    benefits: ['Bigger discounts', 'Featured listings', 'Expert support'],
   },
   {
     id: 'premium',
     name: 'Premium',
-    price: 499,
+    price: 199,
+    originalPrice: 399,
     currency: 'Rs',
     duration: 'month',
-    priceDisplay: 'Rs. 499/month',
-    color: '#FF6B35',
+    priceDisplay: 'Rs. 199/month',
+    color: '#7C3AED',
     icon: '👑',
+    discountPercent: 30,
     features: [
-      'All Pro features',
+      'Browse & book meals',
+      'Unlimited meal listings',
       '30% discount on all bookings',
-      'Featured meal spot (daily)',
-      'Premium seller badge',
+      'Daily featured placement',
       'Advanced analytics & insights',
-      'Unlimited meal promotions',
-      'Dedicated account manager',
       '24/7 priority support',
-      'Early access to new features',
-      'Monthly seller bonus rewards',
+      'Premium seller badge',
+      'AI-powered meal recommendations',
+      'Instant booking notifications',
+      'Reduced platform commission (1%)',
     ],
-    benefits: ['Max savings', 'Maximum visibility', 'Personal support'],
+    benefits: [
+      '30% off bookings',
+      'Daily featured',
+      '24/7 support',
+    ],
   },
 ];
 
+// ─── Mock Meals ───────────────────────────────────────────────────────────────
 export const mockMeals = [
   {
     id: '1',
@@ -145,7 +98,8 @@ export const mockMeals = [
     availablePortions: 3,
     bookings: 1,
     isVegetarian: true,
-    image: 'https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=400',
+    image:
+      'https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=400',
     sellerId: '1',
     sellerName: 'Aarnav Dahal',
     sellerAvatar: 'https://i.pravatar.cc/150?img=1',
@@ -171,7 +125,8 @@ export const mockMeals = [
     availablePortions: 4,
     bookings: 1,
     isVegetarian: false,
-    image: 'https://images.unsplash.com/photo-1496116218417-1a781b1c416c?w=400',
+    image:
+      'https://images.unsplash.com/photo-1496116218417-1a781b1c416c?w=400',
     sellerId: '2',
     sellerName: 'Nabin Chamlagai',
     sellerAvatar: 'https://i.pravatar.cc/150?img=2',
@@ -197,7 +152,8 @@ export const mockMeals = [
     availablePortions: 2,
     bookings: 1,
     isVegetarian: true,
-    image: 'https://images.unsplash.com/photo-1555949258-eb67b1ef0ceb?w=400',
+    image:
+      'https://images.unsplash.com/photo-1555949258-eb67b1ef0ceb?w=400',
     sellerId: '1',
     sellerName: 'Aarnav Dahal',
     sellerAvatar: 'https://i.pravatar.cc/150?img=1',
@@ -223,7 +179,8 @@ export const mockMeals = [
     availablePortions: 5,
     bookings: 1,
     isVegetarian: false,
-    image: 'https://images.unsplash.com/photo-1603133872878-684f208fb84b?w=400',
+    image:
+      'https://images.unsplash.com/photo-1603133872878-684f208fb84b?w=400',
     sellerId: '2',
     sellerName: 'Nabin Chamlagai',
     sellerAvatar: 'https://i.pravatar.cc/150?img=2',
@@ -249,7 +206,8 @@ export const mockMeals = [
     availablePortions: 6,
     bookings: 2,
     isVegetarian: true,
-    image: 'https://images.unsplash.com/photo-1601050690597-df0568f70950?w=400',
+    image:
+      'https://images.unsplash.com/photo-1601050690597-df0568f70950?w=400',
     sellerId: '1',
     sellerName: 'Aarnav Dahal',
     sellerAvatar: 'https://i.pravatar.cc/150?img=1',
@@ -275,7 +233,8 @@ export const mockMeals = [
     availablePortions: 3,
     bookings: 1,
     isVegetarian: true,
-    image: 'https://images.unsplash.com/photo-1517673132405-a56a62b18caf?w=400',
+    image:
+      'https://images.unsplash.com/photo-1517673132405-a56a62b18caf?w=400',
     sellerId: '2',
     sellerName: 'Nabin Chamlagai',
     sellerAvatar: 'https://i.pravatar.cc/150?img=2',
@@ -292,6 +251,7 @@ export const mockMeals = [
   },
 ];
 
+// ─── Categories ───────────────────────────────────────────────────────────────
 export const categories = [
   { id: 'all', label: 'All', icon: '🍽️' },
   { id: 'Nepali', label: 'Nepali', icon: '🍛' },
@@ -301,6 +261,7 @@ export const categories = [
   { id: 'Breakfast', label: 'Breakfast', icon: '🥣' },
 ];
 
+// ─── Dietary Filters ──────────────────────────────────────────────────────────
 export const dietaryFilters = [
   { id: 'all', label: 'All' },
   { id: 'vegetarian', label: 'Vegetarian' },

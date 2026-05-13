@@ -9,6 +9,7 @@ import {
   Modal,
   ActivityIndicator,
   SafeAreaView,
+  StatusBar,
   Platform,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -16,18 +17,50 @@ import { useApp } from '../context/AppContext';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const PREMIUM_FEATURES = [
-  { icon: '📚', title: 'Unlimited Meal Listings', desc: 'List as many meals as you want with no restrictions' },
-  { icon: '⭐', title: 'Daily Featured Placement', desc: 'Your meals appear at the top of search results every day' },
-  { icon: '💰', title: '30% Booking Discount', desc: 'Save 30% on every booking you make through the app' },
-  { icon: '📊', title: 'Advanced Analytics', desc: 'Deep insights into your meal views, bookings & revenue' },
-  { icon: '⚡', title: '24/7 Priority Support', desc: 'Get help anytime with our dedicated premium support team' },
-  { icon: '🎯', title: 'Smart Recommendations', desc: 'AI-powered meal suggestions tailored to your preferences' },
-  { icon: '🔔', title: 'Instant Notifications', desc: 'Real-time alerts for bookings, reviews and messages' },
-  { icon: '🏷️', title: 'Custom Meal Badges', desc: 'Stand out with exclusive premium seller badges' },
+  {
+    icon: '📚',
+    title: 'Unlimited Meal Listings',
+    desc: 'List as many meals as you want with no restrictions',
+  },
+  {
+    icon: '⭐',
+    title: 'Daily Featured Placement',
+    desc: 'Your meals appear at the top of search results every day',
+  },
+  {
+    icon: '💰',
+    title: '30% Booking Discount',
+    desc: 'Save 30% on every booking you make through the app',
+  },
+  {
+    icon: '📊',
+    title: 'Advanced Analytics',
+    desc: 'Deep insights into your meal views, bookings & revenue',
+  },
+  {
+    icon: '⚡',
+    title: '24/7 Priority Support',
+    desc: 'Get help anytime with our dedicated premium support team',
+  },
+  {
+    icon: '🎯',
+    title: 'Smart Recommendations',
+    desc: 'AI-powered meal suggestions tailored to your preferences',
+  },
+  {
+    icon: '🔔',
+    title: 'Instant Notifications',
+    desc: 'Real-time alerts for bookings, reviews and messages',
+  },
+  {
+    icon: '🏷️',
+    title: 'Premium Seller Badge',
+    desc: 'Stand out with exclusive premium seller badges',
+  },
 ];
 
 const COMPARISON_ROWS = [
-  { feature: '📚 Meal Listings', free: 'Limited (2/week)', premium: 'Unlimited + Featured' },
+  { feature: '📚 Meal Listings', free: 'Limited\n(2/week)', premium: 'Unlimited\n+ Featured' },
   { feature: '💰 Booking Discount', free: '0%', premium: '30%' },
   { feature: '📊 Analytics', free: 'None', premium: 'Advanced +' },
   { feature: '⚡ Support', free: 'Basic', premium: '24/7 Priority' },
@@ -65,6 +98,11 @@ const FAQ_DATA = [
   },
 ];
 
+// ─── STATUS BAR HEIGHT (Android fix) ─────────────────────────────────────────
+const STATUSBAR_HEIGHT = Platform.OS === 'android'
+  ? StatusBar.currentHeight ?? 24
+  : 0;
+
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
 const CustomHeader = memo(({ onBack }) => (
@@ -74,34 +112,33 @@ const CustomHeader = memo(({ onBack }) => (
     end={{ x: 1, y: 1 }}
     style={styles.header}
   >
-    <SafeAreaView>
-      <View style={styles.headerContent}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={onBack}
-          activeOpacity={0.7}
-        >
-          <Text style={styles.backButtonText}>←</Text>
-        </TouchableOpacity>
-        <View style={styles.headerTextContainer}>
-          <Text style={styles.headerTitle}>✨ Go Premium</Text>
-          <Text style={styles.headerSubtitle}>
-            Unlock everything for Rs. 199/month
-          </Text>
-        </View>
+    {/* Push content below the status bar on Android */}
+    <View style={{ height: STATUSBAR_HEIGHT }} />
+    <View style={styles.headerContent}>
+      <TouchableOpacity
+        style={styles.backButton}
+        onPress={onBack}
+        activeOpacity={0.7}
+      >
+        <Text style={styles.backButtonText}>←</Text>
+      </TouchableOpacity>
+      <View style={styles.headerTextContainer}>
+        <Text style={styles.headerTitle}>✨ Go Premium</Text>
+        <Text style={styles.headerSubtitle}>
+          Unlock everything for Rs. 199/month
+        </Text>
       </View>
-    </SafeAreaView>
+    </View>
   </LinearGradient>
 ));
 
-const HeroSection = memo(({ isPremium, user }) => (
+const HeroSection = memo(({ isPremiumActive, user }) => (
   <LinearGradient
     colors={['#7C3AED', '#9F67FF', '#C084FC']}
     start={{ x: 0, y: 0 }}
     end={{ x: 1, y: 1 }}
     style={styles.heroSection}
   >
-    {/* Decorative circles */}
     <View style={styles.heroBubble1} />
     <View style={styles.heroBubble2} />
 
@@ -110,16 +147,17 @@ const HeroSection = memo(({ isPremium, user }) => (
     </View>
 
     <Text style={styles.heroTitle}>
-      {isPremium ? 'You Are Premium!' : 'Become a Premium Member'}
+      {isPremiumActive ? 'You Are Premium!' : 'Become a Premium Member'}
     </Text>
     <Text style={styles.heroSubtitle}>
-      {isPremium
-        ? `Active until ${new Date(user?.subscriptionExpiry || new Date()).toLocaleDateString()}`
-        : 'Join thousands of members enjoying exclusive benefits'}
+      {isPremiumActive
+        ? `Active until ${new Date(
+            user?.subscriptionExpiry || new Date()
+          ).toLocaleDateString()}`
+        : 'Join thousands of students enjoying exclusive benefits'}
     </Text>
 
-    {/* Price pill */}
-    {!isPremium && (
+    {!isPremiumActive && (
       <View style={styles.pricePill}>
         <Text style={styles.pricePillOld}>Rs. 399</Text>
         <Text style={styles.pricePillNew}>Rs. 199</Text>
@@ -129,7 +167,7 @@ const HeroSection = memo(({ isPremium, user }) => (
       </View>
     )}
 
-    {isPremium && (
+    {isPremiumActive && (
       <View style={styles.activePill}>
         <Text style={styles.activePillText}>✓ Premium Active</Text>
       </View>
@@ -151,9 +189,9 @@ const FeatureCard = memo(({ item }) => (
 
 const ComparisonTable = memo(() => (
   <View style={styles.comparisonSection}>
-    <Text style={styles.sectionTitle}>Free vs Premium</Text>
+    <Text style={styles.sectionTitle}>Free vs 👑 Premium</Text>
     <View style={styles.comparisonTable}>
-      {/* Header */}
+      {/* Table Header */}
       <View style={styles.comparisonHeader}>
         <Text style={styles.comparisonHeaderFeature}>Feature</Text>
         <Text style={styles.comparisonHeaderFree}>Free</Text>
@@ -165,6 +203,7 @@ const ComparisonTable = memo(() => (
         </LinearGradient>
       </View>
 
+      {/* Table Rows */}
       {COMPARISON_ROWS.map((row, idx) => (
         <View
           key={idx}
@@ -202,27 +241,37 @@ const FaqItem = memo(({ item, isExpanded, onToggle }) => (
 ));
 
 const ConfirmModal = memo(({ visible, loading, onConfirm, onCancel }) => (
-  <Modal visible={visible} transparent animationType="slide">
+  <Modal
+    visible={visible}
+    transparent
+    animationType="slide"
+    statusBarTranslucent
+  >
     <View style={styles.modalOverlay}>
       <View style={styles.modalContent}>
-        {/* Header */}
+        {/* Modal Header */}
         <LinearGradient
           colors={['#7C3AED', '#9F67FF']}
           style={styles.modalHeaderGradient}
         >
           <Text style={styles.modalHeaderIcon}>👑</Text>
           <Text style={styles.modalHeaderTitle}>Confirm Subscription</Text>
+          <Text style={styles.modalHeaderSub}>
+            Start your premium journey today
+          </Text>
         </LinearGradient>
 
         <View style={styles.modalBody}>
-          {/* Price Summary */}
+          {/* Price Breakdown */}
           <View style={styles.modalPriceBox}>
             <View style={styles.modalPriceRow}>
               <Text style={styles.modalPriceLabel}>Premium Plan</Text>
               <Text style={styles.modalPriceOld}>Rs. 399</Text>
             </View>
             <View style={styles.modalPriceRow}>
-              <Text style={styles.modalDiscountLabel}>🎉 Special Discount</Text>
+              <Text style={styles.modalDiscountLabel}>
+                🎉 Launch Discount (50%)
+              </Text>
               <Text style={styles.modalDiscountValue}>- Rs. 200</Text>
             </View>
             <View style={styles.modalDivider} />
@@ -230,26 +279,27 @@ const ConfirmModal = memo(({ visible, loading, onConfirm, onCancel }) => (
               <Text style={styles.modalTotalLabel}>Total Today</Text>
               <Text style={styles.modalTotalValue}>Rs. 199</Text>
             </View>
+            <Text style={styles.modalPriceNote}>
+              Then Rs. 199/month • Cancel anytime
+            </Text>
           </View>
 
-          {/* Payment Method */}
-          <View style={styles.modalPaymentBox}>
-            <Text style={styles.modalPaymentTitle}>💳 Pay via</Text>
-            <View style={styles.modalPaymentMethods}>
-              {['eSewa', 'Khalti', 'Card'].map((method) => (
-                <View key={method} style={styles.modalPaymentChip}>
-                  <Text style={styles.modalPaymentChipText}>{method}</Text>
-                </View>
-              ))}
-            </View>
+          {/* Payment Methods */}
+          <Text style={styles.modalPaymentTitle}>💳 Pay via</Text>
+          <View style={styles.modalPaymentMethods}>
+            {['eSewa', 'Khalti', 'Card'].map((method) => (
+              <View key={method} style={styles.modalPaymentChip}>
+                <Text style={styles.modalPaymentChipText}>{method}</Text>
+              </View>
+            ))}
           </View>
 
-          {/* What you get */}
+          {/* Benefits */}
           <View style={styles.modalBenefits}>
-            <Text style={styles.modalBenefitsTitle}>✨ What you'll get:</Text>
+            <Text style={styles.modalBenefitsTitle}>✨ You'll unlock:</Text>
             {[
               'Unlimited meal listings',
-              '30% booking discount',
+              '30% off every booking',
               'Daily featured placement',
               '24/7 priority support',
             ].map((b, i) => (
@@ -260,14 +310,15 @@ const ConfirmModal = memo(({ visible, loading, onConfirm, onCancel }) => (
           </View>
 
           <Text style={styles.modalNote}>
-            🔒 Billed monthly • Cancel anytime • 7-day money-back guarantee
+            🔒 Secure payment • 7-day money-back guarantee
           </Text>
 
-          {/* Buttons */}
+          {/* Action Buttons */}
           <View style={styles.modalButtons}>
             <TouchableOpacity
               style={styles.modalCancelBtn}
               onPress={onCancel}
+              disabled={loading}
             >
               <Text style={styles.modalCancelText}>Maybe Later</Text>
             </TouchableOpacity>
@@ -285,7 +336,7 @@ const ConfirmModal = memo(({ visible, loading, onConfirm, onCancel }) => (
                   <ActivityIndicator color="#FFF" size="small" />
                 ) : (
                   <Text style={styles.modalConfirmText}>
-                    Subscribe · Rs. 199
+                    Pay Rs. 199
                   </Text>
                 )}
               </TouchableOpacity>
@@ -299,17 +350,25 @@ const ConfirmModal = memo(({ visible, loading, onConfirm, onCancel }) => (
 
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 export default function SubscriptionScreen({ navigation }) {
-  const { user, upgradeSubscription, cancelSubscription } = useApp();
+  const {
+    user,
+    upgradeSubscription,
+    cancelSubscription,
+    isPremium,
+    PREMIUM_PRICE,
+    PREMIUM_ORIGINAL_PRICE,
+  } = useApp();
 
   const [confirmModalVisible, setConfirmModalVisible] = useState(false);
   const [loading, setLoading] = useState(false);
   const [expandedFaqId, setExpandedFaqId] = useState(null);
 
-  const isPremium = user?.subscription === 'premium';
+  // ── Call isPremium() as a function from context ────────────────────────────
+  const isPremiumActive = isPremium();
 
-  // ── Handlers ────────────────────────────────────────────────────────────────
+  // ── Handlers ───────────────────────────────────────────────────────────────
   const handleGetPremium = useCallback(() => {
-    if (isPremium) {
+    if (isPremiumActive) {
       Alert.alert(
         'Cancel Premium?',
         'You will lose all premium benefits at the end of your billing period.',
@@ -319,7 +378,7 @@ export default function SubscriptionScreen({ navigation }) {
             text: 'Cancel Subscription',
             style: 'destructive',
             onPress: () => {
-              cancelSubscription?.();
+              cancelSubscription();
               Alert.alert(
                 '✅ Cancelled',
                 'Your premium subscription has been cancelled.'
@@ -331,220 +390,279 @@ export default function SubscriptionScreen({ navigation }) {
       return;
     }
     setConfirmModalVisible(true);
-  }, [isPremium, cancelSubscription]);
+  }, [isPremiumActive, cancelSubscription]);
 
   const handleConfirmSubscription = useCallback(() => {
     const processPayment = () => {
       setLoading(true);
       setTimeout(() => {
-        const result = upgradeSubscription?.('premium');
+        const result = upgradeSubscription('premium');
         setLoading(false);
         setConfirmModalVisible(false);
 
         if (result?.success) {
           Alert.alert(
             '🎉 Welcome to Premium!',
-            'Your premium subscription is now active. Enjoy all the exclusive benefits!',
-            [{ text: 'Let\'s Go! 🚀', onPress: () => navigation.goBack() }]
+            'Your premium subscription is now active.\nEnjoy 30% off all bookings!',
+            [
+              {
+                text: "Let's Go! 🚀",
+                onPress: () => navigation.goBack(),
+              },
+            ]
           );
         } else {
-          Alert.alert('❌ Payment Failed', result?.message || 'Please try again.');
+          Alert.alert(
+            '❌ Payment Failed',
+            result?.message || 'Please try again.'
+          );
         }
       }, 1500);
     };
 
     Alert.alert(
-      '💳 eSewa Payment',
-      'You will be charged Rs. 199 via eSewa for the Premium plan.',
+      '💳 Confirm Payment',
+      `Pay Rs. ${PREMIUM_PRICE ?? 199} via eSewa to activate Premium`,
       [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Pay Rs. 199', onPress: processPayment },
+        {
+          text: `Pay Rs. ${PREMIUM_PRICE ?? 199}`,
+          onPress: processPayment,
+        },
       ]
     );
-  }, [upgradeSubscription, navigation]);
+  }, [upgradeSubscription, navigation, PREMIUM_PRICE]);
 
   const handleFaqToggle = useCallback((id) => {
     setExpandedFaqId((prev) => (prev === id ? null : id));
   }, []);
 
-  // ── Render ──────────────────────────────────────────────────────────────────
+  // ── Render ─────────────────────────────────────────────────────────────────
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <CustomHeader onBack={() => navigation.goBack()} />
+    <>
+      {/*
+        ✅ FIX: Use StatusBar to make it translucent so our custom
+        header gradient extends behind it on Android.
+      */}
+      <StatusBar
+        translucent
+        backgroundColor="transparent"
+        barStyle="light-content"
+      />
 
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-        overScrollMode="always"
-        bounces={true}
-        nestedScrollEnabled={true}
-        keyboardShouldPersistTaps="handled"
-      >
-        {/* Hero */}
-        <HeroSection isPremium={isPremium} user={user} />
+      {/*
+        ✅ FIX: Plain View as root (NOT SafeAreaView) with flex:1.
+        SafeAreaView was fighting with the ScrollView for height on Android.
+      */}
+      <View style={styles.root}>
+        {/* Fixed Header — does NOT scroll */}
+        <CustomHeader onBack={() => navigation.goBack()} />
 
-        {/* Features */}
-        <View style={styles.featuresSection}>
-          <Text style={styles.sectionTitle}>Everything in Premium</Text>
-          <Text style={styles.sectionSubtitle}>
-            8 powerful features to supercharge your experience
-          </Text>
-          {PREMIUM_FEATURES.map((item, idx) => (
-            <FeatureCard key={idx} item={item} />
-          ))}
-        </View>
+        {/* ✅ ScrollView takes ALL remaining space via flex:1 */}
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          bounces={true}
+          overScrollMode="always"
+          nestedScrollEnabled={true}
+          keyboardShouldPersistTaps="handled"
+        >
+          {/* Hero */}
+          <HeroSection isPremiumActive={isPremiumActive} user={user} />
 
-        {/* CTA Banner */}
-        {!isPremium && (
-          <LinearGradient
-            colors={['#7C3AED', '#9F67FF']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.ctaBanner}
-          >
-            <Text style={styles.ctaBannerTitle}>
-              🔥 Limited Time Offer
+          {/* Features */}
+          <View style={styles.featuresSection}>
+            <Text style={styles.sectionTitle}>Everything in Premium</Text>
+            <Text style={styles.sectionSubtitle}>
+              8 powerful features to supercharge your experience
             </Text>
-            <Text style={styles.ctaBannerText}>
-              Get Premium for just{' '}
-              <Text style={styles.ctaBannerPrice}>Rs. 199/month</Text>
-            </Text>
-            <Text style={styles.ctaBannerSub}>
-              Regular price Rs. 399 • Save 50%
-            </Text>
-          </LinearGradient>
-        )}
+            {PREMIUM_FEATURES.map((item, idx) => (
+              <FeatureCard key={idx} item={item} />
+            ))}
+          </View>
 
-        {/* Comparison */}
-        <ComparisonTable />
-
-        {/* Subscribe Button */}
-        <View style={styles.subscribeSection}>
-          {isPremium ? (
-            <View style={styles.activeCard}>
-              <Text style={styles.activeCardIcon}>👑</Text>
-              <Text style={styles.activeCardTitle}>
-                You're a Premium Member!
-              </Text>
-              <Text style={styles.activeCardSub}>
-                Active until{' '}
-                {new Date(
-                  user?.subscriptionExpiry || new Date()
-                ).toLocaleDateString()}
-              </Text>
-              <TouchableOpacity
-                style={styles.cancelButton}
-                onPress={handleGetPremium}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.cancelButtonText}>
-                  Cancel Subscription
-                </Text>
-              </TouchableOpacity>
-            </View>
-          ) : (
+          {/* CTA Banner — only when not premium */}
+          {!isPremiumActive && (
             <LinearGradient
               colors={['#7C3AED', '#9F67FF']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
-              style={styles.mainCTAGradient}
+              style={styles.ctaBanner}
             >
-              <TouchableOpacity
-                style={styles.mainCTAButton}
-                onPress={handleGetPremium}
-                activeOpacity={0.85}
-              >
-                <Text style={styles.mainCTATitle}>
-                  👑 Get Premium Now
-                </Text>
-                <Text style={styles.mainCTAPrice}>Rs. 199 / month</Text>
-              </TouchableOpacity>
+              <Text style={styles.ctaBannerTitle}>🔥 Limited Time Offer</Text>
+              <Text style={styles.ctaBannerText}>
+                Get Premium for just{' '}
+                <Text style={styles.ctaBannerPrice}>Rs. 199/month</Text>
+              </Text>
+              <Text style={styles.ctaBannerSub}>
+                Regular price Rs. 399 • Save 50%
+              </Text>
             </LinearGradient>
           )}
 
-          <Text style={styles.subscribeNote}>
-            🔒 Secure payment • Cancel anytime • 7-day money-back
-          </Text>
-        </View>
+          {/* Comparison Table */}
+          <ComparisonTable />
 
-        {/* Social Proof */}
-        <View style={styles.socialProof}>
-          <View style={styles.socialProofAvatars}>
-            {['👨', '👩', '🧑', '👴', '👵'].map((a, i) => (
-              <View
-                key={i}
-                style={[styles.avatar, { marginLeft: i === 0 ? 0 : -10 }]}
-              >
-                <Text style={styles.avatarText}>{a}</Text>
+          {/* Main CTA / Active State */}
+          <View style={styles.subscribeSection}>
+            {isPremiumActive ? (
+              <View style={styles.activeCard}>
+                <Text style={styles.activeCardIcon}>👑</Text>
+                <Text style={styles.activeCardTitle}>
+                  You're a Premium Member!
+                </Text>
+                <Text style={styles.activeCardSub}>
+                  Active until{' '}
+                  {new Date(
+                    user?.subscriptionExpiry || new Date()
+                  ).toLocaleDateString()}
+                </Text>
+
+                {/* Active benefits summary */}
+                <View style={styles.activeCardBenefits}>
+                  <Text style={styles.activeCardBenefit}>
+                    ✓ 30% off all bookings
+                  </Text>
+                  <Text style={styles.activeCardBenefit}>
+                    ✓ Daily featured listings
+                  </Text>
+                  <Text style={styles.activeCardBenefit}>
+                    ✓ 24/7 priority support
+                  </Text>
+                </View>
+
+                <TouchableOpacity
+                  style={styles.cancelButton}
+                  onPress={handleGetPremium}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.cancelButtonText}>
+                    Cancel Subscription
+                  </Text>
+                </TouchableOpacity>
               </View>
+            ) : (
+              <>
+                <LinearGradient
+                  colors={['#7C3AED', '#9F67FF']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.mainCTAGradient}
+                >
+                  <TouchableOpacity
+                    style={styles.mainCTAButton}
+                    onPress={handleGetPremium}
+                    activeOpacity={0.85}
+                  >
+                    <Text style={styles.mainCTATitle}>
+                      👑 Get Premium Now
+                    </Text>
+                    <Text style={styles.mainCTAPrice}>
+                      Rs. 199 / month
+                    </Text>
+                  </TouchableOpacity>
+                </LinearGradient>
+
+                <Text style={styles.subscribeNote}>
+                  🔒 Secure payment • Cancel anytime • 7-day money-back
+                </Text>
+              </>
+            )}
+          </View>
+
+          {/* Social Proof */}
+          <View style={styles.socialProof}>
+            <View style={styles.socialProofAvatars}>
+              {['👨', '👩', '🧑', '👴', '👵'].map((a, i) => (
+                <View
+                  key={i}
+                  style={[
+                    styles.avatar,
+                    { marginLeft: i === 0 ? 0 : -10 },
+                  ]}
+                >
+                  <Text style={styles.avatarText}>{a}</Text>
+                </View>
+              ))}
+            </View>
+            <Text style={styles.socialProofText}>
+              <Text style={styles.socialProofBold}>2,400+ students </Text>
+              already enjoying premium
+            </Text>
+          </View>
+
+          {/* FAQ */}
+          <View style={styles.faqSection}>
+            <Text style={styles.sectionTitle}>
+              Frequently Asked Questions
+            </Text>
+            {FAQ_DATA.map((item) => (
+              <FaqItem
+                key={item.id}
+                item={item}
+                isExpanded={expandedFaqId === item.id}
+                onToggle={handleFaqToggle}
+              />
             ))}
           </View>
-          <Text style={styles.socialProofText}>
-            <Text style={styles.socialProofBold}>2,400+ members</Text>
-            {' '}already enjoying premium
-          </Text>
-        </View>
 
-        {/* FAQ */}
-        <View style={styles.faqSection}>
-          <Text style={styles.sectionTitle}>Frequently Asked Questions</Text>
-          {FAQ_DATA.map((item) => (
-            <FaqItem
-              key={item.id}
-              item={item}
-              isExpanded={expandedFaqId === item.id}
-              onToggle={handleFaqToggle}
-            />
-          ))}
-        </View>
+          {/* Support Card */}
+          <View style={styles.supportCard}>
+            <Text style={styles.supportIcon}>💬</Text>
+            <Text style={styles.supportTitle}>Still have questions?</Text>
+            <Text style={styles.supportText}>
+              Our team is happy to help you
+            </Text>
+            <TouchableOpacity
+              style={styles.supportButton}
+              activeOpacity={0.8}
+              onPress={() =>
+                Alert.alert(
+                  'Support',
+                  'support@plato.app\n+977-1-4XXXXXX'
+                )
+              }
+            >
+              <Text style={styles.supportButtonText}>Contact Support</Text>
+            </TouchableOpacity>
+          </View>
 
-        {/* Support */}
-        <View style={styles.supportCard}>
-          <Text style={styles.supportIcon}>💬</Text>
-          <Text style={styles.supportTitle}>Still have questions?</Text>
-          <Text style={styles.supportText}>
-            Our team is happy to help you choose the right plan
-          </Text>
-          <TouchableOpacity
-            style={styles.supportButton}
-            activeOpacity={0.8}
-            onPress={() =>
-              Alert.alert('Support', 'support@mealapp.com\n+977-1-4XXXXXX')
-            }
-          >
-            <Text style={styles.supportButtonText}>Contact Support</Text>
-          </TouchableOpacity>
-        </View>
+          <View style={styles.bottomSpacing} />
+        </ScrollView>
+      </View>
 
-        <View style={styles.bottomSpacing} />
-      </ScrollView>
-
-      {/* Confirm Modal */}
+      {/* Confirm Modal — outside the View so it overlays everything */}
       <ConfirmModal
         visible={confirmModalVisible}
         loading={loading}
         onConfirm={handleConfirmSubscription}
         onCancel={() => setConfirmModalVisible(false)}
       />
-    </SafeAreaView>
+    </>
   );
 }
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  safeArea: {
+  // ── Root ────────────────────────────────────────────────────────────────────
+  // ✅ Plain View with flex:1 — no SafeAreaView fighting for height
+  root: {
     flex: 1,
-    backgroundColor: '#7C3AED',
+    backgroundColor: '#7C3AED', // matches header so status bar area is purple
   },
 
-  // Header
+  // ── Header ──────────────────────────────────────────────────────────────────
   header: {
-    paddingTop: Platform.OS === 'android' ? 12 : 0,
     paddingBottom: 14,
     paddingHorizontal: 16,
+    // ✅ No paddingTop here — we use the explicit <View height={STATUSBAR_HEIGHT}/>
   },
-  headerContent: { flexDirection: 'row', alignItems: 'center' },
+  headerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingTop: 4,
+  },
   backButton: {
     width: 36,
     height: 36,
@@ -561,19 +679,34 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
   headerTextContainer: { flex: 1 },
-  headerTitle: { color: '#FFF', fontSize: 20, fontWeight: '800' },
-  headerSubtitle: { color: 'rgba(255,255,255,0.85)', fontSize: 12, marginTop: 2 },
+  headerTitle: {
+    color: '#FFF',
+    fontSize: 20,
+    fontWeight: '800',
+  },
+  headerSubtitle: {
+    color: 'rgba(255,255,255,0.85)',
+    fontSize: 12,
+    marginTop: 2,
+  },
 
-  // ScrollView
-  scrollView: { flex: 1, backgroundColor: '#F5F3FF' },
-  scrollContent: { flexGrow: 1, paddingBottom: 60 },
+  // ── ScrollView ───────────────────────────────────────────────────────────────
+  // ✅ flex:1 fills ALL space below the header
+  scrollView: {
+    flex: 1,
+    backgroundColor: '#F5F3FF',
+  },
+  // ✅ flexGrow:1 lets content taller than screen scroll freely
+  scrollContent: {
+    flexGrow: 1,
+    paddingBottom: 60,
+  },
 
-  // Hero
+  // ── Hero ─────────────────────────────────────────────────────────────────────
   heroSection: {
     padding: 32,
     alignItems: 'center',
     overflow: 'hidden',
-    position: 'relative',
   },
   heroBubble1: {
     position: 'absolute',
@@ -665,7 +798,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
   },
 
-  // Features
+  // ── Features ─────────────────────────────────────────────────────────────────
   featuresSection: {
     padding: 16,
     paddingTop: 24,
@@ -674,7 +807,7 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '800',
     color: '#1a1a1a',
-    marginBottom: 6,
+    marginBottom: 4,
   },
   sectionSubtitle: {
     fontSize: 13,
@@ -719,7 +852,7 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
 
-  // CTA Banner
+  // ── CTA Banner ───────────────────────────────────────────────────────────────
   ctaBanner: {
     margin: 16,
     borderRadius: 20,
@@ -747,8 +880,12 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.7)',
   },
 
-  // Comparison
-  comparisonSection: { paddingHorizontal: 16, marginTop: 8 },
+  // ── Comparison Table ──────────────────────────────────────────────────────────
+  comparisonSection: {
+    paddingHorizontal: 16,
+    marginTop: 8,
+    marginBottom: 8,
+  },
   comparisonTable: {
     backgroundColor: '#FFF',
     borderRadius: 16,
@@ -760,6 +897,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.06,
     shadowRadius: 6,
+    marginTop: 12,
   },
   comparisonHeader: {
     flexDirection: 'row',
@@ -768,6 +906,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#EDE9FE',
+    alignItems: 'center',
   },
   comparisonHeaderFeature: {
     flex: 2,
@@ -800,7 +939,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#F0EBff',
+    borderBottomColor: '#F0EBFF',
   },
   comparisonRowAlt: { backgroundColor: '#FDFCFF' },
   comparisonRowLast: { borderBottomWidth: 0 },
@@ -824,7 +963,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
 
-  // Subscribe Section
+  // ── Subscribe Section ─────────────────────────────────────────────────────────
   subscribeSection: {
     paddingHorizontal: 16,
     marginTop: 24,
@@ -862,7 +1001,7 @@ const styles = StyleSheet.create({
     lineHeight: 16,
   },
 
-  // Active card
+  // ── Active Card ───────────────────────────────────────────────────────────────
   activeCard: {
     width: '100%',
     backgroundColor: '#FFF',
@@ -884,7 +1023,24 @@ const styles = StyleSheet.create({
     color: '#7C3AED',
     marginBottom: 4,
   },
-  activeCardSub: { fontSize: 13, color: '#888', marginBottom: 16 },
+  activeCardSub: {
+    fontSize: 13,
+    color: '#888',
+    marginBottom: 16,
+  },
+  activeCardBenefits: {
+    alignSelf: 'stretch',
+    backgroundColor: '#F5F3FF',
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 16,
+    gap: 6,
+  },
+  activeCardBenefit: {
+    fontSize: 13,
+    color: '#7C3AED',
+    fontWeight: '600',
+  },
   cancelButton: {
     paddingHorizontal: 20,
     paddingVertical: 10,
@@ -892,9 +1048,13 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#FF4444',
   },
-  cancelButtonText: { color: '#FF4444', fontSize: 13, fontWeight: '700' },
+  cancelButtonText: {
+    color: '#FF4444',
+    fontSize: 13,
+    fontWeight: '700',
+  },
 
-  // Social Proof
+  // ── Social Proof ──────────────────────────────────────────────────────────────
   socialProof: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -918,8 +1078,11 @@ const styles = StyleSheet.create({
   socialProofText: { fontSize: 12, color: '#666' },
   socialProofBold: { fontWeight: '800', color: '#7C3AED' },
 
-  // FAQ
-  faqSection: { paddingHorizontal: 16, marginTop: 24 },
+  // ── FAQ ───────────────────────────────────────────────────────────────────────
+  faqSection: {
+    paddingHorizontal: 16,
+    marginTop: 24,
+  },
   faqItem: {
     backgroundColor: '#FFF',
     borderRadius: 14,
@@ -928,6 +1091,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#EDE9FE',
     elevation: 1,
+    shadowColor: '#7C3AED',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 3,
   },
   faqQuestion: {
     flexDirection: 'row',
@@ -954,7 +1121,7 @@ const styles = StyleSheet.create({
   },
   faqAnswer: { fontSize: 13, color: '#666', lineHeight: 21 },
 
-  // Support
+  // ── Support Card ──────────────────────────────────────────────────────────────
   supportCard: {
     margin: 16,
     marginTop: 24,
@@ -965,6 +1132,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#EDE9FE',
     elevation: 2,
+    shadowColor: '#7C3AED',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
   },
   supportIcon: { fontSize: 36, marginBottom: 10 },
   supportTitle: {
@@ -985,11 +1156,15 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 25,
   },
-  supportButtonText: { color: '#FFF', fontWeight: '800', fontSize: 14 },
+  supportButtonText: {
+    color: '#FFF',
+    fontWeight: '800',
+    fontSize: 14,
+  },
 
   bottomSpacing: { height: 40 },
 
-  // Modal
+  // ── Modal ─────────────────────────────────────────────────────────────────────
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.6)',
@@ -1005,13 +1180,18 @@ const styles = StyleSheet.create({
     padding: 24,
     alignItems: 'center',
   },
-  modalHeaderIcon: { fontSize: 36, marginBottom: 8 },
+  modalHeaderIcon: { fontSize: 36, marginBottom: 6 },
   modalHeaderTitle: {
     fontSize: 20,
     fontWeight: '800',
     color: '#FFF',
+    marginBottom: 2,
   },
-  modalBody: { padding: 24 },
+  modalHeaderSub: {
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.85)',
+  },
+  modalBody: { padding: 20 },
   modalPriceBox: {
     backgroundColor: '#F5F3FF',
     borderRadius: 14,
@@ -1032,7 +1212,11 @@ const styles = StyleSheet.create({
     color: '#999',
     textDecorationLine: 'line-through',
   },
-  modalDiscountLabel: { fontSize: 14, color: '#7C3AED', fontWeight: '600' },
+  modalDiscountLabel: {
+    fontSize: 13,
+    color: '#7C3AED',
+    fontWeight: '600',
+  },
   modalDiscountValue: {
     fontSize: 14,
     color: '#4CAF50',
@@ -1053,16 +1237,23 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: '#7C3AED',
   },
-  modalPaymentBox: {
-    marginBottom: 16,
+  modalPriceNote: {
+    fontSize: 11,
+    color: '#999',
+    marginTop: 6,
+    textAlign: 'center',
   },
   modalPaymentTitle: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '700',
     color: '#444',
     marginBottom: 10,
   },
-  modalPaymentMethods: { flexDirection: 'row', gap: 8 },
+  modalPaymentMethods: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 16,
+  },
   modalPaymentChip: {
     paddingHorizontal: 16,
     paddingVertical: 8,
@@ -1076,7 +1267,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#7C3AED',
   },
-  modalBenefits: { marginBottom: 14 },
+  modalBenefits: { marginBottom: 12 },
   modalBenefitsTitle: {
     fontSize: 14,
     fontWeight: '800',
@@ -1086,17 +1277,20 @@ const styles = StyleSheet.create({
   modalBenefit: {
     fontSize: 13,
     color: '#555',
-    marginBottom: 6,
+    marginBottom: 5,
     lineHeight: 19,
   },
   modalNote: {
     fontSize: 11,
     color: '#999',
     textAlign: 'center',
-    marginBottom: 20,
+    marginBottom: 16,
     lineHeight: 16,
   },
-  modalButtons: { flexDirection: 'row', gap: 12 },
+  modalButtons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
   modalCancelBtn: {
     flex: 1,
     paddingVertical: 14,
@@ -1104,11 +1298,22 @@ const styles = StyleSheet.create({
     backgroundColor: '#F0F0F0',
     alignItems: 'center',
   },
-  modalCancelText: { fontSize: 15, fontWeight: '700', color: '#666' },
-  modalConfirmGradient: { flex: 1, borderRadius: 14 },
+  modalCancelText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#666',
+  },
+  modalConfirmGradient: {
+    flex: 1,
+    borderRadius: 14,
+  },
   modalConfirmBtn: {
     paddingVertical: 14,
     alignItems: 'center',
   },
-  modalConfirmText: { fontSize: 15, fontWeight: '800', color: '#FFF' },
+  modalConfirmText: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#FFF',
+  },
 });
