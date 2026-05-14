@@ -13,8 +13,6 @@ class User(AbstractUser):
     rating = models.FloatField(default=0.0)
     meals_shared = models.IntegerField(default=0)
     email = models.EmailField(unique=True)
-    is_email_verified = models.BooleanField(default=False)
-
 
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['username']
