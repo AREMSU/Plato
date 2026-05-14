@@ -18,6 +18,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
 import { useApp } from '../context/AppContext';
 import { categories } from '../data/mockData';
+import { uploadImageToCloudinary } from '../api/uploadImage';
 
 const { width } = Dimensions.get('window');
 
@@ -72,6 +73,7 @@ export default function AddMealScreen({ navigation }) {
   const [loading, setLoading] = useState(false);
   const [selectedImage, setSelectedImage] = useState(null);
   const [imageLoading, setImageLoading] = useState(false);
+  const[uploadingImage, setUploadingImage] = useState('');
 
   const [form, setForm] = useState({
     title: '',
@@ -132,10 +134,22 @@ export default function AddMealScreen({ navigation }) {
         quality: 0.8,
       });
 
-      if (!result.canceled && result.assets && result.assets.length > 0) {
-        setSelectedImage(result.assets[0].uri);
-        setErrors(prev => ({ ...prev, image: null }));
-      }
+     if (!result.canceled && result.assets && result.assets.length > 0) {
+    const uri = result.assets[0].uri;
+    setSelectedImage(uri);
+    setErrors(prev => ({ ...prev, image: null }));
+
+    // Upload to Cloudinary immediately after picking
+    setImageLoading(true);
+    const url = await uploadImageToCloudinary(uri);
+    if (url) {
+        setUploadedImageUrl(url);
+        console.log('Image uploaded:', url);
+    } else {
+        Alert.alert('Upload Failed', 'Could not upload image. The meal will be listed without a photo.');
+    }
+    setImageLoading(false);
+}
     } catch (error) {
       Alert.alert('Error', 'Failed to pick image. Please try again.');
     } finally {
@@ -157,9 +171,21 @@ export default function AddMealScreen({ navigation }) {
       });
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
-        setSelectedImage(result.assets[0].uri);
-        setErrors(prev => ({ ...prev, image: null }));
-      }
+    const uri = result.assets[0].uri;
+    setSelectedImage(uri);
+    setErrors(prev => ({ ...prev, image: null }));
+
+    // Upload to Cloudinary immediately after picking
+    setImageLoading(true);
+    const url = await uploadImageToCloudinary(uri);
+    if (url) {
+        setUploadedImageUrl(url);
+        console.log('Image uploaded:', url);
+    } else {
+        Alert.alert('Upload Failed', 'Could not upload image. The meal will be listed without a photo.');
+    }
+    setImageLoading(false);
+}
     } catch (error) {
       Alert.alert('Error', 'Failed to take photo. Please try again.');
     } finally {
@@ -223,6 +249,7 @@ export default function AddMealScreen({ navigation }) {
             calories: 400,
             protein: 15,
             mealDate: new Date().toISOString().split('T')[0],
+
         });
 
         if (result.success) {
