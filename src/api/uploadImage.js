@@ -7,35 +7,11 @@ import * as ImagePicker from 'expo-image-picker';
 const CLOUDINARY_CLOUD_NAME = 'dy3zdsgxs';   
 const CLOUDINARY_UPLOAD_PRESET = 'plato_images';    
 
-/**
- * Opens image picker and uploads to Cloudinary.
- * @returns {string|null} public image URL, or null if cancelled/failed
- */
-export const pickAndUploadImage = async () => {
-    // Ask permission
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') {
-        alert('Camera roll permission is required to upload images.');
-        return null;
-    }
-
-    // Open picker
-    const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        aspect: [4, 3],
-        quality: 0.7,
-    });
-
-    if (result.canceled || !result.assets?.length) return null;
-
-    const imageUri = result.assets[0].uri;
-
-    // Upload to Cloudinary
+export const uploadImageToCloudinary = async (localUri) => {
     try {
         const formData = new FormData();
         formData.append('file', {
-            uri: imageUri,
+            uri: localUri,
             type: 'image/jpeg',
             name: 'meal_photo.jpg',
         });
@@ -49,15 +25,14 @@ export const pickAndUploadImage = async () => {
         const data = await response.json();
 
         if (data.secure_url) {
-            return data.secure_url;   // permanent HTTPS URL
+            console.log('Cloudinary upload success:', data.secure_url);
+            return data.secure_url;
         } else {
             console.error('Cloudinary error:', data);
-            alert('Image upload failed. Please try again.');
             return null;
         }
     } catch (error) {
-        console.error('Upload error:', error);
-        alert('Network error during upload.');
+        console.error('Upload failed:', error);
         return null;
     }
 };
