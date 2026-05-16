@@ -1,6 +1,7 @@
 import React, { createContext, useState, useContext } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import apiCall from '../api/client';
+import API_BASE_URL from '../api/config';
 
 const AppContext = createContext();
 
@@ -10,144 +11,152 @@ export const AppProvider = ({ children }) => {
     const [bookings, setBookings] = useState([]);
     const [isLoggedIn, setIsLoggedIn] = useState(false);
     const [loading, setLoading] = useState(false);
+    const [loggingOut, setLoggingOut] = useState(false);
 
     // ─── AUTH ─────────────────────────────────────────────────
 
     const login = async (email, password) => {
-        try {
-            setLoading(true);
-            const data = await apiCall('/auth/login/', 'POST', { email, password });
-            await AsyncStorage.setItem('access_token', data.tokens.access);
-            await AsyncStorage.setItem('refresh_token', data.tokens.refresh);
-            await AsyncStorage.setItem('user', JSON.stringify(data.user));
-            setUser(data.user);
-            setIsLoggedIn(true);
-            await loadMeals();
-            return { success: true };
-        } catch (error) {
-            return { success: false, error: error.message };
-        } finally {
-            setLoading(false);
+        setLoading(true);
+        const data = await apiCall('/auth/login/', 'POST', { email, password });
+        setLoading(false);
+
+        if (data?.error) {
+            const msg = data.error.error || data.error.detail || 'Login failed';
+            return { success: false, error: msg };
         }
+
+        await AsyncStorage.setItem('access_token', data.tokens.access);
+        await AsyncStorage.setItem('refresh_token', data.tokens.refresh);
+        await AsyncStorage.setItem('user', JSON.stringify(data.user));
+        setUser(data.user);
+        setIsLoggedIn(true);
+        await loadMeals();
+        return { success: true };
     };
 
     const loginAfterVerification = async (userData, tokens) => {
-        try {
-            await AsyncStorage.setItem('access_token', tokens.access);
-            await AsyncStorage.setItem('refresh_token', tokens.refresh);
-            await AsyncStorage.setItem('user', JSON.stringify(userData));
-            setUser(userData);
-            setIsLoggedIn(true);
-            await loadMeals();
-        } catch (error) {
-            console.log('Login after verification error:', error);
-        }
+        await AsyncStorage.setItem('access_token', tokens.access);
+        await AsyncStorage.setItem('refresh_token', tokens.refresh);
+        await AsyncStorage.setItem('user', JSON.stringify(userData));
+        setUser(userData);
+        setIsLoggedIn(true);
+        await loadMeals();
     };
 
     const logout = async () => {
+        if (loggingOut) return;  // prevent double press
+        setLoggingOut(true);
         try {
             const refresh = await AsyncStorage.getItem('refresh_token');
-            await apiCall('/auth/logout/', 'POST', { refresh }, true);
+            const access = await AsyncStorage.getItem('access_token');
+
+            if (refresh && access) {
+                await fetch(`${API_BASE_URL}/auth/logout/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${access}`,
+                        'ngrok-skip-browser-warning': 'true',
+                    },
+                    body: JSON.stringify({ refresh }),
+                });
+            }
         } catch (error) {
             console.log('Logout error:', error);
         } finally {
-            await AsyncStorage.removeItem('access_token');
-            await AsyncStorage.removeItem('refresh_token');
-            await AsyncStorage.removeItem('user');
+            await AsyncStorage.multiRemove(['access_token', 'refresh_token', 'user']);
             setUser(null);
             setIsLoggedIn(false);
             setMeals([]);
             setBookings([]);
+            setLoggingOut(false);
         }
     };
 
     // ─── MEALS ────────────────────────────────────────────────
 
     const loadMeals = async () => {
-        try {
-            const data = await apiCall('/meals/');
-            setMeals(data);
-        } catch (error) {
-            console.log('Load meals error:', error);
+        const data = await apiCall('/meals/');
+        if (!data?.error) {
+            setMeals(Array.isArray(data) ? data : []);
         }
     };
 
     const addMeal = async (mealData) => {
-        try {
-            setLoading(true);
-            const data = await apiCall('/meals/', 'POST', {
-                title: mealData.title,
-                description: mealData.description,
-                category: mealData.category || 'Nepali',
-                price_per_portion: parseFloat(mealData.pricePerPortion),
-                total_portions: parseInt(mealData.totalPortions),
-                is_vegetarian: mealData.isVegetarian || false,
-                image: mealData.image || '',
-                pickup_time: mealData.pickupTime,
-                pickup_location: mealData.pickupLocation,
-                meal_date: mealData.mealDate || new Date().toISOString().split('T')[0],
-                tags: mealData.tags || [],
-                calories: mealData.calories || 400,
-                protein: mealData.protein || 15,
-            }, true);
-            setMeals(prev => [data, ...prev]);
-            return { success: true };
-        } catch (error) {
-            return { success: false, error: error.message };
-        } finally {
-            setLoading(false);
+        setLoading(true);
+        // Use camelCase — client.js converts to snake_case automatically
+        const data = await apiCall('/meals/', 'POST', {
+            title: mealData.title,
+            description: mealData.description,
+            category: mealData.category || 'Nepali',
+            pricePerPortion: parseFloat(mealData.pricePerPortion),
+            totalPortions: parseInt(mealData.totalPortions),
+            availablePortions: parseInt(mealData.totalPortions),
+            isVegetarian: mealData.isVegetarian || false,
+            image: mealData.image || '',
+            pickupTime: mealData.pickupTime,
+            pickupLocation: mealData.pickupLocation,
+            mealDate: mealData.mealDate || new Date().toISOString().split('T')[0],
+            tags: mealData.tags || [],
+            calories: mealData.calories || 400,
+            protein: mealData.protein || 15,
+        }, true);
+        setLoading(false);
+
+        if (data?.error) {
+            return { error: data.error };
         }
+
+        setMeals(prev => [data, ...prev]);
+        return data;  // return meal object so AddMealScreen can check !result.error
     };
 
     // ─── BOOKINGS ─────────────────────────────────────────────
 
     const bookMeal = async (meal, portions) => {
-        try {
-            setLoading(true);
-            const data = await apiCall('/bookings/', 'POST', {
-                meal_id: meal.id,
-                portions,
-            }, true);
-            setBookings(prev => [data, ...prev]);
-            setMeals(prev => prev.map(m =>
-                m.id === meal.id
-                    ? { ...m, available_portions: m.available_portions - portions }
-                    : m
-            ));
-            return { success: true };
-        } catch (error) {
-            return { success: false, error: error.message };
-        } finally {
-            setLoading(false);
+        setLoading(true);
+        const data = await apiCall('/bookings/', 'POST', {
+            mealId: meal.id,   // client.js converts to meal_id automatically
+            portions,
+        }, true);
+        setLoading(false);
+
+        if (data?.error) {
+            return { error: data.error };
         }
+
+        setBookings(prev => [data, ...prev]);
+        // Update available portions locally
+        setMeals(prev => prev.map(m =>
+            m.id === meal.id
+                ? { ...m, availablePortions: (m.availablePortions || 0) - portions }
+                : m
+        ));
+        return data;
     };
 
     const cancelBookingAction = async (bookingId) => {
-        try {
-            await apiCall(`/bookings/${bookingId}/cancel/`, 'POST', null, true);
-            setBookings(prev => prev.map(b =>
-                b.id === bookingId ? { ...b, status: 'cancelled' } : b
-            ));
-            return { success: true };
-        } catch (error) {
-            return { success: false, error: error.message };
+        const data = await apiCall(`/bookings/${bookingId}/cancel/`, 'POST', null, true);
+        if (data?.error) {
+            return { error: data.error };
         }
+        setBookings(prev => prev.map(b =>
+            b.id === bookingId ? { ...b, status: 'cancelled' } : b
+        ));
+        return { success: true };
     };
 
     const loadBookings = async () => {
-        try {
-            const data = await apiCall('/bookings/', 'GET', null, true);
-            setBookings(data);
-        } catch (error) {
-            console.log('Load bookings error:', error);
+        const data = await apiCall('/bookings/', 'GET', null, true);
+        if (!data?.error) {
+            setBookings(Array.isArray(data) ? data : []);
         }
     };
 
     // ─── AI RECOMMENDATIONS ───────────────────────────────────
 
     const getAIRecommendations = () => {
-        const shuffled = [...meals].sort(() => 0.5 - Math.random());
-        return shuffled.slice(0, 3);
+        return [...meals].sort(() => 0.5 - Math.random()).slice(0, 3);
     };
 
     return (
@@ -160,9 +169,11 @@ export const AppProvider = ({ children }) => {
             login,
             loginAfterVerification,
             logout,
+            loggingOut,
             addMeal,
             bookMeal,
             cancelBooking: cancelBookingAction,
+            cancelBookingAction,
             loadMeals,
             loadBookings,
             getAIRecommendations,

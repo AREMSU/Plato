@@ -37,7 +37,16 @@ export default function HomeScreen({ navigation }) {
               <Text style={styles.userName}>{user?.name?.split(' ')[0]} 👋</Text>
             </View>
             <TouchableOpacity onPress={() => navigation.navigate('Profile')}>
-              <Image source={{ uri: user?.avatar }} style={styles.avatar} />
+
+              {user?.avatar ? (
+                <Image source={{ uri: user.avatar }} style={styles.avatar} />
+              ) : (
+                <View style={[styles.avatar, { backgroundColor: '#FF8C42', justifyContent: 'center', alignItems: 'center' }]}>
+                  <Text style={{ fontSize: 20 }}>
+                    {user?.name?.charAt(0)?.toUpperCase() || '👤'}
+                  </Text>
+                </View>
+              )}
             </TouchableOpacity>
           </View>
           <TouchableOpacity style={styles.searchBar} onPress={() => navigation.navigate('Explore')}>

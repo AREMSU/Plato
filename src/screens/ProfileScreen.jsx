@@ -20,7 +20,7 @@ import RatingStars from '../components/RatingStars';
 import UserAvatar from '../components/UserAvatar';
 
 export default function ProfileScreen({ navigation }) {
-  const { user, logout, meals, bookings, setUser } = useApp();
+  const { user, logout, meals, bookings, setUser , loggingOut } = useApp();
 
   const myMeals = meals.filter((m) => m.sellerId === user?.id);
   const activeBookings = bookings.filter((b) => b.status === 'confirmed');
@@ -506,6 +506,7 @@ export default function ProfileScreen({ navigation }) {
         <TouchableOpacity
           style={styles.logoutButton}
           onPress={handleLogout}
+          disabled={loggingOut}
         >
           <Text style={styles.logoutIcon}>🚪</Text>
           <Text style={styles.logoutText}>Log Out</Text>

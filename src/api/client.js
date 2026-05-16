@@ -27,9 +27,8 @@ const apiCall = async (endpoint, method = 'GET', body = null, requiresAuth = fal
 
         if (requiresAuth) {
             // Try both key names for safety
-            const token =
-                (await AsyncStorage.getItem('accessToken')) ||
-                (await AsyncStorage.getItem('access_token'));
+            const token = await AsyncStorage.getItem('access_token');
+
             if (token) {
                 headers['Authorization'] = `Bearer ${token}`;
             } else {
