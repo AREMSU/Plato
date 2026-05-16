@@ -10,15 +10,22 @@ urlpatterns = [
     path('auth/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('auth/verify-otp/', views.VerifyOTPView.as_view(), name='verify-otp'),
     path('auth/resend-otp/', views.ResendOTPView.as_view(), name='resend-otp'),
+
     # User
     path('users/me/', views.UserProfileView.as_view(), name='profile'),
 
-    # Meals
+    # Meals — my/ MUST be before <int:pk>/
     path('meals/', views.MealListCreateView.as_view(), name='meals'),
-    path('meals/<int:pk>/', views.MealDetailView.as_view(), name='meal-detail'),
     path('meals/my/', views.MyMealsView.as_view(), name='my-meals'),
+    path('meals/<int:pk>/', views.MealListCreateView.as_view(), name='meal-detail'),
 
     # Bookings
     path('bookings/', views.BookingListCreateView.as_view(), name='bookings'),
     path('bookings/<int:pk>/cancel/', views.CancelBookingView.as_view(), name='cancel-booking'),
+
+    # Subscription
+    path('subscription/', views.SubscriptionStatusView.as_view()),
+    path('subscription/upgrade/', views.SubscriptionUpgradeView.as_view()),
+    path('subscription/cancel/', views.SubscriptionCancelView.as_view()),
+    path('subscription/renew/', views.SubscriptionRenewView.as_view()),
 ]

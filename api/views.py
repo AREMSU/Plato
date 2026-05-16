@@ -1,12 +1,18 @@
+from datetime import timedelta
+
 from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.permissions import IsAuthenticated, AllowAny, IsAuthenticatedOrReadOnly
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import authenticate
-from .models import User, Meal, Booking, OTP
+from django.utils import timezone
+import uuid
+
+from api import models
+from .models import Subscription, User, Meal, Booking, OTP
 from .serializers import (
-    RegisterSerializer, UserSerializer,
+    RegisterSerializer, SubscriptionSerializer, UserSerializer,
     MealSerializer, BookingSerializer
 )
 from rest_framework.decorators import api_view, permission_classes
@@ -279,28 +285,38 @@ class MealListCreateView(APIView):
         return Response(serializer.errors, status=400)
 
 
-class MealDetailView(APIView):
-    def get_permissions(self):
-        if self.request.method == 'GET':
-            return [AllowAny()]
-        return [IsAuthenticated()]
+class MealListView(APIView):
+    permission_classes = [IsAuthenticatedOrReadOnly]
 
-    def get(self, request, pk):
-        try:
-            meal = Meal.objects.get(pk=pk)
-            return Response(MealSerializer(meal).data)
-        except Meal.DoesNotExist:
-            return Response({'error': 'Meal not found'}, status=404)
+    def get(self, request):
+        meals = Meal.objects.all()
 
-    def delete(self, request, pk):
-        try:
-            meal = Meal.objects.get(pk=pk)
-            if meal.seller != request.user:
-                return Response({'error': 'Not authorized'}, status=403)
-            meal.delete()
-            return Response({'message': 'Meal deleted'})
-        except Meal.DoesNotExist:
-            return Response({'error': 'Meal not found'}, status=404)
+        # Filters
+        category = request.query_params.get('category')
+        is_vegetarian = request.query_params.get('is_vegetarian')
+        search = request.query_params.get('search')
+        sort = request.query_params.get('sort', 'newest')
+
+        if category:
+            meals = meals.filter(category=category)
+        if is_vegetarian:
+            meals = meals.filter(is_vegetarian=True)
+        if search:
+            meals = meals.filter(
+                models.Q(title__icontains=search) |
+                models.Q(description__icontains=search)
+            )
+
+        # ── Sort: featured (pro sellers) always first ──
+        if sort == 'rating':
+            meals = meals.order_by('-is_featured', '-rating')
+        elif sort == 'price':
+            meals = meals.order_by('-is_featured', 'price_per_portion')
+        else:  # newest (default)
+            meals = meals.order_by('-is_featured', '-created_at')
+
+        serializer = MealSerializer(meals, many=True, context={'request': request})
+        return Response(serializer.data)
 
 
 # ─── BOOKING VIEWS ────────────────────────────────────────────
@@ -441,3 +457,116 @@ def verify_otp(request):
     otp.save()
 
     return Response({'message': 'OTP verified successfully'}, status=200)
+
+class SubscriptionStatusView(APIView):
+    """GET /api/subscription/ — get current user's subscription status"""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        subscription, created = Subscription.objects.get_or_create(
+            user=request.user,
+            defaults={'plan': 'free', 'is_active': False}
+        )
+        serializer = SubscriptionSerializer(subscription)
+        return Response(serializer.data)
+
+
+class SubscriptionUpgradeView(APIView):
+    """POST /api/subscription/upgrade/ — mock upgrade to pro"""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        # In real version: verify eSewa/Khalti payment here
+        # For now: mock payment — just activate pro
+
+        subscription, created = Subscription.objects.get_or_create(
+            user=request.user,
+            defaults={'plan': 'free', 'is_active': False}
+        )
+
+        if subscription.is_pro():
+            return Response({
+                'error': 'Already on Pro plan',
+                'expires_at': subscription.expires_at,
+                'days_remaining': subscription.days_remaining(),
+            }, status=400)
+
+        # Activate pro for 30 days
+        now = timezone.now()
+        subscription.plan = 'pro'
+        subscription.is_active = True
+        subscription.started_at = now
+        subscription.expires_at = now + timedelta(days=30)
+        subscription.amount_paid = 199.00
+        subscription.payment_reference = f"MOCK-{uuid.uuid4().hex[:12].upper()}"
+        subscription.save()
+
+        # Feature all existing meals by this user
+        Meal.objects.filter(seller=request.user).update(is_featured=True)
+
+        serializer = SubscriptionSerializer(subscription)
+        return Response({
+            'message': 'Upgraded to Pro successfully!',
+            'subscription': serializer.data,
+            'payment_reference': subscription.payment_reference,
+        })
+
+
+class SubscriptionCancelView(APIView):
+    """POST /api/subscription/cancel/ — cancel pro subscription"""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        try:
+            subscription = Subscription.objects.get(user=request.user)
+        except Subscription.DoesNotExist:
+            return Response({'error': 'No subscription found'}, status=404)
+
+        if not subscription.is_pro():
+            return Response({'error': 'No active Pro subscription'}, status=400)
+
+        # Deactivate — keep expires_at so they get the rest of the period
+        subscription.is_active = False
+        subscription.save()
+
+        # Unfeature their meals
+        Meal.objects.filter(seller=request.user).update(is_featured=False)
+
+        return Response({
+            'message': 'Subscription cancelled. Access continues until expiry.',
+            'expires_at': subscription.expires_at,
+        })
+
+#This is subscription renew view for testing purposes, not linked in frontend yet
+class SubscriptionRenewView(APIView):
+    """POST /api/subscription/renew/ — mock renew for another 30 days"""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        try:
+            subscription = Subscription.objects.get(user=request.user)
+        except Subscription.DoesNotExist:
+            return Response({'error': 'No subscription found'}, status=404)
+
+        now = timezone.now()
+
+        # If still active, extend from current expiry
+        # If expired, start fresh from now
+        base = subscription.expires_at if (subscription.expires_at and subscription.expires_at > now) else now
+
+        subscription.plan = 'pro'
+        subscription.is_active = True
+        subscription.started_at = now
+        subscription.expires_at = base + timedelta(days=30)
+        subscription.amount_paid = 199.00
+        subscription.payment_reference = f"MOCK-{uuid.uuid4().hex[:12].upper()}"
+        subscription.save()
+
+        # Re-feature meals
+        Meal.objects.filter(seller=request.user).update(is_featured=True)
+
+        serializer = SubscriptionSerializer(subscription)
+        return Response({
+            'message': 'Subscription renewed for 30 days!',
+            'subscription': serializer.data,
+        })

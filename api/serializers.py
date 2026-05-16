@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import User, Meal, Booking
+from .models import Subscription, User, Meal, Booking, OTP
 
 
 class RegisterSerializer(serializers.Serializer):
@@ -27,29 +27,36 @@ class RegisterSerializer(serializers.Serializer):
 
 
 class UserSerializer(serializers.ModelSerializer):
-    name = serializers.SerializerMethodField()
+    name = serializers.CharField(source='username')  # ← maps 'name' → 'username'
     reliability_badge = serializers.SerializerMethodField()
+    is_pro = serializers.SerializerMethodField()
+    subscription_expires = serializers.SerializerMethodField()
 
     class Meta:
         model = User
         fields = [
-            'id', 'name', 'email', 'university',
-            'bio', 'avatar', 'rating', 'meals_shared',
-            'reliability_badge', 'date_joined'
+            'id', 'name', 'email', 'university', 'bio',
+            'avatar', 'rating', 'meals_shared',
+            'reliability_badge', 'is_pro', 'subscription_expires',
         ]
 
-    def get_name(self, obj):
-        return obj.first_name or obj.email
-
     def get_reliability_badge(self, obj):
-        if obj.rating >= 4.8:
-            return 'Top Chef'
-        elif obj.rating >= 4.5:
-            return 'Trusted'
-        elif obj.rating >= 4.0:
-            return 'Good'
+        if obj.rating >= 4.8: return 'Top Chef'
+        if obj.rating >= 4.5: return 'Trusted'
+        if obj.rating >= 4.0: return 'Good'
         return 'New'
 
+    def get_is_pro(self, obj):
+        try:
+            return obj.subscription.is_pro()
+        except Exception:
+            return False
+
+    def get_subscription_expires(self, obj):
+        try:
+            return obj.subscription.expires_at
+        except Exception:
+            return None
 
 class MealSerializer(serializers.ModelSerializer):
     seller_name = serializers.SerializerMethodField()
@@ -65,7 +72,7 @@ class MealSerializer(serializers.ModelSerializer):
             'seller_name', 'seller_avatar', 'seller_rating',
             'pickup_time', 'pickup_location', 'meal_date',
             'tags', 'rating', 'reviews', 'calories', 'protein',
-            'created_at'
+            'created_at', 'is_featured'
         ]
         read_only_fields = [
             'seller', 'available_portions', 'bookings',
@@ -105,3 +112,21 @@ class BookingSerializer(serializers.ModelSerializer):
     def get_refund_amount(self, obj):
         fee = round(obj.total_cost * 0.3)
         return obj.total_cost - fee
+    
+class SubscriptionSerializer(serializers.ModelSerializer):
+    is_pro = serializers.SerializerMethodField()
+    days_remaining = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Subscription
+        fields = [
+            'id', 'plan', 'is_active', 'is_pro',
+            'started_at', 'expires_at', 'days_remaining',
+            'payment_reference', 'amount_paid', 'created_at',
+        ]
+
+    def get_is_pro(self, obj):
+        return obj.is_pro()
+
+    def get_days_remaining(self, obj):
+        return obj.days_remaining()

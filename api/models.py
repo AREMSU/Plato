@@ -60,6 +60,7 @@ class Meal(models.Model):
     calories = models.IntegerField(default=400)
     protein = models.IntegerField(default=15)
     created_at = models.DateTimeField(auto_now_add=True)
+    is_featured = models.BooleanField(default=False)
 
     def __str__(self):
         return self.title
@@ -101,3 +102,41 @@ class OTP(models.Model):
 
     def __str__(self):
         return f"{self.email} - {self.code}"
+    
+
+    # Add to api/models.py
+
+class Subscription(models.Model):
+    PLANS = [
+        ('free', 'Free'),
+        ('pro', 'Pro'),
+    ]
+
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='subscription')
+    plan = models.CharField(max_length=20, choices=PLANS, default='free')
+    is_active = models.BooleanField(default=False)
+    started_at = models.DateTimeField(null=True, blank=True)
+    expires_at = models.DateTimeField(null=True, blank=True)
+    
+    # Mock payment fields (replace with real later)
+    payment_reference = models.CharField(max_length=200, blank=True)
+    amount_paid = models.FloatField(default=0)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def is_pro(self):
+        if self.plan == 'pro' and self.is_active:
+            # Check not expired
+            if self.expires_at and timezone.now() < self.expires_at:
+                return True
+        return False
+
+    def days_remaining(self):
+        if self.expires_at and self.is_active:
+            delta = self.expires_at - timezone.now()
+            return max(0, delta.days)
+        return 0
+
+    def __str__(self):
+        return f"{self.user.email} — {self.plan}"
