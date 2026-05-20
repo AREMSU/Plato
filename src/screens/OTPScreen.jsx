@@ -69,6 +69,12 @@ export default function OTPScreen({ navigation, route }) {
     return (
         <View style={styles.container}>
             <LinearGradient colors={['#FF6B35', '#FF8C42']} style={styles.header}>
+                <TouchableOpacity
+                    style={styles.backButton}
+                    onPress={() => navigation.navigate('Register')}
+                >
+                    <Text style={styles.backArrow}>←</Text>
+                </TouchableOpacity>
                 <Text style={styles.headerTitle}>Verify Email 📧</Text>
                 <Text style={styles.headerSubtitle}>
                     We sent a 6 digit code to
@@ -131,6 +137,14 @@ const styles = StyleSheet.create({
         paddingHorizontal: 30, alignItems: 'center',
         borderBottomLeftRadius: 40, borderBottomRightRadius: 40,
     },
+    backButton: {
+        position: 'absolute', top: 50, left: 20,
+        width: 40, height: 40, borderRadius: 20,
+        backgroundColor: 'rgba(255,255,255,0.25)',
+        alignItems: 'center', justifyContent: 'center',
+        zIndex: 10,
+    },
+    backArrow: { fontSize: 22, color: '#fff', fontWeight: '700' },
     headerTitle: { fontSize: 28, fontWeight: '800', color: '#fff', marginBottom: 8 },
     headerSubtitle: { fontSize: 15, color: 'rgba(255,255,255,0.85)' },
     email: { fontSize: 16, color: '#fff', fontWeight: '700', marginTop: 4 },

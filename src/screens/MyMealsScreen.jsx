@@ -58,10 +58,13 @@ export default function MyMealsScreen({ navigation }) {
         booking.status === 'cancelled' && styles.cancelledCard,
       ]}
     >
-      <Image
-        source={{ uri: booking.meal.image }}
-        style={styles.bookingImage}
-      />
+      {booking?.meal?.image ? (
+        <Image source={{ uri: booking.meal.image }} style={styles.bookingImage} />
+      ) : (
+        <View style={[styles.bookingImage, styles.bookingImagePlaceholder]}>
+          <Text style={styles.bookingImagePlaceholderText}>🍽️</Text>
+        </View>
+      )}
       <View style={styles.bookingInfo}>
         <View style={styles.bookingHeader}>
           <Text style={styles.bookingTitle} numberOfLines={1}>
@@ -125,10 +128,13 @@ export default function MyMealsScreen({ navigation }) {
       style={styles.myMealCard}
       onPress={() => navigation.navigate('MealDetail', { meal })}
     >
-      <Image
-        source={{ uri: meal.image }}
-        style={styles.myMealImage}
-      />
+      {meal?.image ? (
+        <Image source={{ uri: meal.image }} style={styles.myMealImage} />
+      ) : (
+        <View style={[styles.myMealImage, styles.myMealImagePlaceholder]}>
+          <Text style={styles.myMealImagePlaceholderText}>🍽️</Text>
+        </View>
+      )}
       <View style={styles.myMealInfo}>
         <Text style={styles.myMealTitle} numberOfLines={1}>
           {meal.title}
@@ -359,6 +365,12 @@ const styles = StyleSheet.create({
     minHeight: 120,
     resizeMode: 'cover',
   },
+  bookingImagePlaceholder: {
+    backgroundColor: '#FFF3EE',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  bookingImagePlaceholderText: { fontSize: 26 },
   bookingInfo: { flex: 1, padding: 14 },
   bookingHeader: {
     flexDirection: 'row',
@@ -419,6 +431,12 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     resizeMode: 'cover',
   },
+  myMealImagePlaceholder: {
+    backgroundColor: '#FFF3EE',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  myMealImagePlaceholderText: { fontSize: 26 },
   myMealInfo: { flex: 1 },
   myMealTitle: {
     fontSize: 15,

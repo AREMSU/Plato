@@ -32,6 +32,7 @@ const handleLogin = async () => {
         if (!result.success) {
             Alert.alert('Login Failed', result.error || 'Invalid credentials');
         }
+      
     } catch (error) {
         Alert.alert('Error', 'Something went wrong. Please try again.');
     } finally {

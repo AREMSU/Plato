@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 node_modules/
 .expo/
 .expo-shared/
@@ -7,7 +6,7 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .DS_Store
-=======
+
 # Virtual environment
 venv/
 
@@ -25,4 +24,3 @@ db.sqlite3
 
 # VS Code
 .vscode/
->>>>>>> c62b21e3e95f09d5f967192f712f93570a304ae2

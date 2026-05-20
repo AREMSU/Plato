@@ -32,7 +32,7 @@ export const uploadImageToCloudinary = async (localUri) => {
             return null;
         }
     } catch (error) {
-        console.error('Upload failed:', );
+        console.error('Upload failed:', error);
         return null;
     }
 };

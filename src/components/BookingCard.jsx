@@ -4,9 +4,16 @@ import { formatCurrency } from '../utils/helpers';
 
 export default function BookingCard({ booking, onCancel }) {
   const isConfirmed = booking.status === 'confirmed';
+  const bookingImage = booking?.meal?.image || '';
   return (
     <View style={[styles.card, !isConfirmed && styles.cancelledCard]}>
-      <Image source={{ uri: booking.meal.image }} style={styles.image} />
+      {bookingImage ? (
+        <Image source={{ uri: bookingImage }} style={styles.image} />
+      ) : (
+        <View style={[styles.image, styles.imagePlaceholder]}>
+          <Text style={styles.imagePlaceholderText}>🍽️</Text>
+        </View>
+      )}
       <View style={styles.content}>
         <View style={styles.topRow}>
           <Text style={styles.title} numberOfLines={1}>
@@ -43,6 +50,12 @@ const styles = StyleSheet.create({
   },
   cancelledCard: { opacity: 0.65 },
   image: { width: 95, height: 115, resizeMode: 'cover' },
+  imagePlaceholder: {
+    backgroundColor: '#FFF3EE',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  imagePlaceholderText: { fontSize: 24 },
   content: { flex: 1, padding: 12 },
   topRow: {
     flexDirection: 'row', justifyContent: 'space-between',

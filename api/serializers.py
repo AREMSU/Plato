@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from .models import Subscription, User, Meal, Booking, OTP
+from .validators import is_disposable_email, has_email_dns
 
 
 class RegisterSerializer(serializers.Serializer):
@@ -8,6 +9,20 @@ class RegisterSerializer(serializers.Serializer):
     password = serializers.CharField(write_only=True, min_length=6)
     confirm_password = serializers.CharField(write_only=True)
     university = serializers.CharField(required=False, allow_blank=True)
+
+    def validate_email(self, value):
+        """Block disposable/temporary email domains."""
+        if is_disposable_email(value):
+            raise serializers.ValidationError(
+                'Disposable or temporary email addresses are not allowed. '
+                'Please use a real email address.'
+            )
+        if not has_email_dns(value):
+            raise serializers.ValidationError(
+                'Email domain does not exist or cannot receive mail. '
+                'Please use a real email address.'
+            )
+        return value
 
     def validate(self, data):
         if data['password'] != data['confirm_password']:

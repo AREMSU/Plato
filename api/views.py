@@ -22,6 +22,7 @@ import random
 from .models import OTP
 from django.conf import settings
 from .email_service import send_otp_email
+from .validators import is_disposable_email
 from django.utils import timezone
 # ─── AUTH VIEWS ───────────────────────────────────────────────
 
@@ -417,6 +418,13 @@ def send_otp(request):
     email = request.data.get('email')
     if not email:
         return Response({'error': 'Email is required'}, status=400)
+
+    # Block disposable/temporary email domains
+    if is_disposable_email(email):
+        return Response({
+            'error': 'Disposable or temporary email addresses are not allowed. '
+                     'Please use a real email address.'
+        }, status=400)
 
     # Invalidate old OTPs
     OTP.objects.filter(email=email, is_used=False).update(is_used=True)

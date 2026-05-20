@@ -16,6 +16,16 @@ const convertKeys = (obj, converter) => {
     return obj;
 };
 
+const getErrorMessage = (data) => {
+    if (!data) return 'Request failed';
+    if (typeof data === 'string') return data;
+    if (data.message) return data.message;
+    if (data.error) return data.error;
+    const firstArray = Object.values(data).find((v) => Array.isArray(v) && v.length);
+    if (firstArray) return firstArray[0];
+    return 'Request failed';
+};
+
 // ── Main API call ─────────────────────────────────────────────────────────────
 
 const apiCall = async (endpoint, method = 'GET', body = null, requiresAuth = false) => {
@@ -60,7 +70,7 @@ const apiCall = async (endpoint, method = 'GET', body = null, requiresAuth = fal
 
         if (!response.ok) {
             console.log('API ERROR:', response.status, JSON.stringify(data));
-            return { error: data, status: response.status };
+            throw new Error(getErrorMessage(data));
         }
 
         // Convert all response keys from snake_case → camelCase
@@ -68,7 +78,7 @@ const apiCall = async (endpoint, method = 'GET', body = null, requiresAuth = fal
 
     } catch (error) {
         console.error('API CALL FAILED:', error.message);
-        return { error: { message: 'Network error. Is the server running?' } };
+        throw new Error(error.message || 'Network error. Is the server running?');
     }
 };
 
