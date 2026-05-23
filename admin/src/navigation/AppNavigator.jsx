@@ -81,18 +81,23 @@ const AppNavigator = () => {
 
 const styles = StyleSheet.create({
   tabBar: {
-    backgroundColor: '#0e0e16',
+    backgroundColor: '#FFFFFF',
     borderTopWidth: 1,
-    borderTopColor: COLORS.border,
-    height: 72,
-    paddingBottom: 8,
-    paddingTop: 8,
+    borderTopColor: '#E2E8F0',
+    height: 76,
+    paddingBottom: 12,
+    paddingTop: 10,
+    shadowColor: '#FF6B35',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.04,
+    shadowRadius: 16,
+    elevation: 8,
   },
   tabItem: { alignItems: 'center', justifyContent: 'center' },
   tabIcon: { fontSize: 20, opacity: 0.5 },
   tabIconActive: { opacity: 1 },
-  tabLabel: { fontSize: 10, fontWeight: '600', color: COLORS.textMuted, marginTop: 3 },
-  tabLabelActive: { color: COLORS.accent },
+  tabLabel: { fontSize: 10, fontWeight: '600', color: COLORS.textSecondary, marginTop: 3 },
+  tabLabelActive: { color: COLORS.accent, fontWeight: '700' },
 });
 
 export default AppNavigator;

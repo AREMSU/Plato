@@ -17,12 +17,17 @@ const StatCard = ({ icon, value, label, color = COLORS.accentGlow }) => {
 const styles = StyleSheet.create({
   card: {
     backgroundColor: COLORS.bgCard,
-    borderRadius: 14,
+    borderRadius: 16,
     padding: 18,
     borderWidth: 1,
     borderColor: COLORS.border,
     flex: 1,
     minWidth: 140,
+    shadowColor: '#1F2937',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.03,
+    shadowRadius: 12,
+    elevation: 2,
   },
   iconWrap: {
     width: 40,
