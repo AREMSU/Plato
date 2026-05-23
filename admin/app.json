@@ -1,0 +1,11 @@
+{
+  "expo": {
+    "name": "Plato Admin",
+    "slug": "plato-admin",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "platoadmin",
+    "platforms": ["ios", "android"],
+    "newArchEnabled": true
+  }
+}
