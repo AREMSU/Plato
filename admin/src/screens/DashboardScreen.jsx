@@ -82,7 +82,7 @@ const DashboardScreen = ({ navigation }) => {
         <View style={styles.card}>
           <Text style={styles.cardTitle}>⚡ Recent Bookings</Text>
           {(data.recent_bookings || []).slice(0, 5).map((b, i) => (
-            <View key={i} style={styles.activityItem}>
+            <TouchableOpacity key={i} style={styles.activityItem} onPress={() => b.meal?.id && navigation.navigate('MealDetail', { mealId: b.meal.id })} activeOpacity={0.7}>
               <View style={[styles.actIcon, { backgroundColor: b.status === 'confirmed' ? COLORS.successBg : COLORS.dangerBg }]}>
                 <Text>{b.status === 'confirmed' ? '✅' : '❌'}</Text>
               </View>
@@ -91,7 +91,7 @@ const DashboardScreen = ({ navigation }) => {
                 <Text style={styles.actSub}>{b.portions} portions · {formatCurrency(b.total_cost)}</Text>
               </View>
               <Text style={styles.actTime}>{timeAgo(b.booked_at)}</Text>
-            </View>
+            </TouchableOpacity>
           ))}
           {(!data.recent_bookings || data.recent_bookings.length === 0) && (
             <Text style={styles.emptyText}>No bookings yet</Text>

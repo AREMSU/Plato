@@ -19,9 +19,9 @@ const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
 
 const TabIcon = ({ icon, label, focused }) => (
-  <View style={styles.tabItem}>
-    <Text style={[styles.tabIcon, focused && styles.tabIconActive]}>{icon}</Text>
-    <Text style={[styles.tabLabel, focused && styles.tabLabelActive]}>{label}</Text>
+  <View style={[styles.tabItem, focused && styles.tabItemActive]}>
+    <Text style={styles.tabIcon}>{icon}</Text>
+    {focused && <Text style={styles.tabLabel}>{label}</Text>}
   </View>
 );
 
@@ -84,20 +84,30 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderTopWidth: 1,
     borderTopColor: '#E2E8F0',
-    height: 76,
-    paddingBottom: 12,
-    paddingTop: 10,
+    height: 72,
+    paddingBottom: 0,
+    paddingTop: 0,
     shadowColor: '#FF6B35',
     shadowOffset: { width: 0, height: -4 },
     shadowOpacity: 0.04,
     shadowRadius: 16,
     elevation: 8,
   },
-  tabItem: { alignItems: 'center', justifyContent: 'center' },
-  tabIcon: { fontSize: 20, opacity: 0.5 },
-  tabIconActive: { opacity: 1 },
-  tabLabel: { fontSize: 10, fontWeight: '600', color: COLORS.textSecondary, marginTop: 3 },
-  tabLabelActive: { color: COLORS.accent, fontWeight: '700' },
+  tabItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+    height: 38,
+    marginTop: 10,
+  },
+  tabItemActive: {
+    backgroundColor: 'rgba(255,107,53,0.1)',
+  },
+  tabIcon: { fontSize: 18 },
+  tabLabel: { fontSize: 11, fontWeight: '700', color: COLORS.accent, marginLeft: 6 },
 });
 
 export default AppNavigator;

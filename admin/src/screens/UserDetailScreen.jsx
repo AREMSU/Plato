@@ -150,7 +150,7 @@ const styles = StyleSheet.create({
   infoValue: { fontSize: 15, fontWeight: '600', color: COLORS.text },
   section: { backgroundColor: COLORS.bgCard, borderRadius: 14, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: COLORS.border },
   sectionTitle: { fontSize: 16, fontWeight: '700', color: COLORS.text, marginBottom: 12 },
-  listItem: { paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.03)' },
+  listItem: { paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: COLORS.border },
   listTitle: { fontSize: 14, fontWeight: '600', color: COLORS.text },
   listSub: { fontSize: 12, color: COLORS.textSecondary, marginTop: 2 },
   empty: { color: COLORS.textMuted, textAlign: 'center', padding: 20 },

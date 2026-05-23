@@ -113,7 +113,7 @@ const s = StyleSheet.create({
   cardTitle: { fontSize: 16, fontWeight: '700', color: COLORS.text, marginBottom: 10 },
   desc: { fontSize: 14, color: COLORS.textSecondary, lineHeight: 20 },
   tags: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-  bookingRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.03)' },
+  bookingRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: COLORS.border },
   bTitle: { fontSize: 14, fontWeight: '600', color: COLORS.text },
   bSub: { fontSize: 12, color: COLORS.textSecondary, marginTop: 2 },
   bTime: { fontSize: 11, color: COLORS.textMuted },
