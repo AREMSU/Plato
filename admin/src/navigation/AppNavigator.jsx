@@ -18,47 +18,56 @@ import SubscriptionsScreen from '../screens/SubscriptionsScreen';
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
 
-const TabIcon = ({ icon, label, focused }) => (
-  <View style={[styles.tabItem, focused && styles.tabItemActive]}>
-    <Text style={styles.tabIcon}>{icon}</Text>
-    <Text style={[styles.tabLabel, focused && styles.tabLabelActive]} numberOfLines={1}>
-      {label}
-    </Text>
-  </View>
-);
-
 const MainTabs = () => (
   <Tab.Navigator
     screenOptions={{
       headerShown: false,
       tabBarStyle: styles.tabBar,
-      tabBarShowLabel: false,
+      tabBarActiveTintColor: COLORS.accent,
+      tabBarInactiveTintColor: COLORS.textSecondary,
+      tabBarLabelStyle: styles.tabLabel,
+      tabBarIconStyle: styles.tabIconWrap,
     }}
   >
     <Tab.Screen
       name="Dashboard"
       component={DashboardScreen}
-      options={{ tabBarIcon: ({ focused }) => <TabIcon icon="📊" label="Dashboard" focused={focused} /> }}
+      options={{
+        tabBarLabel: 'Dashboard',
+        tabBarIcon: ({ focused }) => <Text style={[styles.tabIcon, focused && styles.tabIconActive]}>📊</Text>,
+      }}
     />
     <Tab.Screen
       name="Users"
       component={UsersScreen}
-      options={{ tabBarIcon: ({ focused }) => <TabIcon icon="👥" label="Users" focused={focused} /> }}
+      options={{
+        tabBarLabel: 'Users',
+        tabBarIcon: ({ focused }) => <Text style={[styles.tabIcon, focused && styles.tabIconActive]}>👥</Text>,
+      }}
     />
     <Tab.Screen
       name="Meals"
       component={MealsScreen}
-      options={{ tabBarIcon: ({ focused }) => <TabIcon icon="🍛" label="Meals" focused={focused} /> }}
+      options={{
+        tabBarLabel: 'Meals',
+        tabBarIcon: ({ focused }) => <Text style={[styles.tabIcon, focused && styles.tabIconActive]}>🍛</Text>,
+      }}
     />
     <Tab.Screen
       name="Bookings"
       component={BookingsScreen}
-      options={{ tabBarIcon: ({ focused }) => <TabIcon icon="📋" label="Bookings" focused={focused} /> }}
+      options={{
+        tabBarLabel: 'Bookings',
+        tabBarIcon: ({ focused }) => <Text style={[styles.tabIcon, focused && styles.tabIconActive]}>📋</Text>,
+      }}
     />
     <Tab.Screen
       name="Subs"
       component={SubscriptionsScreen}
-      options={{ tabBarIcon: ({ focused }) => <TabIcon icon="💎" label="Subs" focused={focused} /> }}
+      options={{
+        tabBarLabel: 'Subs',
+        tabBarIcon: ({ focused }) => <Text style={[styles.tabIcon, focused && styles.tabIconActive]}>💎</Text>,
+      }}
     />
   </Tab.Navigator>
 );
@@ -86,39 +95,29 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderTopWidth: 1,
     borderTopColor: '#E2E8F0',
-    height: 72,
-    paddingBottom: 10,
-    paddingTop: 10,
+    height: 64,
+    paddingBottom: 8,
+    paddingTop: 6,
     shadowColor: '#FF6B35',
     shadowOffset: { width: 0, height: -4 },
     shadowOpacity: 0.04,
     shadowRadius: 16,
     elevation: 8,
   },
-  tabItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 6,
-    paddingHorizontal: 8,
-    borderRadius: 16,
-  },
-  tabItemActive: {
-    backgroundColor: 'rgba(255,107,53,0.1)',
+  tabIconWrap: {
+    marginTop: 4,
   },
   tabIcon: {
-    fontSize: 16,
-    textAlignVertical: 'center',
+    fontSize: 20,
+    opacity: 0.5,
+  },
+  tabIconActive: {
+    opacity: 1,
   },
   tabLabel: {
     fontSize: 10,
     fontWeight: '700',
-    color: COLORS.textSecondary,
-    marginLeft: 4,
-    textAlignVertical: 'center',
-  },
-  tabLabelActive: {
-    color: COLORS.accent,
+    marginBottom: 4,
   },
 });
 
