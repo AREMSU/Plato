@@ -21,7 +21,9 @@ const Tab = createBottomTabNavigator();
 const TabIcon = ({ icon, label, focused }) => (
   <View style={[styles.tabItem, focused && styles.tabItemActive]}>
     <Text style={styles.tabIcon}>{icon}</Text>
-    {focused && <Text style={styles.tabLabel}>{label}</Text>}
+    <Text style={[styles.tabLabel, focused && styles.tabLabelActive]} numberOfLines={1}>
+      {label}
+    </Text>
   </View>
 );
 
@@ -85,8 +87,8 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: '#E2E8F0',
     height: 72,
-    paddingBottom: 0,
-    paddingTop: 0,
+    paddingBottom: 10,
+    paddingTop: 10,
     shadowColor: '#FF6B35',
     shadowOffset: { width: 0, height: -4 },
     shadowOpacity: 0.04,
@@ -98,16 +100,26 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 20,
-    height: 38,
-    marginTop: 10,
+    paddingHorizontal: 8,
+    borderRadius: 16,
   },
   tabItemActive: {
     backgroundColor: 'rgba(255,107,53,0.1)',
   },
-  tabIcon: { fontSize: 18 },
-  tabLabel: { fontSize: 11, fontWeight: '700', color: COLORS.accent, marginLeft: 6 },
+  tabIcon: {
+    fontSize: 16,
+    textAlignVertical: 'center',
+  },
+  tabLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: COLORS.textSecondary,
+    marginLeft: 4,
+    textAlignVertical: 'center',
+  },
+  tabLabelActive: {
+    color: COLORS.accent,
+  },
 });
 
 export default AppNavigator;
