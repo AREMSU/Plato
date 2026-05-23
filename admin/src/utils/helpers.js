@@ -19,25 +19,25 @@ export const formatDate = (dateStr) => {
 };
 
 export const COLORS = {
-  bg: '#0a0a0f',
-  bgCard: '#16161f',
-  bgCardHover: '#1e1e2a',
-  bgGlass: 'rgba(255,255,255,0.06)',
-  border: 'rgba(255,255,255,0.08)',
-  text: '#f0f0f5',
-  textSecondary: '#8b8b9e',
-  textMuted: '#55556a',
-  accent: '#FF6B35',
-  accentLight: '#ff8a5c',
-  accentGlow: 'rgba(255,107,53,0.2)',
-  success: '#22c55e',
-  successBg: 'rgba(34,197,94,0.12)',
-  danger: '#ef4444',
-  dangerBg: 'rgba(239,68,68,0.12)',
-  warning: '#f59e0b',
-  warningBg: 'rgba(245,158,11,0.12)',
-  info: '#3b82f6',
-  infoBg: 'rgba(59,130,246,0.12)',
-  purple: '#a855f7',
-  purpleBg: 'rgba(168,85,247,0.12)',
+  bg: '#F5F7FA',              // Warm light gray background
+  bgCard: '#FFFFFF',          // Clean white for cards
+  bgCardHover: '#FAFCFF',
+  bgGlass: 'rgba(255,255,255,0.9)',
+  border: '#E2E8F0',          // Soft light gray border
+  text: '#1F2937',            // Dark charcoal text
+  textSecondary: '#4B5563',   // Medium slate text
+  textMuted: '#9CA3AF',       // Soft gray text
+  accent: '#FF6B35',          // Signature Plato Orange
+  accentLight: '#FF8C42',     // Signature Plato Orange Light
+  accentGlow: 'rgba(255,107,53,0.08)',
+  success: '#10B981',         // Green
+  successBg: '#E6F4EA',       // Soft green bg
+  danger: '#EF4444',          // Red
+  dangerBg: '#FCE8E6',        // Soft red bg
+  warning: '#F59E0B',         // Yellow
+  warningBg: '#FEF3C7',       // Soft yellow bg
+  info: '#3B82F6',            // Blue
+  infoBg: '#E8F0FE',          // Soft blue bg
+  purple: '#8B5CF6',          // Purple
+  purpleBg: '#F3E8FF',        // Soft purple bg
 };

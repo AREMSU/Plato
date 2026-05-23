@@ -25,7 +25,7 @@ const LoginScreen = () => {
   };
 
   return (
-    <LinearGradient colors={['#0a0a0f', '#1a1028', '#0f0a1a']} style={styles.container}>
+    <LinearGradient colors={['#FFF8F5', '#FFEFE8', '#FFF3EB']} style={styles.container}>
       {/* Decorative glow */}
       <View style={styles.glowTop} />
       <View style={styles.glowBottom} />
@@ -101,15 +101,20 @@ const styles = StyleSheet.create({
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 },
   glowTop: {
     position: 'absolute', top: -80, right: -80, width: 300, height: 300,
-    borderRadius: 150, backgroundColor: 'rgba(255,107,53,0.12)',
+    borderRadius: 150, backgroundColor: 'rgba(255,107,53,0.15)',
   },
   glowBottom: {
     position: 'absolute', bottom: -60, left: -60, width: 250, height: 250,
-    borderRadius: 125, backgroundColor: 'rgba(168,85,247,0.08)',
+    borderRadius: 125, backgroundColor: 'rgba(255,140,66,0.1)',
   },
   card: {
-    width: '100%', maxWidth: 400, backgroundColor: 'rgba(255,255,255,0.04)',
-    borderRadius: 20, padding: 36, borderWidth: 1, borderColor: COLORS.border,
+    width: '100%', maxWidth: 400, backgroundColor: '#FFFFFF',
+    borderRadius: 20, padding: 36, borderWidth: 1, borderColor: '#E2E8F0',
+    shadowColor: '#FF6B35',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.08,
+    shadowRadius: 24,
+    elevation: 8,
   },
   logo: { fontSize: 48, textAlign: 'center', marginBottom: 8 },
   title: {
@@ -124,16 +129,16 @@ const styles = StyleSheet.create({
   inputGroup: { marginBottom: 18 },
   label: { fontSize: 13, fontWeight: '500', color: COLORS.textSecondary, marginBottom: 6 },
   input: {
-    backgroundColor: 'rgba(255,255,255,0.05)', borderWidth: 1, borderColor: COLORS.border,
+    backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0',
     borderRadius: 10, paddingHorizontal: 14, color: COLORS.text, fontSize: 15,
     height: 50,
   },
   passwordWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    backgroundColor: '#F8FAFC',
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: '#E2E8F0',
     borderRadius: 10,
     height: 50,
     overflow: 'hidden',

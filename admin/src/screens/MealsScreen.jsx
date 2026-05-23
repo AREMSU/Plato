@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, FlatList, TextInput, TouchableOpacity, StyleSheet, RefreshControl } from 'react-native';
+import { View, Text, FlatList, TextInput, TouchableOpacity, StyleSheet, RefreshControl, ScrollView } from 'react-native';
 import Header from '../components/Header';
 import Badge from '../components/Badge';
 import { getMeals } from '../api/client';
@@ -53,20 +53,24 @@ const MealsScreen = ({ navigation }) => {
       <Header title="Meals" subtitle={`${total} total`} />
       <View style={styles.toolbar}>
         <TextInput style={styles.search} value={query} onChangeText={setQuery} placeholder="🔍 Search meals..." placeholderTextColor={COLORS.textMuted} onSubmitEditing={load} />
-        <View style={styles.pills}>
+        
+        <Text style={styles.sectionLabel}>Status</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.pills} style={styles.pillsWrapper}>
           {FILTERS.map((f) => (
             <TouchableOpacity key={f} style={[styles.pill, filter === f && styles.pillActive]} onPress={() => setFilter(f)}>
               <Text style={[styles.pillText, filter === f && styles.pillTextActive]}>{f.replace('_', ' ').replace(/^\w/, c => c.toUpperCase())}</Text>
             </TouchableOpacity>
           ))}
-        </View>
-        <View style={styles.pills}>
+        </ScrollView>
+
+        <Text style={styles.sectionLabel}>Category</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.pills} style={styles.pillsWrapper}>
           {CATEGORIES.map((c) => (
             <TouchableOpacity key={c || 'all'} style={[styles.pill, category === c && styles.pillActive]} onPress={() => setCategory(c)}>
               <Text style={[styles.pillText, category === c && styles.pillTextActive]}>{c || 'All'}</Text>
             </TouchableOpacity>
           ))}
-        </View>
+        </ScrollView>
       </View>
       <FlatList data={meals} keyExtractor={(item) => String(item.id)} renderItem={renderMeal} contentContainerStyle={{ padding: 16 }} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.accent} />} ListEmptyComponent={<Text style={styles.empty}>No meals found</Text>} />
     </View>
@@ -76,9 +80,11 @@ const MealsScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.bg },
   toolbar: { paddingHorizontal: 16, paddingTop: 12 },
-  search: { backgroundColor: COLORS.bgCard, borderWidth: 1, borderColor: COLORS.border, borderRadius: 10, padding: 12, color: COLORS.text, fontSize: 14, marginBottom: 10 },
-  pills: { flexDirection: 'row', gap: 6, marginBottom: 8, flexWrap: 'wrap' },
-  pill: { paddingHorizontal: 12, paddingVertical: 5, borderRadius: 16, backgroundColor: COLORS.bgCard, borderWidth: 1, borderColor: COLORS.border },
+  search: { backgroundColor: COLORS.bgCard, borderWidth: 1, borderColor: COLORS.border, borderRadius: 10, padding: 12, color: COLORS.text, fontSize: 14, marginBottom: 12 },
+  sectionLabel: { fontSize: 11, fontWeight: '700', color: COLORS.textSecondary, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 },
+  pillsWrapper: { marginBottom: 10 },
+  pills: { flexDirection: 'row', gap: 6, paddingRight: 16 },
+  pill: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, backgroundColor: COLORS.bgCard, borderWidth: 1, borderColor: COLORS.border, height: 30, justifyContent: 'center', alignItems: 'center' },
   pillActive: { backgroundColor: COLORS.accentGlow, borderColor: 'rgba(255,107,53,0.3)' },
   pillText: { fontSize: 11, fontWeight: '600', color: COLORS.textSecondary },
   pillTextActive: { color: COLORS.accent },
