@@ -29,7 +29,13 @@ export default function AIRecommendation({ navigation }) {
             onPress={() => navigation.navigate('MealDetail', { meal })}
             activeOpacity={0.9}
           >
-            <Image source={{ uri: meal.image }} style={styles.cardImage} resizeMode="cover" />
+            {meal?.image ? (
+              <Image source={{ uri: meal.image }} style={styles.cardImage} resizeMode="cover" />
+            ) : (
+              <View style={[styles.cardImage, styles.cardImagePlaceholder]}>
+                <Text style={styles.cardImagePlaceholderText}>🍽️</Text>
+              </View>
+            )}
             <LinearGradient
               colors={['transparent', 'rgba(0,0,0,0.75)']}
               style={styles.cardOverlay}
@@ -72,6 +78,12 @@ const styles = StyleSheet.create({
     elevation: 4, position: 'relative',
   },
   cardImage: { width: '100%', height: '100%', position: 'absolute' },
+  cardImagePlaceholder: {
+    backgroundColor: '#2E1C3B',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  cardImagePlaceholderText: { fontSize: 36, color: '#fff' },
   cardOverlay: { position: 'absolute', bottom: 0, left: 0, right: 0, height: '65%' },
   vegBadge: {
     position: 'absolute', top: 10, right: 10, backgroundColor: '#4CAF50',

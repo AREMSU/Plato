@@ -17,21 +17,21 @@ export const AppProvider = ({ children }) => {
 
     const login = async (email, password) => {
         setLoading(true);
-        const data = await apiCall('/auth/login/', 'POST', { email, password });
-        setLoading(false);
+        try {
+            const data = await apiCall('/auth/login/', 'POST', { email, password });
 
-        if (data?.error) {
-            const msg = data.error.error || data.error.detail || 'Login failed';
-            return { success: false, error: msg };
+            await AsyncStorage.setItem('access_token', data.tokens.access);
+            await AsyncStorage.setItem('refresh_token', data.tokens.refresh);
+            await AsyncStorage.setItem('user', JSON.stringify(data.user));
+            setUser(data.user);
+            setIsLoggedIn(true);
+            await loadMeals();
+            return { success: true };
+        } catch (error) {
+            return { success: false, error: error.message || 'Login failed' };
+        } finally {
+            setLoading(false);
         }
-
-        await AsyncStorage.setItem('access_token', data.tokens.access);
-        await AsyncStorage.setItem('refresh_token', data.tokens.refresh);
-        await AsyncStorage.setItem('user', JSON.stringify(data.user));
-        setUser(data.user);
-        setIsLoggedIn(true);
-        await loadMeals();
-        return { success: true };
     };
 
     const loginAfterVerification = async (userData, tokens) => {
@@ -76,80 +76,108 @@ export const AppProvider = ({ children }) => {
     // ─── MEALS ────────────────────────────────────────────────
 
     const loadMeals = async () => {
-        const data = await apiCall('/meals/');
-        if (!data?.error) {
+        try {
+            const data = await apiCall('/meals/');
             setMeals(Array.isArray(data) ? data : []);
+        } catch (error) {
+            console.log('Load meals error:', error.message);
         }
     };
 
     const addMeal = async (mealData) => {
         setLoading(true);
-        // Use camelCase — client.js converts to snake_case automatically
-        const data = await apiCall('/meals/', 'POST', {
-            title: mealData.title,
-            description: mealData.description,
-            category: mealData.category || 'Nepali',
-            pricePerPortion: parseFloat(mealData.pricePerPortion),
-            totalPortions: parseInt(mealData.totalPortions),
-            availablePortions: parseInt(mealData.totalPortions),
-            isVegetarian: mealData.isVegetarian || false,
-            image: mealData.image || '',
-            pickupTime: mealData.pickupTime,
-            pickupLocation: mealData.pickupLocation,
-            mealDate: mealData.mealDate || new Date().toISOString().split('T')[0],
-            tags: mealData.tags || [],
-            calories: mealData.calories || 400,
-            protein: mealData.protein || 15,
-        }, true);
-        setLoading(false);
+        try {
+            // Use camelCase — client.js converts to snake_case automatically
+            const data = await apiCall('/meals/', 'POST', {
+                title: mealData.title,
+                description: mealData.description,
+                category: mealData.category || 'Nepali',
+                pricePerPortion: parseFloat(mealData.pricePerPortion),
+                totalPortions: parseInt(mealData.totalPortions),
+                availablePortions: parseInt(mealData.totalPortions),
+                isVegetarian: mealData.isVegetarian || false,
+                image: mealData.image || '',
+                pickupTime: mealData.pickupTime,
+                pickupLocation: mealData.pickupLocation,
+                mealDate: mealData.mealDate || new Date().toISOString().split('T')[0],
+                tags: mealData.tags || [],
+                calories: mealData.calories || 400,
+                protein: mealData.protein || 15,
+            }, true);
 
-        if (data?.error) {
-            return { error: data.error };
+            setMeals(prev => [data, ...prev]);
+            return data;  // return meal object so AddMealScreen can check !result.error
+        } catch (error) {
+            return { error: error.message || 'Failed to add meal' };
+        } finally {
+            setLoading(false);
         }
-
-        setMeals(prev => [data, ...prev]);
-        return data;  // return meal object so AddMealScreen can check !result.error
     };
 
     // ─── BOOKINGS ─────────────────────────────────────────────
 
     const bookMeal = async (meal, portions) => {
         setLoading(true);
-        const data = await apiCall('/bookings/', 'POST', {
-            mealId: meal.id,   // client.js converts to meal_id automatically
-            portions,
-        }, true);
-        setLoading(false);
+        try {
+            const data = await apiCall('/bookings/', 'POST', {
+                mealId: meal.id,   // client.js converts to meal_id automatically
+                portions,
+            }, true);
 
-        if (data?.error) {
-            return { error: data.error };
+            setBookings(prev => [data, ...prev]);
+            // Update available portions locally
+            setMeals(prev => prev.map(m =>
+                m.id === meal.id
+                    ? { ...m, availablePortions: (m.availablePortions || 0) - portions }
+                    : m
+            ));
+            return { success: true, booking: data };
+        } catch (error) {
+            return { error: error.message || 'Failed to book meal' };
+        } finally {
+            setLoading(false);
         }
-
-        setBookings(prev => [data, ...prev]);
-        // Update available portions locally
-        setMeals(prev => prev.map(m =>
-            m.id === meal.id
-                ? { ...m, availablePortions: (m.availablePortions || 0) - portions }
-                : m
-        ));
-        return data;
     };
 
     const cancelBookingAction = async (bookingId) => {
-        const data = await apiCall(`/bookings/${bookingId}/cancel/`, 'POST', null, true);
-        if (data?.error) {
-            return { error: data.error };
+        const existing = bookings.find(b => b.id === bookingId);
+        try {
+            const data = await apiCall(`/bookings/${bookingId}/cancel/`, 'POST', null, true);
+            setBookings(prev => prev.map(b =>
+                b.id === bookingId ? { ...b, status: 'cancelled' } : b
+            ));
+            setMeals(prev => prev.map(m => {
+                const mealId = data?.meal?.id ?? existing?.meal?.id;
+                if (!mealId || m.id !== mealId) return m;
+
+                const updated = { ...m };
+                const available = data?.meal?.available_portions ?? data?.meal?.availablePortions;
+                const bookingsCount = data?.meal?.bookings;
+
+                if (typeof available === 'number') {
+                    updated.availablePortions = available;
+                } else if (existing?.portions) {
+                    updated.availablePortions = (m.availablePortions || 0) + existing.portions;
+                }
+
+                if (typeof bookingsCount === 'number') {
+                    updated.bookings = bookingsCount;
+                }
+
+                return updated;
+            }));
+            return { success: true };
+        } catch (error) {
+            return { error: error.message || 'Failed to cancel booking' };
         }
-        setBookings(prev => prev.map(b =>
-            b.id === bookingId ? { ...b, status: 'cancelled' } : b
-        ));
-        return { success: true };
     };
 
     const loadBookings = async () => {
-        const data = await apiCall('/bookings/', 'GET', null, true);
-        if (!data?.error) {
+        try {
+            const data = await apiCall('/bookings/', 'GET', null, true);
             setBookings(Array.isArray(data) ? data : []);
+        } catch (error) {
+            console.log('Load bookings error:', error.message);
         }
     };
 

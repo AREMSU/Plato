@@ -28,6 +28,8 @@ export default function MealDetailScreen({ navigation, route }) {
   const badge = getReliabilityBadge(meal.sellerRating);
   const totalCost = meal.pricePerPortion * portions;
   const isOwner = user?.id === meal.sellerId;
+  const mealImage = meal?.image || '';
+  const sellerAvatar = meal?.sellerAvatar || meal?.seller_avatar || '';
 
   const incrementPortions = () => {
     if (portions < meal.availablePortions)
@@ -55,10 +57,13 @@ export default function MealDetailScreen({ navigation, route }) {
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Image Section */}
         <View style={styles.imageContainer}>
-          <Image
-            source={{ uri: meal.image }}
-            style={styles.mealImage}
-          />
+          {mealImage ? (
+            <Image source={{ uri: mealImage }} style={styles.mealImage} />
+          ) : (
+            <View style={[styles.mealImage, styles.mealImagePlaceholder]}>
+              <Text style={styles.mealImagePlaceholderText}>🍽️</Text>
+            </View>
+          )}
           <LinearGradient
             colors={['transparent', 'rgba(0,0,0,0.6)']}
             style={styles.imageOverlay}
@@ -188,10 +193,13 @@ export default function MealDetailScreen({ navigation, route }) {
           {/* Seller Info */}
           <Text style={styles.sectionTitle}>About the Cook</Text>
           <View style={styles.sellerCard}>
-            <Image
-              source={{ uri: meal.sellerAvatar }}
-              style={styles.sellerAvatar}
-            />
+            {sellerAvatar ? (
+              <Image source={{ uri: sellerAvatar }} style={styles.sellerAvatar} />
+            ) : (
+              <View style={[styles.sellerAvatar, styles.sellerAvatarPlaceholder]}>
+                <Text style={styles.sellerAvatarPlaceholderText}>👤</Text>
+              </View>
+            )}
             <View style={styles.sellerInfo}>
               <Text style={styles.sellerName}>
                 {meal.sellerName}
@@ -335,6 +343,12 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F5F5F5' },
   imageContainer: { position: 'relative' },
   mealImage: { width, height: 280, resizeMode: 'cover' },
+  mealImagePlaceholder: {
+    backgroundColor: '#FFF3EE',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  mealImagePlaceholderText: { fontSize: 48 },
   imageOverlay: {
     position: 'absolute',
     bottom: 0,
@@ -539,6 +553,12 @@ const styles = StyleSheet.create({
     borderColor: '#F0F0F0',
   },
   sellerAvatar: { width: 52, height: 52, borderRadius: 26 },
+  sellerAvatarPlaceholder: {
+    backgroundColor: '#F0F0F0',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  sellerAvatarPlaceholderText: { fontSize: 18 },
   sellerInfo: { flex: 1 },
   sellerName: {
     fontSize: 16,

@@ -22,8 +22,10 @@ import random
 from .models import OTP
 from django.conf import settings
 from .email_service import send_otp_email
+from .validators import is_disposable_email
 from django.utils import timezone
 # ─── AUTH VIEWS ───────────────────────────────────────────────
+
 
 class RegisterView(APIView):
     permission_classes = [AllowAny]
@@ -34,6 +36,8 @@ class RegisterView(APIView):
             return Response(serializer.errors, status=400)
 
         data = serializer.validated_data
+
+
 
         # Check if active user already exists
         if User.objects.filter(email=data['email'], is_active=True).exists():
@@ -53,7 +57,6 @@ class RegisterView(APIView):
         )
 
         # Store registration data in OTP record temporarily
-        # We'll create user only after OTP verification
         import json
         otp = OTP.objects.filter(email=data['email'], is_used=False).latest('created_at')
         otp.temp_data = json.dumps({
@@ -65,9 +68,21 @@ class RegisterView(APIView):
         otp.save()
 
         # Send OTP email
-        sent = send_otp_email(data['email'], otp_code, data.get('first_name', ''))
-        if not sent:
-            return Response({'error': 'Failed to send OTP email. Please try again.'}, status=500)
+        # Send OTP email
+        result = send_otp_email(data['email'], otp_code, data.get('first_name', ''))
+
+        if not result['success']:
+            # Clean up the OTP we just created since email failed
+            OTP.objects.filter(email=data['email'], is_used=False).update(is_used=True)
+
+            if result['reason'] == 'email_not_found':
+                return Response({
+                    'error': 'This email address does not exist. Please use a real email.'
+                }, status=400)
+            else:
+                return Response({
+                    'error': 'Failed to send OTP email. Please try again.'
+                }, status=500)
 
         return Response({
             'message': 'OTP sent to your email. Please verify to complete registration.',
@@ -418,6 +433,13 @@ def send_otp(request):
     if not email:
         return Response({'error': 'Email is required'}, status=400)
 
+    # Block disposable/temporary email domains
+    if is_disposable_email(email):
+        return Response({
+            'error': 'Disposable or temporary email addresses are not allowed. '
+                     'Please use a real email address.'
+        }, status=400)
+
     # Invalidate old OTPs
     OTP.objects.filter(email=email, is_used=False).update(is_used=True)
 
@@ -570,3 +592,5 @@ class SubscriptionRenewView(APIView):
             'message': 'Subscription renewed for 30 days!',
             'subscription': serializer.data,
         })
+    
+
