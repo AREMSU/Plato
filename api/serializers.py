@@ -42,7 +42,7 @@ class RegisterSerializer(serializers.Serializer):
 
 
 class UserSerializer(serializers.ModelSerializer):
-    name = serializers.CharField(source='username')  # ← maps 'name' → 'username'
+    name = serializers.CharField(source='first_name')
     reliability_badge = serializers.SerializerMethodField()
     is_pro = serializers.SerializerMethodField()
     subscription_expires = serializers.SerializerMethodField()
