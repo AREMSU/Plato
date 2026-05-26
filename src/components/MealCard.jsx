@@ -1,11 +1,17 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { formatCurrency, truncateText } from '../utils/helpers';
-import RatingStars from './RatingStars';
 
 export default function MealCard({ meal, onPress }) {
-  const portionsLeft = meal.availablePortions;
+  const portionsLeft = meal.available_portions ?? meal.availablePortions ?? 0;
   const isSoldOut = portionsLeft === 0;
+  const image = meal.image || null;
+  const sellerAvatar = meal.seller_avatar || meal.sellerAvatar || null;
+  const sellerName = meal.seller_name || meal.sellerName || 'Unknown';
+  const price = meal.price_per_portion || meal.pricePerPortion || 0;
+  const pickupTime = meal.pickup_time || meal.pickupTime || '';
+  const pickupLocation = meal.pickup_location || meal.pickupLocation || '';
+  const isVegetarian = meal.is_vegetarian ?? meal.isVegetarian ?? false;
 
   return (
     <TouchableOpacity
@@ -14,13 +20,19 @@ export default function MealCard({ meal, onPress }) {
       activeOpacity={0.92}
     >
       <View style={styles.imageContainer}>
-        <Image source={{ uri: meal.image }} style={styles.image} resizeMode="cover" />
+        {image ? (
+          <Image source={{ uri: image }} style={styles.image} resizeMode="cover" />
+        ) : (
+          <View style={[styles.image, styles.imagePlaceholder]}>
+            <Text style={styles.imagePlaceholderText}>🍽️</Text>
+          </View>
+        )}
         {isSoldOut && (
           <View style={styles.soldOutOverlay}>
             <Text style={styles.soldOutText}>SOLD OUT</Text>
           </View>
         )}
-        {meal.isVegetarian && (
+        {isVegetarian && (
           <View style={styles.vegBadge}>
             <Text style={styles.vegText}>🌱</Text>
           </View>
@@ -33,23 +45,29 @@ export default function MealCard({ meal, onPress }) {
       <View style={styles.content}>
         <View style={styles.topRow}>
           <Text style={styles.title} numberOfLines={1}>{meal.title}</Text>
-          <Text style={styles.price}>{formatCurrency(meal.pricePerPortion)}</Text>
+          <Text style={styles.price}>{formatCurrency(price)}</Text>
         </View>
         <Text style={styles.description} numberOfLines={2}>{meal.description}</Text>
         <View style={styles.metaRow}>
           <View style={styles.sellerRow}>
-            <Image source={{ uri: meal.sellerAvatar }} style={styles.sellerAvatar} />
-            <Text style={styles.sellerName} numberOfLines={1}>{meal.sellerName}</Text>
+            {sellerAvatar ? (
+              <Image source={{ uri: sellerAvatar }} style={styles.sellerAvatar} />
+            ) : (
+              <View style={[styles.sellerAvatar, styles.sellerAvatarPlaceholder]}>
+                <Text style={{ fontSize: 12 }}>👤</Text>
+              </View>
+            )}
+            <Text style={styles.sellerName} numberOfLines={1}>{sellerName}</Text>
           </View>
           <View style={styles.ratingRow}>
             <Text style={styles.ratingStar}>★</Text>
-            <Text style={styles.rating}>{meal.rating}</Text>
+            <Text style={styles.rating}>{meal.rating || 0}</Text>
           </View>
         </View>
         <View style={styles.bottomRow}>
-          <Text style={styles.metaText}>⏰ {meal.pickupTime}</Text>
+          <Text style={styles.metaText}>⏰ {pickupTime}</Text>
           <Text style={styles.metaText} numberOfLines={1}>
-            📍 {truncateText(meal.pickupLocation, 20)}
+            📍 {truncateText(pickupLocation, 20)}
           </Text>
         </View>
         <View style={styles.categoryTag}>
@@ -68,6 +86,11 @@ const styles = StyleSheet.create({
   cardSoldOut: { opacity: 0.75 },
   imageContainer: { position: 'relative' },
   image: { width: '100%', height: 180 },
+  imagePlaceholder: {
+    backgroundColor: '#FFF3EE',
+    justifyContent: 'center', alignItems: 'center',
+  },
+  imagePlaceholderText: { fontSize: 48 },
   soldOutOverlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0,0,0,0.5)',
@@ -100,6 +123,10 @@ const styles = StyleSheet.create({
   },
   sellerRow: { flexDirection: 'row', alignItems: 'center', gap: 7, flex: 1 },
   sellerAvatar: { width: 24, height: 24, borderRadius: 12 },
+  sellerAvatarPlaceholder: {
+    backgroundColor: '#F0F0F0',
+    justifyContent: 'center', alignItems: 'center',
+  },
   sellerName: { fontSize: 13, color: '#424242', fontWeight: '600', flex: 1 },
   ratingRow: { flexDirection: 'row', alignItems: 'center', gap: 3 },
   ratingStar: { color: '#FFC107', fontSize: 14 },

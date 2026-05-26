@@ -17,8 +17,12 @@
       "adaptiveIcon": {
         "foregroundImage": "./assets/branding/icon-foreground.png",
         "backgroundColor": "#FF6B35"
-      },
-      "package": "com.anonymous.plato"
-    }
+      }
+    },
+    
+    "plugins": [
+      "expo-asset",
+      "expo-font"
+    ]
   }
 }

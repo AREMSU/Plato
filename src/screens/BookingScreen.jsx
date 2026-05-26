@@ -26,8 +26,10 @@ export default function BookingScreen({ navigation, route }) {
   const totalCost = meal.pricePerPortion * portions;
   const cancellationFee = calculateCancellationFee(totalCost);
   const refundAmount = getRefundAmount(totalCost);
+  const mealImage = meal?.image || '';
 
   const handleConfirmBooking = () => {
+    if (loading) return;
     Alert.alert(
       'Confirm Booking',
       `Book ${portions} portion${portions > 1 ? 's' : ''} of "${meal.title}" for ${formatCurrency(totalCost)}?`,
@@ -35,28 +37,30 @@ export default function BookingScreen({ navigation, route }) {
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Confirm & Pay',
-          onPress: () => {
+          onPress: async () => {
             setLoading(true);
-            setTimeout(() => {
-              const result = bookMeal(meal, portions);
-              setLoading(false);
-              if (result.success) {
-                Alert.alert(
-                  '🎉 Booking Confirmed!',
-                  `Your meal has been booked!\n\nPickup: ${meal.pickupTime} at ${meal.pickupLocation}`,
-                  [
-                    {
-                      text: 'View My Bookings',
-                      onPress: () => {
-                        navigation.navigate('Main', {
-                          screen: 'MyMeals',
-                        });
-                      },
-                    },
-                  ]
-                );
-              }
-            }, 1500);
+            const result = await bookMeal(meal, portions);
+            setLoading(false);
+
+            if (result?.error) {
+              Alert.alert('Booking Failed', result.error);
+              return;
+            }
+
+            Alert.alert(
+              '🎉 Booking Confirmed!',
+              `Your meal has been booked!\n\nPickup: ${meal.pickupTime} at ${meal.pickupLocation}`,
+              [
+                {
+                  text: 'View My Bookings',
+                  onPress: () => {
+                    navigation.navigate('Main', {
+                      screen: 'MyMeals',
+                    });
+                  },
+                },
+              ]
+            );
           },
         },
       ]
@@ -116,10 +120,13 @@ export default function BookingScreen({ navigation, route }) {
       >
         {/* Meal Summary */}
         <View style={styles.mealCard}>
-          <Image
-            source={{ uri: meal.image }}
-            style={styles.mealImage}
-          />
+          {mealImage ? (
+            <Image source={{ uri: mealImage }} style={styles.mealImage} />
+          ) : (
+            <View style={[styles.mealImage, styles.mealImagePlaceholder]}>
+              <Text style={styles.mealImagePlaceholderText}>🍽️</Text>
+            </View>
+          )}
           <View style={styles.mealInfo}>
             <Text style={styles.mealTitle} numberOfLines={2}>
               {meal.title}
@@ -292,6 +299,12 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   mealImage: { width: 110, height: 110, resizeMode: 'cover' },
+  mealImagePlaceholder: {
+    backgroundColor: '#FFF3EE',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  mealImagePlaceholderText: { fontSize: 34 },
   mealInfo: { flex: 1, padding: 14, justifyContent: 'center' },
   mealTitle: {
     fontSize: 16,

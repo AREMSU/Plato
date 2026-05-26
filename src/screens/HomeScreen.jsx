@@ -7,7 +7,7 @@ import { useApp } from '../context/AppContext';
 import MealCard from '../components/MealCard';
 import AIRecommendation from '../components/AIRecommendation';
 import CategoryFilter from '../components/CategoryFilter';
-import { getGreeting } from '../utils/helpers';
+import { getDisplayName, getGreeting, isMealOwner } from '../utils/helpers';
 import { categories } from '../data/mockData';
 
 export default function HomeScreen({ navigation }) {
@@ -16,7 +16,12 @@ export default function HomeScreen({ navigation }) {
   const [refreshing, setRefreshing] = useState(false);
 
   const greeting = getGreeting();
-  const filteredMeals = selectedCategory === 'all' ? meals : meals.filter((m) => m.category === selectedCategory);
+  const displayName = getDisplayName(user);
+  const firstName = displayName.split(' ')[0] || displayName;
+  const availableMeals = meals.filter((meal) => !isMealOwner(user, meal));
+  const filteredMeals = selectedCategory === 'all'
+    ? availableMeals
+    : availableMeals.filter((m) => m.category === selectedCategory);
   const activeBookings = bookings.filter((b) => b.status === 'confirmed');
 
   const onRefresh = () => {
@@ -34,10 +39,19 @@ export default function HomeScreen({ navigation }) {
           <View style={styles.headerTop}>
             <View>
               <Text style={styles.greeting}>{greeting},</Text>
-              <Text style={styles.userName}>{user?.name?.split(' ')[0]} 👋</Text>
+              <Text style={styles.userName}>{firstName} 👋</Text>
             </View>
             <TouchableOpacity onPress={() => navigation.navigate('Profile')}>
-              <Image source={{ uri: user?.avatar }} style={styles.avatar} />
+
+              {user?.avatar ? (
+                <Image source={{ uri: user.avatar }} style={styles.avatar} />
+              ) : (
+                <View style={[styles.avatar, { backgroundColor: '#FF8C42', justifyContent: 'center', alignItems: 'center' }]}>
+                  <Text style={{ fontSize: 20 }}>
+                    {displayName.charAt(0)?.toUpperCase() || '👤'}
+                  </Text>
+                </View>
+              )}
             </TouchableOpacity>
           </View>
           <TouchableOpacity style={styles.searchBar} onPress={() => navigation.navigate('Explore')}>

@@ -15,7 +15,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
 import { useApp } from '../context/AppContext';
-import { getReliabilityBadge } from '../utils/helpers';
+import { getDisplayName, getReliabilityBadge } from '../utils/helpers';
 import RatingStars from '../components/RatingStars';
 import UserAvatar from '../components/UserAvatar';
 
@@ -35,12 +35,13 @@ const PROFILE_ICONS = {
 };
 
 export default function ProfileScreen({ navigation }) {
-  const { user, logout, meals, bookings, setUser } = useApp();
+  const { user, logout, meals, bookings, setUser , loggingOut } = useApp();
 
   const myMeals = meals.filter((m) => m.sellerId === user?.id);
   const activeBookings = bookings.filter((b) => b.status === 'confirmed');
   const cancelledBookings = bookings.filter((b) => b.status === 'cancelled');
   const badge = getReliabilityBadge(user?.rating || 5);
+  const displayName = getDisplayName(user);
 
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [notifModalVisible, setNotifModalVisible] = useState(false);
@@ -266,7 +267,7 @@ export default function ProfileScreen({ navigation }) {
               >
                 <UserAvatar
                   uri={user?.avatar}
-                  name={user?.name}
+                  name={displayName}
                   size={110}
                   loading={avatarLoading}
                   borderColor="#fff"
@@ -283,7 +284,7 @@ export default function ProfileScreen({ navigation }) {
             {/* ❌ REMOVED: userEmail */}
             {/* ❌ REMOVED: editProfileBtn */}
 
-            <Text style={styles.userName}>{user?.name}</Text>
+            <Text style={styles.userName}>{displayName}</Text>
 
             <Text style={styles.userUniversity}>
               🎓 {user?.university}
@@ -521,6 +522,7 @@ export default function ProfileScreen({ navigation }) {
         <TouchableOpacity
           style={styles.logoutButton}
           onPress={handleLogout}
+          disabled={loggingOut}
         >
           <Image source={PROFILE_ICONS.logout} style={styles.logoutIconImage} />
           <Text style={styles.logoutText}>Log Out</Text>

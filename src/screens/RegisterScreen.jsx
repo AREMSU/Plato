@@ -1,13 +1,15 @@
 import React, { useState } from 'react';
 import {
   View, Text, StyleSheet, TextInput, TouchableOpacity,
-  ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator,
+  ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator, Alert,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useApp } from '../context/AppContext';
+import apiCall from '../api/client';
+
 
 export default function RegisterScreen({ navigation }) {
-  const { register } = useApp();
+  const {} = useApp();
   const [form, setForm] = useState({ name: '', email: '', university: '', password: '', confirmPassword: '' });
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -31,14 +33,28 @@ export default function RegisterScreen({ navigation }) {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleRegister = () => {
+ const handleRegister = async () => {
     if (!validate()) return;
     setLoading(true);
-    setTimeout(() => {
-      register({ name: form.name.trim(), email: form.email.trim(), university: form.university.trim(), password: form.password });
-      setLoading(false);
-    }, 1000);
-  };
+    try {
+        const data = await apiCall('/auth/register/', 'POST', {
+            first_name: form.name.trim(),
+            email: form.email.trim(),
+            university: form.university.trim(),
+            password: form.password,
+            confirm_password: form.confirmPassword,
+        });
+        // Navigate to OTP screen
+        navigation.navigate('OTP', {
+            email: form.email.trim(),
+            name: form.name.trim(),
+        });
+    } catch (error) {
+        Alert.alert('Registration Failed', error.message || 'Something went wrong');
+    } finally {
+        setLoading(false);
+    }
+};
 
   const fields = [
     { key: 'name', label: 'Full Name', icon: '👤', placeholder: 'Your full name' },

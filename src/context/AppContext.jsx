@@ -1,128 +1,219 @@
-import React, { createContext, useContext, useState } from 'react';
-import { mockMeals, mockUsers } from '../data/mockData';
+import React, { createContext, useState, useContext } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import apiCall from '../api/client';
+import { isMealOwner } from '../utils/helpers';
+import API_BASE_URL from '../api/config';
 
 const AppContext = createContext();
 
 export const AppProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
-  const [meals, setMeals] = useState(mockMeals);
-  const [bookings, setBookings] = useState([]);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [cart, setCart] = useState(null);
+    const [user, setUser] = useState(null);
+    const [meals, setMeals] = useState([]);
+    const [bookings, setBookings] = useState([]);
+    const [isLoggedIn, setIsLoggedIn] = useState(false);
+    const [loading, setLoading] = useState(false);
+    const [loggingOut, setLoggingOut] = useState(false);
 
-  const login = (email, password) => {
-    const foundUser = mockUsers.find(
-      (u) => u.email === email && u.password === password
-    );
-    if (foundUser) {
-      setUser(foundUser);
-      setIsLoggedIn(true);
-      return { success: true };
-    }
-    return { success: false, message: 'Invalid credentials' };
-  };
+    // ─── AUTH ─────────────────────────────────────────────────
 
-  const register = (userData) => {
-    const newUser = {
-      id: Date.now().toString(),
-      ...userData,
-      avatar: 'https://i.pravatar.cc/150?img=10',
-      rating: 5.0,
-      mealsShared: 0,
-      joinedDate: new Date().toISOString(),
+    const login = async (email, password) => {
+        setLoading(true);
+        try {
+            const data = await apiCall('/auth/login/', 'POST', { email, password });
+
+            await AsyncStorage.setItem('access_token', data.tokens.access);
+            await AsyncStorage.setItem('refresh_token', data.tokens.refresh);
+            await AsyncStorage.setItem('user', JSON.stringify(data.user));
+            setUser(data.user);
+            setIsLoggedIn(true);
+            await loadMeals();
+            await loadBookings();
+            return { success: true };
+        } catch (error) {
+            return { success: false, error: error.message || 'Login failed' };
+        } finally {
+            setLoading(false);
+        }
     };
-    setUser(newUser);
-    setIsLoggedIn(true);
-    return { success: true };
-  };
 
-  const logout = () => {
-    setUser(null);
-    setIsLoggedIn(false);
-    setBookings([]);
-    setCart(null);
-  };
-
-  const addMeal = (mealData) => {
-    const newMeal = {
-      id: Date.now().toString(),
-      ...mealData,
-      sellerId: user?.id,
-      sellerName: user?.name,
-      sellerAvatar: user?.avatar,
-      sellerRating: user?.rating,
-      createdAt: new Date().toISOString(),
-      bookings: 0,
+    const loginAfterVerification = async (userData, tokens) => {
+        await AsyncStorage.setItem('access_token', tokens.access);
+        await AsyncStorage.setItem('refresh_token', tokens.refresh);
+        await AsyncStorage.setItem('user', JSON.stringify(userData));
+        setUser(userData);
+        setIsLoggedIn(true);
+        await loadMeals();
+        await loadBookings();
     };
-    setMeals((prev) => [newMeal, ...prev]);
-    return { success: true };
-  };
 
-  const bookMeal = (meal, portions) => {
-    const totalCost = meal.pricePerPortion * portions;
-    const booking = {
-      id: Date.now().toString(),
-      meal,
-      portions,
-      totalCost,
-      status: 'confirmed',
-      bookedAt: new Date().toISOString(),
-      userId: user?.id,
-    };
-    setBookings((prev) => [booking, ...prev]);
-    setMeals((prev) =>
-      prev.map((m) =>
-        m.id === meal.id
-          ? {
-              ...m,
-              bookings: m.bookings + portions,
-              availablePortions: m.availablePortions - portions,
+    const logout = async () => {
+        if (loggingOut) return;  // prevent double press
+        setLoggingOut(true);
+        try {
+            const refresh = await AsyncStorage.getItem('refresh_token');
+            const access = await AsyncStorage.getItem('access_token');
+
+            if (refresh && access) {
+                await fetch(`${API_BASE_URL}/auth/logout/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${access}`,
+                        'ngrok-skip-browser-warning': 'true',
+                    },
+                    body: JSON.stringify({ refresh }),
+                });
             }
-          : m
-      )
+        } catch (error) {
+            console.log('Logout error:', error);
+        } finally {
+            await AsyncStorage.multiRemove(['access_token', 'refresh_token', 'user']);
+            setUser(null);
+            setIsLoggedIn(false);
+            setMeals([]);
+            setBookings([]);
+            setLoggingOut(false);
+        }
+    };
+
+    // ─── MEALS ────────────────────────────────────────────────
+
+    const loadMeals = async () => {
+        try {
+            const data = await apiCall('/meals/');
+            setMeals(Array.isArray(data) ? data : []);
+        } catch (error) {
+            console.log('Load meals error:', error.message);
+        }
+    };
+
+    const addMeal = async (mealData) => {
+        setLoading(true);
+        try {
+            // Use camelCase — client.js converts to snake_case automatically
+            const data = await apiCall('/meals/', 'POST', {
+                title: mealData.title,
+                description: mealData.description,
+                category: mealData.category || 'Nepali',
+                pricePerPortion: parseFloat(mealData.pricePerPortion),
+                totalPortions: parseInt(mealData.totalPortions),
+                availablePortions: parseInt(mealData.totalPortions),
+                isVegetarian: mealData.isVegetarian || false,
+                image: mealData.image || '',
+                pickupTime: mealData.pickupTime,
+                pickupLocation: mealData.pickupLocation,
+                mealDate: mealData.mealDate || new Date().toISOString().split('T')[0],
+                tags: mealData.tags || [],
+                calories: mealData.calories || 400,
+                protein: mealData.protein || 15,
+            }, true);
+
+            setMeals(prev => [data, ...prev]);
+            return data;  // return meal object so AddMealScreen can check !result.error
+        } catch (error) {
+            return { error: error.message || 'Failed to add meal' };
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // ─── BOOKINGS ─────────────────────────────────────────────
+
+    const bookMeal = async (meal, portions) => {
+        setLoading(true);
+        try {
+            const data = await apiCall('/bookings/', 'POST', {
+                mealId: meal.id,   // client.js converts to meal_id automatically
+                portions,
+            }, true);
+
+            setBookings(prev => [data, ...prev]);
+            // Update available portions locally
+            setMeals(prev => prev.map(m =>
+                m.id === meal.id
+                    ? { ...m, availablePortions: (m.availablePortions || 0) - portions }
+                    : m
+            ));
+            return { success: true, booking: data };
+        } catch (error) {
+            return { error: error.message || 'Failed to book meal' };
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const cancelBookingAction = async (bookingId) => {
+        const existing = bookings.find(b => b.id === bookingId);
+        try {
+            const data = await apiCall(`/bookings/${bookingId}/cancel/`, 'POST', null, true);
+            setBookings(prev => prev.map(b =>
+                b.id === bookingId ? { ...b, status: 'cancelled' } : b
+            ));
+            setMeals(prev => prev.map(m => {
+                const mealId = data?.meal?.id ?? existing?.meal?.id;
+                if (!mealId || m.id !== mealId) return m;
+
+                const updated = { ...m };
+                const available = data?.meal?.available_portions ?? data?.meal?.availablePortions;
+                const bookingsCount = data?.meal?.bookings;
+
+                if (typeof available === 'number') {
+                    updated.availablePortions = available;
+                } else if (existing?.portions) {
+                    updated.availablePortions = (m.availablePortions || 0) + existing.portions;
+                }
+
+                if (typeof bookingsCount === 'number') {
+                    updated.bookings = bookingsCount;
+                }
+
+                return updated;
+            }));
+            return { success: true };
+        } catch (error) {
+            return { error: error.message || 'Failed to cancel booking' };
+        }
+    };
+
+    const loadBookings = async () => {
+        try {
+            const data = await apiCall('/bookings/', 'GET', null, true);
+            setBookings(Array.isArray(data) ? data : []);
+        } catch (error) {
+            console.log('Load bookings error:', error.message);
+        }
+    };
+
+    // ─── AI RECOMMENDATIONS ───────────────────────────────────
+
+    const getAIRecommendations = () => {
+        const availableMeals = meals.filter((meal) => !isMealOwner(user, meal));
+        return [...availableMeals].sort(() => 0.5 - Math.random()).slice(0, 3);
+    };
+
+    return (
+        <AppContext.Provider value={{
+            user,
+            meals,
+            bookings,
+            isLoggedIn,
+            loading,
+            login,
+            loginAfterVerification,
+            logout,
+            loggingOut,
+            addMeal,
+            bookMeal,
+            cancelBooking: cancelBookingAction,
+            cancelBookingAction,
+            loadMeals,
+            loadBookings,
+            getAIRecommendations,
+        }}>
+            {children}
+        </AppContext.Provider>
     );
-    return { success: true, booking };
-  };
-
-  const cancelBooking = (bookingId) => {
-    setBookings((prev) =>
-      prev.map((b) =>
-        b.id === bookingId ? { ...b, status: 'cancelled' } : b
-      )
-    );
-  };
-
-  const getAIRecommendations = () => {
-    const shuffled = [...meals].sort(() => 0.5 - Math.random());
-    return shuffled.slice(0, 3);
-  };
-
-  return (
-    <AppContext.Provider
-      value={{
-        user,
-        setUser,
-        meals,
-        bookings,
-        isLoggedIn,
-        cart,
-        setCart,
-        login,
-        register,
-        logout,
-        addMeal,
-        bookMeal,
-        cancelBooking,
-        getAIRecommendations,
-      }}
-    >
-      {children}
-    </AppContext.Provider>
-  );
 };
 
-export const useApp = () => {
-  const context = useContext(AppContext);
-  if (!context) throw new Error('useApp must be used within AppProvider');
-  return context;
-};
+export const useApp = () => useContext(AppContext);
+export default AppContext;

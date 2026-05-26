@@ -10,15 +10,17 @@ import {
 import { useApp } from '../context/AppContext';
 import MealCard from '../components/MealCard';
 import { categories, dietaryFilters } from '../data/mockData';
+import { isMealOwner } from '../utils/helpers';
 
 export default function ExploreScreen({ navigation }) {
-  const { meals } = useApp();
+  const { meals, user } = useApp();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [selectedDiet, setSelectedDiet] = useState('all');
   const [sortBy, setSortBy] = useState('rating');
 
   const filtered = meals.filter((meal) => {
+    if (isMealOwner(user, meal)) return false;
     const matchSearch =
       meal.title
         .toLowerCase()

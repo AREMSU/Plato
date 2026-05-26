@@ -36,9 +36,26 @@ export const getGreeting = () => {
   return 'Good Evening';
 };
 
+export const getDisplayName = (user) => {
+  const name = (user?.name || '').trim();
+  if (name) {
+    return name.includes('@') ? name.split('@')[0] : name;
+  }
+  const email = (user?.email || '').trim();
+  if (!email) return '';
+  return email.split('@')[0] || '';
+};
+
 export const getReliabilityBadge = (rating) => {
   if (rating >= 4.8) return { label: 'Top Chef', color: '#FFD700' };
   if (rating >= 4.5) return { label: 'Trusted', color: '#4CAF50' };
   if (rating >= 4.0) return { label: 'Good', color: '#2196F3' };
   return { label: 'New', color: '#9E9E9E' };
+};
+
+export const isMealOwner = (user, meal) => {
+  const userId = user?.id;
+  if (!userId || !meal) return false;
+  const sellerId = meal.seller?.id ?? meal.sellerId ?? meal.seller_id ?? meal.seller;
+  return sellerId === userId;
 };

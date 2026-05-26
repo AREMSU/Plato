@@ -18,6 +18,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
 import { useApp } from '../context/AppContext';
 import { categories } from '../data/mockData';
+import { uploadImageToCloudinary } from '../api/uploadImage';
 
 const { width } = Dimensions.get('window');
 
@@ -72,6 +73,7 @@ export default function AddMealScreen({ navigation }) {
   const [loading, setLoading] = useState(false);
   const [selectedImage, setSelectedImage] = useState(null);
   const [imageLoading, setImageLoading] = useState(false);
+  const [uploadedImageUrl, setUploadedImageUrl] = useState('');
 
   const [form, setForm] = useState({
     title: '',
@@ -83,6 +85,7 @@ export default function AddMealScreen({ navigation }) {
     pickupLocation: '',
     isVegetarian: false,
     tags: '',
+    
   });
   const [errors, setErrors] = useState({});
 
@@ -123,49 +126,74 @@ export default function AddMealScreen({ navigation }) {
     const hasPermission = await requestPermission('gallery');
     if (!hasPermission) return;
 
-    setImageLoading(true);
     try {
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        aspect: [4, 3],
-        quality: 0.8,
-      });
+        const result = await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            allowsEditing: true,
+            aspect: [4, 3],
+            quality: 0.8,
+        });
 
-      if (!result.canceled && result.assets && result.assets.length > 0) {
-        setSelectedImage(result.assets[0].uri);
-        setErrors(prev => ({ ...prev, image: null }));
-      }
+        if (!result.canceled && result.assets && result.assets.length > 0) {
+            const uri = result.assets[0].uri;
+            setSelectedImage(uri);
+            setErrors(prev => ({ ...prev, image: null }));
+
+            // Upload to Cloudinary
+            setImageLoading(true);
+            const url = await uploadImageToCloudinary(uri);
+            if (url) {
+                setUploadedImageUrl(url);
+                console.log('Image uploaded:', url);
+            } else {
+                Alert.alert('Upload Failed', 'Could not upload image. The meal will be listed without a photo.');
+            }
+            setImageLoading(false);
+        }
     } catch (error) {
-      Alert.alert('Error', 'Failed to pick image. Please try again.');
-    } finally {
-      setImageLoading(false);
+        Alert.alert('Error', 'Failed to pick image. Please try again.');
+        setImageLoading(false);
     }
-  };
+};
 
   // ── Take Photo with Camera ──
-  const takePhoto = async () => {
+const takePhoto = async () => {
     const hasPermission = await requestPermission('camera');
     if (!hasPermission) return;
 
-    setImageLoading(true);
     try {
-      const result = await ImagePicker.launchCameraAsync({
-        allowsEditing: true,
-        aspect: [4, 3],
-        quality: 0.8,
-      });
+        const result = await ImagePicker.launchCameraAsync({
+            allowsEditing: true,
+            aspect: [4, 3],
+            quality: 0.8,
+        });
 
-      if (!result.canceled && result.assets && result.assets.length > 0) {
-        setSelectedImage(result.assets[0].uri);
-        setErrors(prev => ({ ...prev, image: null }));
-      }
+        if (!result.canceled && result.assets && result.assets.length > 0) {
+            const uri = result.assets[0].uri;
+            setSelectedImage(uri);
+            setErrors(prev => ({ ...prev, image: null }));
+
+            // Upload to Cloudinary
+            setImageLoading(true);
+            const url = await uploadImageToCloudinary(uri);
+
+            if (url) {
+                setUploadedImageUrl(url);
+                console.log('Image uploaded:', url);
+            } else {
+                Alert.alert(
+                    'Upload Failed',
+                    'Could not upload image. The meal will be listed without a photo.'
+                );
+            }
+
+            setImageLoading(false);
+        }
     } catch (error) {
-      Alert.alert('Error', 'Failed to take photo. Please try again.');
-    } finally {
-      setImageLoading(false);
+        Alert.alert('Error', 'Failed to take photo. Please try again.');
+        setImageLoading(false);
     }
-  };
+};
 
   // ── Show Image Options ──
   const showImageOptions = () => {
@@ -183,87 +211,78 @@ export default function AddMealScreen({ navigation }) {
   // ── Validate ──
   const validate = () => {
     const newErrors = {};
-    if (!selectedImage) newErrors.image = 'Please add a photo of your meal';
+    // Remove image validation for now
     if (!form.title.trim()) newErrors.title = 'Title is required';
     if (!form.description.trim()) newErrors.description = 'Description is required';
-    if (
-      !form.pricePerPortion ||
-      isNaN(Number(form.pricePerPortion)) ||
-      Number(form.pricePerPortion) <= 0
-    )
-      newErrors.pricePerPortion = 'Enter a valid price';
-    if (
-      !form.totalPortions ||
-      isNaN(Number(form.totalPortions)) ||
-      Number(form.totalPortions) <= 0
-    )
-      newErrors.totalPortions = 'Enter valid portions';
+    if (!form.pricePerPortion || isNaN(Number(form.pricePerPortion)) || Number(form.pricePerPortion) <= 0)
+        newErrors.pricePerPortion = 'Enter a valid price';
+    if (!form.totalPortions || isNaN(Number(form.totalPortions)) || Number(form.totalPortions) <= 0)
+        newErrors.totalPortions = 'Enter valid portions';
     if (!form.pickupTime.trim()) newErrors.pickupTime = 'Pickup time required';
     if (!form.pickupLocation.trim()) newErrors.pickupLocation = 'Location required';
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
-  };
+};
 
   // ── Submit ──
-  const handleAddMeal = () => {
+ const handleAddMeal = async () => {
     if (!validate()) {
-      Alert.alert('⚠️ Missing Info', 'Please fill all required fields including a meal photo.');
-      return;
+        Alert.alert('⚠️ Missing Info', 'Please fill all required fields including a meal photo.');
+        return;
     }
     setLoading(true);
-    setTimeout(() => {
-      const tagsArray = form.tags
-        .split(',')
-        .map((t) => t.trim().toLowerCase())
-        .filter((t) => t.length > 0);
+    try {
+        const tagsArray = form.tags
+            .split(',')
+            .map((t) => t.trim().toLowerCase())
+            .filter((t) => t.length > 0);
 
-      addMeal({
-        title: form.title.trim(),
-        description: form.description.trim(),
-        category: form.category,
-        pricePerPortion: Number(form.pricePerPortion),
-        totalPortions: Number(form.totalPortions),
-        availablePortions: Number(form.totalPortions),
-        pickupTime: form.pickupTime.trim(),
-        pickupLocation: form.pickupLocation.trim(),
-        isVegetarian: form.isVegetarian,
-        tags: tagsArray,
-        image: selectedImage,
-        rating: 0,
-        reviews: 0,
-        calories: 400,
-        protein: 15,
-        mealDate: new Date().toISOString().split('T')[0],
-      });
+        const result = await addMeal({
+            title: form.title.trim(),
+            description: form.description.trim(),
+            category: form.category,
+            pricePerPortion: Number(form.pricePerPortion),
+            totalPortions: Number(form.totalPortions),
+            pickupTime: form.pickupTime.trim(),
+            pickupLocation: form.pickupLocation.trim(),
+            isVegetarian: form.isVegetarian,
+            tags: tagsArray,
+            image: uploadedImageUrl,
+            calories: 400,
+            protein: 15,
+            mealDate: new Date().toISOString().split('T')[0],
 
-      setLoading(false);
-      Alert.alert(
-        '🎉 Meal Listed!',
-        'Your meal has been successfully added to the platform.',
-        [
-          {
-            text: 'View Home',
-            onPress: () => {
-              navigation.navigate('Home');
-              setForm({
-                title: '',
-                description: '',
-                category: 'Nepali',
-                pricePerPortion: '',
-                totalPortions: '',
-                pickupTime: '',
-                pickupLocation: '',
-                isVegetarian: false,
-                tags: '',
-              });
-              setSelectedImage(null);
-              setErrors({});
-            },
-          },
-        ]
-      );
-    }, 1200);
-  };
+        });
+
+        if (result && !result.error) {
+            Alert.alert(
+                '🎉 Meal Listed!',
+                'Your meal has been successfully added to the platform.',
+                [{
+                    text: 'View Home',
+                    onPress: () => {
+                        navigation.navigate('Home');
+                        setForm({
+                            title: '', description: '', category: 'Nepali',
+                            pricePerPortion: '', totalPortions: '',
+                            pickupTime: '', pickupLocation: '',
+                            isVegetarian: false, tags: '',
+                        });
+                        setSelectedImage(null);
+                        setUploadedImageUrl('');
+                        setErrors({});
+                    },
+                }]
+            );
+        } else {
+            Alert.alert('Error', result.error || 'Failed to add meal');
+        }
+    } catch (error) {
+        Alert.alert('Error', 'Something went wrong. Please try again.');
+    } finally {
+        setLoading(false);
+    }
+};
 
   return (
     <KeyboardAvoidingView

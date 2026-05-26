@@ -24,22 +24,22 @@ export default function LoginScreen({ navigation }) {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleLogin = () => {
+const handleLogin = async () => {
     if (!validate()) return;
     setLoading(true);
-    setTimeout(() => {
-      const result = login(email.trim(), password);
-      setLoading(false);
-      if (!result.success) {
-        Alert.alert('Login Failed', result.message || 'Invalid credentials');
-      }
-    }, 1000);
-  };
+    try {
+        const result = await login(email.trim(), password);
+        if (!result.success) {
+            Alert.alert('Login Failed', result.error || 'Invalid credentials');
+        }
+      
+    } catch (error) {
+        Alert.alert('Error', 'Something went wrong. Please try again.');
+    } finally {
+        setLoading(false);
+    }
+};
 
-  const fillDemo = () => {
-    setEmail('aarnav@student.edu');
-    setPassword('123456');
-  };
 
   return (
     <KeyboardAvoidingView
@@ -106,16 +106,6 @@ export default function LoginScreen({ navigation }) {
             </LinearGradient>
           </TouchableOpacity>
 
-          <TouchableOpacity onPress={fillDemo} style={styles.demoButton}>
-            <Text style={styles.demoText}>🧪 Use Demo Account</Text>
-          </TouchableOpacity>
-
-          <View style={styles.divider}>
-            <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>OR</Text>
-            <View style={styles.dividerLine} />
-          </View>
-
           <View style={styles.registerRow}>
             <Text style={styles.registerText}>Don't have an account? </Text>
             <TouchableOpacity onPress={() => navigation.navigate('Register')}>
@@ -157,14 +147,6 @@ const styles = StyleSheet.create({
   loginButton: { borderRadius: 16, overflow: 'hidden', marginTop: 8, elevation: 4 },
   loginGradient: { paddingVertical: 16, alignItems: 'center', borderRadius: 16 },
   loginText: { fontSize: 17, fontWeight: '700', color: '#fff', letterSpacing: 0.5 },
-  demoButton: {
-    marginTop: 14, alignItems: 'center', paddingVertical: 12,
-    borderRadius: 14, borderWidth: 1.5, borderColor: '#FF6B35', borderStyle: 'dashed',
-  },
-  demoText: { fontSize: 14, color: '#FF6B35', fontWeight: '600' },
-  divider: { flexDirection: 'row', alignItems: 'center', marginVertical: 24 },
-  dividerLine: { flex: 1, height: 1, backgroundColor: '#E0E0E0' },
-  dividerText: { marginHorizontal: 14, color: '#9E9E9E', fontSize: 13, fontWeight: '600' },
   registerRow: { flexDirection: 'row', justifyContent: 'center' },
   registerText: { fontSize: 15, color: '#757575' },
   registerLink: { fontSize: 15, color: '#FF6B35', fontWeight: '700' },
