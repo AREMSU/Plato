@@ -16,3 +16,4 @@ db.sqlite3
 # VS Code
 .vscode/node_modules/
 node_modules
+.expo/
