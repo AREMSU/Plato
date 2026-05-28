@@ -41,7 +41,12 @@ export default function ExploreScreen({ navigation }) {
     return matchSearch && matchCategory && matchDiet;
   });
 
+  const getFeaturedFlag = (meal) => meal.isFeatured ?? meal.is_featured ?? false;
+
   const sorted = [...filtered].sort((a, b) => {
+    const aFeatured = getFeaturedFlag(a) ? 1 : 0;
+    const bFeatured = getFeaturedFlag(b) ? 1 : 0;
+    if (aFeatured !== bFeatured) return bFeatured - aFeatured;
     if (sortBy === 'rating') return b.rating - a.rating;
     if (sortBy === 'price')
       return a.pricePerPortion - b.pricePerPortion;

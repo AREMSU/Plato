@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,13 @@ import {
   TouchableOpacity,
   Image,
   Alert,
+  Modal,
+  TextInput,
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  TouchableWithoutFeedback,
+  Keyboard,
+  Platform,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useApp } from '../context/AppContext';
@@ -17,9 +24,20 @@ import {
   isMealOwner,
 } from '../utils/helpers';
 
-export default function MyMealsScreen({ navigation }) {
-  const { bookings, cancelBooking, user, meals } = useApp();
+export default function MyMealsScreen({ navigation, route }) {
+  const { bookings, cancelBooking, user, meals, createReview } = useApp();
   const [activeTab, setActiveTab] = useState('bookings');
+    useEffect(() => {
+      const nextTab = route?.params?.initialTab;
+      if (nextTab) {
+        setActiveTab(nextTab);
+      }
+    }, [route?.params?.initialTab]);
+  const [reviewModalVisible, setReviewModalVisible] = useState(false);
+  const [reviewBooking, setReviewBooking] = useState(null);
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewComment, setReviewComment] = useState('');
+  const [reviewLoading, setReviewLoading] = useState(false);
 
   const myMeals = meals.filter((meal) => isMealOwner(user, meal));
   const activeBookings = bookings.filter(
@@ -52,7 +70,36 @@ export default function MyMealsScreen({ navigation }) {
     );
   };
 
-  const BookingCard = ({ booking }) => (
+  const openReviewModal = (booking) => {
+    setReviewBooking(booking);
+    setReviewRating(5);
+    setReviewComment('');
+    setReviewModalVisible(true);
+  };
+
+  const submitReview = async () => {
+    if (!reviewBooking) return;
+    setReviewLoading(true);
+    const result = await createReview(
+      reviewBooking.id,
+      reviewRating,
+      reviewComment.trim()
+    );
+    setReviewLoading(false);
+
+    if (result?.error) {
+      Alert.alert('Review Failed', result.error);
+      return;
+    }
+
+    setReviewModalVisible(false);
+    Alert.alert('✅ Review Submitted', 'Thanks for your feedback!');
+  };
+
+  const BookingCard = ({ booking }) => {
+    const hasReviewed = booking.hasReviewed ?? booking.has_reviewed ?? false;
+    const canReview = booking.status === 'confirmed' && !hasReviewed;
+    return (
     <View
       style={[
         styles.bookingCard,
@@ -120,9 +167,17 @@ export default function MyMealsScreen({ navigation }) {
             </Text>
           </TouchableOpacity>
         )}
+        {canReview && (
+          <TouchableOpacity
+            style={styles.reviewButton}
+            onPress={() => openReviewModal(booking)}
+          >
+            <Text style={styles.reviewButtonText}>Leave Review</Text>
+          </TouchableOpacity>
+        )}
       </View>
     </View>
-  );
+  )};
 
   const MyMealCard = ({ meal }) => (
     <TouchableOpacity
@@ -302,6 +357,71 @@ export default function MyMealsScreen({ navigation }) {
 
         <View style={{ height: 100 }} />
       </ScrollView>
+
+      <Modal visible={reviewModalVisible} animationType="slide" transparent>
+        <KeyboardAvoidingView
+          style={styles.modalOverlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
+          <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+            <View style={styles.modalOverlayInner}>
+              <View style={styles.modalContainer}>
+                <View style={styles.modalHeader}>
+                  <Text style={styles.modalTitle}>⭐ Leave a Review</Text>
+                  <TouchableOpacity onPress={() => setReviewModalVisible(false)}>
+                    <Text style={styles.modalClose}>✕</Text>
+                  </TouchableOpacity>
+                </View>
+
+                <Text style={styles.modalSubtitle}>
+                  How was your meal from {reviewBooking?.meal?.sellerName}?
+                </Text>
+
+                <View style={styles.starRow}>
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <TouchableOpacity
+                      key={star}
+                      onPress={() => setReviewRating(star)}
+                    >
+                      <Text
+                        style={[
+                          styles.star,
+                          star <= reviewRating && styles.starActive,
+                        ]}
+                      >
+                        ★
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+
+                <TextInput
+                  style={styles.reviewInput}
+                  placeholder="Write a short review (optional)"
+                  placeholderTextColor="#BDBDBD"
+                  value={reviewComment}
+                  onChangeText={setReviewComment}
+                  multiline
+                  numberOfLines={3}
+                  textAlignVertical="top"
+                />
+
+                <TouchableOpacity
+                  style={styles.submitReviewButton}
+                  onPress={submitReview}
+                  disabled={reviewLoading}
+                >
+                  {reviewLoading ? (
+                    <ActivityIndicator color="#fff" />
+                  ) : (
+                    <Text style={styles.submitReviewText}>Submit Review</Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </View>
+          </TouchableWithoutFeedback>
+        </KeyboardAvoidingView>
+      </Modal>
     </View>
   );
 }
@@ -416,6 +536,19 @@ const styles = StyleSheet.create({
     color: '#FF5252',
     fontWeight: '700',
   },
+  reviewButton: {
+    borderWidth: 1.5,
+    borderColor: '#FF6B35',
+    borderRadius: 10,
+    paddingVertical: 7,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  reviewButtonText: {
+    fontSize: 13,
+    color: '#FF6B35',
+    fontWeight: '700',
+  },
   myMealCard: {
     backgroundColor: '#fff',
     borderRadius: 16,
@@ -456,6 +589,70 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#757575',
     fontWeight: '500',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalOverlayInner: {
+    flex: 1,
+    justifyContent: 'flex-end',
+  },
+  modalContainer: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    padding: 24,
+    paddingBottom: 32,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#1A1A1A',
+  },
+  modalClose: {
+    fontSize: 20,
+    color: '#9E9E9E',
+    fontWeight: '700',
+    padding: 4,
+  },
+  modalSubtitle: {
+    fontSize: 13,
+    color: '#9E9E9E',
+    marginBottom: 14,
+  },
+  starRow: { flexDirection: 'row', gap: 6, marginBottom: 12 },
+  star: { fontSize: 28, color: '#E0E0E0' },
+  starActive: { color: '#FFC107' },
+  reviewInput: {
+    borderWidth: 1.5,
+    borderColor: '#E0E0E0',
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 14,
+    color: '#212121',
+    backgroundColor: '#FAFAFA',
+    fontWeight: '500',
+  },
+  submitReviewButton: {
+    backgroundColor: '#FF6B35',
+    borderRadius: 14,
+    paddingVertical: 14,
+    alignItems: 'center',
+    marginTop: 14,
+  },
+  submitReviewText: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 15,
   },
   arrowText: { fontSize: 22, color: '#BDBDBD' },
   emptyState: { alignItems: 'center', paddingVertical: 60 },

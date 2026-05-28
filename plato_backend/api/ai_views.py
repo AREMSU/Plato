@@ -8,6 +8,96 @@ from .models import Meal
 from .serializers import MealSerializer
 
 
+def classify_food_image(image_url):
+    if not image_url:
+        return {
+            'verdict': 'pending_review',
+            'confidence': 0.0,
+            'reason': 'Please add a clear photo of the meal.',
+            'labels_detected': [],
+        }
+
+    img_response = httpx.get(
+        image_url,
+        follow_redirects=True,
+        headers={'User-Agent': 'Mozilla/5.0'},
+        timeout=15
+    )
+
+    if len(img_response.content) < 1000:
+        return {
+            'verdict': 'pending_review',
+            'confidence': 0.0,
+            'reason': 'We could not read this photo. Please try another image.',
+            'labels_detected': [],
+        }
+
+    api_key = os.getenv('HUGGINGFACE_API_KEY')
+    if not api_key:
+        return {
+            'verdict': 'pending_review',
+            'confidence': 0.0,
+            'reason': 'We could not verify your photo right now. Please try again in a minute.',
+            'labels_detected': [],
+        }
+
+    hf_response = httpx.post(
+        'https://router.huggingface.co/hf-inference/models/google/vit-base-patch16-224',
+        headers={
+            'Authorization': f'Bearer {api_key}',
+            'Content-Type': 'image/jpeg'
+        },
+        content=img_response.content,
+        timeout=30
+    )
+
+    if not hf_response.text.strip():
+        return {
+            'verdict': 'pending_review',
+            'confidence': 0.0,
+            'reason': 'We could not verify your photo right now. Please try again in a minute.',
+            'labels_detected': [],
+        }
+
+    results = hf_response.json()
+    if isinstance(results, dict) and 'error' in results:
+        return {
+            'verdict': 'pending_review',
+            'confidence': 0.0,
+            'reason': 'We could not verify your photo right now. Please try again in a minute.',
+            'labels_detected': [],
+        }
+
+    food_score = 0.0
+    top_labels = []
+
+    for item in results[:5]:
+        label = item.get('label', '').lower()
+        score = item.get('score', 0)
+        top_labels.append(item.get('label'))
+        for food_word in ImageFilterView.FOOD_LABELS:
+            if food_word in label:
+                food_score = max(food_score, score)
+                break
+
+    if food_score >= 0.40:
+        verdict = 'approved'
+        reason = 'Image confirmed as food'
+    elif food_score < 0.10:
+        verdict = 'rejected'
+        reason = 'This does not look like food. Please upload a real meal image.'
+    else:
+        verdict = 'pending_review'
+        reason = 'We could not verify this photo as food. Please use a clearer food image.'
+
+    return {
+        'verdict': verdict,
+        'confidence': round(food_score, 2),
+        'reason': reason,
+        'labels_detected': top_labels,
+    }
+
+
 class RecommendedMealsView(APIView):
     permission_classes = [AllowAny]
 
@@ -24,11 +114,13 @@ class RecommendedMealsView(APIView):
             rating = meal.rating or 0
             availability = meal.available_portions / max(meal.total_portions, 1)
             recency = 1 / days_alive
+            featured_bonus = 0.75 if meal.is_featured else 0
             return (
                 0.4 * velocity +
                 0.3 * (rating / 5) +
                 0.2 * availability +
-                0.1 * recency
+                0.1 * recency +
+                featured_bonus
             )
 
         scored = sorted(meals, key=score, reverse=True)
@@ -70,77 +162,23 @@ class ImageFilterView(APIView):
             return Response({'error': 'Meal not found'}, status=404)
 
         try:
-            img_response = httpx.get(
-                image_url,
-                follow_redirects=True,
-                headers={'User-Agent': 'Mozilla/5.0'},
-                timeout=15
-            )
+            result = classify_food_image(image_url)
 
-            if len(img_response.content) < 1000:
-                return Response({'error': 'Could not fetch image'}, status=400)
-
-            api_key = os.getenv('HUGGINGFACE_API_KEY')
-
-            hf_response = httpx.post(
-                'https://router.huggingface.co/hf-inference/models/google/vit-base-patch16-224',
-                headers={
-                    'Authorization': f'Bearer {api_key}',
-                    'Content-Type': 'image/jpeg'
-                },
-                content=img_response.content,
-                timeout=30
-            )
-
-            if not hf_response.text.strip():
-                return Response({
-                    'verdict': 'pending_review',
-                    'confidence': 0.0,
-                    'reason': 'Model warming up, try again in 10 seconds'
-                })
-
-            results = hf_response.json()
-
-            if isinstance(results, dict) and 'error' in results:
-                return Response({
-                    'verdict': 'pending_review',
-                    'confidence': 0.0,
-                    'reason': f"Model error: {results['error']}"
-                })
-
-            food_score = 0.0
-            top_labels = []
-
-            for item in results[:5]:
-                label = item.get('label', '').lower()
-                score = item.get('score', 0)
-                top_labels.append(item.get('label'))
-                for food_word in self.FOOD_LABELS:
-                    if food_word in label:
-                        food_score = max(food_score, score)
-                        break
-
-            if food_score >= 0.40:
+            if result['verdict'] == 'approved':
                 meal.status = 'approved'
-                verdict = 'approved'
-                reason = 'Image confirmed as food'
-            elif food_score < 0.10:
+            elif result['verdict'] == 'rejected':
                 meal.status = 'rejected'
-                verdict = 'rejected'
-                reason = 'Image does not appear to be food'
             else:
                 meal.status = 'pending_review'
-                verdict = 'pending_review'
-                reason = 'Image requires manual review'
 
             meal.save()
 
             return Response({
-                'verdict': verdict,
-                'confidence': round(food_score, 2),
-                'reason': reason,
+                'verdict': result['verdict'],
+                'confidence': result['confidence'],
+                'reason': result['reason'],
                 'meal_id': meal_id,
-                'labels_detected': top_labels
+                'labels_detected': result['labels_detected']
             })
 
         except Exception as e:

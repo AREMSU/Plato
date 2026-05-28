@@ -7,13 +7,15 @@ from rest_framework.permissions import IsAuthenticated, AllowAny, IsAuthenticate
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import authenticate
 from django.utils import timezone
+from django.db.models import Avg
 import uuid
 
 from api import models
-from .models import Subscription, User, Meal, Booking, OTP
+from .models import Subscription, User, Meal, Booking, OTP, Review, Notification
+from .ai_views import classify_food_image
 from .serializers import (
     RegisterSerializer, SubscriptionSerializer, UserSerializer,
-    MealSerializer, BookingSerializer
+    MealSerializer, BookingSerializer, ReviewSerializer, NotificationSerializer
 )
 from rest_framework.decorators import api_view, permission_classes
 from django.core.mail import send_mail
@@ -25,6 +27,31 @@ from .email_service import send_otp_email
 from .validators import is_disposable_email
 from django.utils import timezone
 # ─── AUTH VIEWS ───────────────────────────────────────────────
+
+
+def should_notify(user, category):
+    if category == 'new_meals':
+        return user.notify_new_meals
+    if category == 'booking_updates':
+        return user.notify_booking_updates
+    if category == 'reminders':
+        return user.notify_reminders
+    if category == 'promotions':
+        return user.notify_promotions
+    if category == 'reviews':
+        return user.notify_reviews
+    return False
+
+
+def create_notification(user, category, title, message):
+    if not should_notify(user, category):
+        return None
+    return Notification.objects.create(
+        user=user,
+        category=category,
+        title=title,
+        message=message,
+    )
 
 
 class RegisterView(APIView):
@@ -276,15 +303,15 @@ class MealListCreateView(APIView):
         if search:
             meals = meals.filter(title__icontains=search)
 
-        # Sorting
+        # Sorting (featured/pro meals first)
         if sort == 'rating':
-            meals = meals.order_by('-rating')
+            meals = meals.order_by('-is_featured', '-rating')
         elif sort == 'price':
-            meals = meals.order_by('price_per_portion')
+            meals = meals.order_by('-is_featured', 'price_per_portion')
         elif sort == 'newest':
-            meals = meals.order_by('-created_at')
+            meals = meals.order_by('-is_featured', '-created_at')
         else:
-            meals = meals.order_by('-created_at')
+            meals = meals.order_by('-is_featured', '-created_at')
 
         serializer = MealSerializer(meals, many=True)
         return Response(serializer.data)
@@ -292,9 +319,28 @@ class MealListCreateView(APIView):
     def post(self, request):
         serializer = MealSerializer(data=request.data)
         if serializer.is_valid():
+            image_url = serializer.validated_data.get('image')
+            if image_url:
+                result = classify_food_image(image_url)
+                if result['verdict'] != 'approved':
+                    return Response({
+                        'error': result['reason'],
+                        'verdict': result['verdict'],
+                        'confidence': result['confidence'],
+                        'labels_detected': result['labels_detected'],
+                    }, status=400)
+
+            is_featured = False
+            try:
+                subscription = request.user.subscription
+                is_featured = subscription.is_pro()
+            except Exception:
+                is_featured = False
+
             serializer.save(
                 seller=request.user,
-                available_portions=request.data.get('total_portions')
+                available_portions=request.data.get('total_portions'),
+                is_featured=is_featured,
             )
             return Response(serializer.data, status=201)
         return Response(serializer.errors, status=400)
@@ -375,6 +421,19 @@ class BookingListCreateView(APIView):
         meal.bookings += portions
         meal.save()
 
+        create_notification(
+            request.user,
+            'booking_updates',
+            'Booking Confirmed',
+            f"Your booking for {meal.title} is confirmed."
+        )
+        create_notification(
+            meal.seller,
+            'booking_updates',
+            'New Booking',
+            f"{request.user.first_name or request.user.email} booked {meal.title}."
+        )
+
         return Response(BookingSerializer(booking).data, status=201)
 
 
@@ -399,6 +458,19 @@ class CancelBookingView(APIView):
         meal.bookings -= booking.portions
         meal.save()
 
+        create_notification(
+            request.user,
+            'booking_updates',
+            'Booking Cancelled',
+            f"Your booking for {meal.title} was cancelled."
+        )
+        create_notification(
+            meal.seller,
+            'booking_updates',
+            'Booking Cancelled',
+            f"A booking for {meal.title} was cancelled."
+        )
+
         return Response(BookingSerializer(booking).data)
 
 
@@ -420,6 +492,94 @@ class MyMealsView(APIView):
             'meals': serializer.data,
             'total_earnings': total_earnings
         })
+
+
+class ReviewListCreateView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        booking_id = request.data.get('booking_id')
+        rating = request.data.get('rating')
+        comment = request.data.get('comment', '')
+
+        if not booking_id or not rating:
+            return Response({'error': 'Booking and rating are required'}, status=400)
+
+        try:
+            rating = int(rating)
+        except (TypeError, ValueError):
+            return Response({'error': 'Rating must be a number'}, status=400)
+
+        if rating < 1 or rating > 5:
+            return Response({'error': 'Rating must be between 1 and 5'}, status=400)
+
+        try:
+            booking = Booking.objects.get(pk=booking_id, user=request.user)
+        except Booking.DoesNotExist:
+            return Response({'error': 'Booking not found'}, status=404)
+
+        if booking.status != 'confirmed':
+            return Response({'error': 'Only confirmed bookings can be reviewed'}, status=400)
+
+        if hasattr(booking, 'review'):
+            return Response({'error': 'You already reviewed this booking'}, status=400)
+
+        review = Review.objects.create(
+            booking=booking,
+            meal=booking.meal,
+            reviewer=request.user,
+            seller=booking.meal.seller,
+            rating=rating,
+            comment=comment,
+        )
+
+        meal_reviews = Review.objects.filter(meal=booking.meal)
+        meal_avg = meal_reviews.aggregate(avg=Avg('rating'))['avg'] or 0
+        booking.meal.rating = round(meal_avg, 1)
+        booking.meal.reviews = meal_reviews.count()
+        booking.meal.save(update_fields=['rating', 'reviews'])
+
+        seller_reviews = Review.objects.filter(seller=booking.meal.seller)
+        seller_avg = seller_reviews.aggregate(avg=Avg('rating'))['avg'] or 0
+        booking.meal.seller.rating = round(seller_avg, 1)
+        booking.meal.seller.save(update_fields=['rating'])
+
+        create_notification(
+            booking.meal.seller,
+            'reviews',
+            'New Review',
+            f"You received a review for {booking.meal.title}."
+        )
+
+        return Response(ReviewSerializer(review).data, status=201)
+
+
+class ReviewReceivedView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        reviews = Review.objects.filter(seller=request.user).order_by('-created_at')
+        return Response(ReviewSerializer(reviews, many=True).data)
+
+
+class NotificationListView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        notifications = Notification.objects.filter(user=request.user).order_by('-created_at')
+        return Response(NotificationSerializer(notifications, many=True).data)
+
+
+class NotificationReadView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        notification_id = request.data.get('notification_id')
+        qs = Notification.objects.filter(user=request.user)
+        if notification_id:
+            qs = qs.filter(pk=notification_id)
+        updated = qs.update(is_read=True)
+        return Response({'updated': updated})
     
 
 # ─── OTP VIEWS ───────────────────────────────────────────────
@@ -547,15 +707,11 @@ class SubscriptionCancelView(APIView):
         if not subscription.is_pro():
             return Response({'error': 'No active Pro subscription'}, status=400)
 
-        # Deactivate — keep expires_at so they get the rest of the period
-        subscription.is_active = False
+        # Keep pro benefits until expiry; expiration job will downgrade later
         subscription.save()
 
-        # Unfeature their meals
-        Meal.objects.filter(seller=request.user).update(is_featured=False)
-
         return Response({
-            'message': 'Subscription cancelled. Access continues until expiry.',
+            'message': 'Subscription cancelled. Pro benefits remain until expiry.',
             'expires_at': subscription.expires_at,
         })
 

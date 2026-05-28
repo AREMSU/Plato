@@ -10,6 +10,9 @@ export const AppProvider = ({ children }) => {
     const [user, setUser] = useState(null);
     const [meals, setMeals] = useState([]);
     const [bookings, setBookings] = useState([]);
+    const [notifications, setNotifications] = useState([]);
+    const [reviewsReceived, setReviewsReceived] = useState([]);
+    const [aiRecommendations, setAiRecommendations] = useState([]);
     const [isLoggedIn, setIsLoggedIn] = useState(false);
     const [loading, setLoading] = useState(false);
     const [loggingOut, setLoggingOut] = useState(false);
@@ -28,6 +31,9 @@ export const AppProvider = ({ children }) => {
             setIsLoggedIn(true);
             await loadMeals();
             await loadBookings();
+            await loadReviewsReceived();
+            await loadNotifications();
+            await loadAIRecommendations();
             return { success: true };
         } catch (error) {
             return { success: false, error: error.message || 'Login failed' };
@@ -44,6 +50,9 @@ export const AppProvider = ({ children }) => {
         setIsLoggedIn(true);
         await loadMeals();
         await loadBookings();
+        await loadReviewsReceived();
+        await loadNotifications();
+        await loadAIRecommendations();
     };
 
     const logout = async () => {
@@ -184,9 +193,64 @@ export const AppProvider = ({ children }) => {
         }
     };
 
+    const loadReviewsReceived = async () => {
+        try {
+            const data = await apiCall('/reviews/received/', 'GET', null, true);
+            setReviewsReceived(Array.isArray(data) ? data : []);
+        } catch (error) {
+            console.log('Load reviews error:', error.message);
+        }
+    };
+
+    const loadNotifications = async () => {
+        try {
+            const data = await apiCall('/notifications/', 'GET', null, true);
+            setNotifications(Array.isArray(data) ? data : []);
+        } catch (error) {
+            console.log('Load notifications error:', error.message);
+        }
+    };
+
+    const markNotificationsRead = async (notificationId = null) => {
+        try {
+            const body = notificationId ? { notificationId } : null;
+            await apiCall('/notifications/read/', 'POST', body, true);
+            await loadNotifications();
+        } catch (error) {
+            console.log('Mark notifications read error:', error.message);
+        }
+    };
+
+    const createReview = async (bookingId, rating, comment) => {
+        try {
+            const data = await apiCall('/reviews/', 'POST', {
+                bookingId,
+                rating,
+                comment,
+            }, true);
+            await loadReviewsReceived();
+            await loadBookings();
+            await loadMeals();
+            return { success: true, review: data };
+        } catch (error) {
+            return { error: error.message || 'Failed to submit review' };
+        }
+    };
+
+    const loadAIRecommendations = async () => {
+        try {
+            const data = await apiCall('/ai/recommended/');
+            const flattened = Object.values(data || {}).flat();
+            setAiRecommendations(flattened);
+        } catch (error) {
+            console.log('Load AI recommendations error:', error.message);
+        }
+    };
+
     // ─── AI RECOMMENDATIONS ───────────────────────────────────
 
     const getAIRecommendations = () => {
+        if (aiRecommendations.length) return aiRecommendations.slice(0, 5);
         const availableMeals = meals.filter((meal) => !isMealOwner(user, meal));
         return [...availableMeals].sort(() => 0.5 - Math.random()).slice(0, 3);
     };
@@ -194,6 +258,7 @@ export const AppProvider = ({ children }) => {
     return (
         <AppContext.Provider value={{
             user,
+            setUser,
             meals,
             bookings,
             isLoggedIn,
@@ -208,6 +273,13 @@ export const AppProvider = ({ children }) => {
             cancelBookingAction,
             loadMeals,
             loadBookings,
+            reviewsReceived,
+            loadReviewsReceived,
+            createReview,
+            notifications,
+            loadNotifications,
+            markNotificationsRead,
+            loadAIRecommendations,
             getAIRecommendations,
         }}>
             {children}

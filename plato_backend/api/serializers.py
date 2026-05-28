@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Subscription, User, Meal, Booking, OTP
+from .models import Subscription, User, Meal, Booking, OTP, Review, Notification
 from .validators import is_disposable_email, has_email_dns
 
 
@@ -52,6 +52,8 @@ class UserSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'name', 'email', 'university', 'bio',
             'avatar', 'rating', 'meals_shared',
+            'notify_new_meals', 'notify_booking_updates',
+            'notify_reminders', 'notify_promotions', 'notify_reviews',
             'reliability_badge', 'is_pro', 'subscription_expires',
         ]
 
@@ -111,13 +113,14 @@ class BookingSerializer(serializers.ModelSerializer):
     )
     cancellation_fee = serializers.SerializerMethodField()
     refund_amount = serializers.SerializerMethodField()
+    has_reviewed = serializers.SerializerMethodField()
 
     class Meta:
         model = Booking
         fields = [
             'id', 'meal', 'meal_id', 'portions',
             'total_cost', 'status', 'booked_at',
-            'cancellation_fee', 'refund_amount'
+            'cancellation_fee', 'refund_amount', 'has_reviewed'
         ]
         read_only_fields = ['total_cost', 'status', 'booked_at']
 
@@ -127,6 +130,9 @@ class BookingSerializer(serializers.ModelSerializer):
     def get_refund_amount(self, obj):
         fee = round(obj.total_cost * 0.3)
         return obj.total_cost - fee
+
+    def get_has_reviewed(self, obj):
+        return hasattr(obj, 'review')
     
 class SubscriptionSerializer(serializers.ModelSerializer):
     is_pro = serializers.SerializerMethodField()
@@ -145,3 +151,29 @@ class SubscriptionSerializer(serializers.ModelSerializer):
 
     def get_days_remaining(self, obj):
         return obj.days_remaining()
+
+
+class ReviewSerializer(serializers.ModelSerializer):
+    reviewer_name = serializers.SerializerMethodField()
+    reviewer_avatar = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Review
+        fields = [
+            'id', 'booking', 'meal', 'reviewer', 'seller',
+            'rating', 'comment', 'created_at',
+            'reviewer_name', 'reviewer_avatar'
+        ]
+        read_only_fields = ['reviewer', 'seller', 'meal', 'created_at']
+
+    def get_reviewer_name(self, obj):
+        return obj.reviewer.first_name or obj.reviewer.email
+
+    def get_reviewer_avatar(self, obj):
+        return obj.reviewer.avatar
+
+
+class NotificationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Notification
+        fields = ['id', 'title', 'message', 'category', 'is_read', 'created_at']

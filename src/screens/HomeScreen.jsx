@@ -19,9 +19,16 @@ export default function HomeScreen({ navigation }) {
   const displayName = getDisplayName(user);
   const firstName = displayName.split(' ')[0] || displayName;
   const availableMeals = meals.filter((meal) => !isMealOwner(user, meal));
+  const getFeaturedFlag = (meal) => meal.isFeatured ?? meal.is_featured ?? false;
+  const sortFeaturedFirst = (list) => [...list].sort((a, b) => {
+    const aFeatured = getFeaturedFlag(a) ? 1 : 0;
+    const bFeatured = getFeaturedFlag(b) ? 1 : 0;
+    if (aFeatured !== bFeatured) return bFeatured - aFeatured;
+    return new Date(b.createdAt) - new Date(a.createdAt);
+  });
   const filteredMeals = selectedCategory === 'all'
-    ? availableMeals
-    : availableMeals.filter((m) => m.category === selectedCategory);
+    ? sortFeaturedFirst(availableMeals)
+    : sortFeaturedFirst(availableMeals.filter((m) => m.category === selectedCategory));
   const activeBookings = bookings.filter((b) => b.status === 'confirmed');
 
   const onRefresh = () => {

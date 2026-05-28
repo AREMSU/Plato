@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -14,15 +14,29 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useApp } from '../context/AppContext';
-import { getDisplayName, getReliabilityBadge } from '../utils/helpers';
+import { getDisplayName, getReliabilityBadge, isMealOwner } from '../utils/helpers';
 import RatingStars from '../components/RatingStars';
 import UserAvatar from '../components/UserAvatar';
+import apiCall from '../api/client';
+import { uploadImageToCloudinary } from '../api/uploadImage';
 
 export default function ProfileScreen({ navigation }) {
-  const { user, logout, meals, bookings, setUser , loggingOut } = useApp();
+  const {
+    user,
+    logout,
+    meals,
+    bookings,
+    setUser,
+    loggingOut,
+    reviewsReceived,
+    notifications: notificationsList,
+    loadNotifications,
+    markNotificationsRead,
+  } = useApp();
 
-  const myMeals = meals.filter((m) => m.sellerId === user?.id);
+  const myMeals = meals.filter((m) => isMealOwner(user, m));
   const activeBookings = bookings.filter((b) => b.status === 'confirmed');
   const cancelledBookings = bookings.filter((b) => b.status === 'cancelled');
   const badge = getReliabilityBadge(user?.rating || 5);
@@ -34,7 +48,11 @@ export default function ProfileScreen({ navigation }) {
   const [paymentModalVisible, setPaymentModalVisible] = useState(false);
   const [reviewsModalVisible, setReviewsModalVisible] = useState(false);
   const [privacyModalVisible, setPrivacyModalVisible] = useState(false);
+  const [premiumModalVisible, setPremiumModalVisible] = useState(false);
   const [avatarLoading, setAvatarLoading] = useState(false);
+  const [subscription, setSubscription] = useState(null);
+  const [subscriptionLoading, setSubscriptionLoading] = useState(false);
+  const [subscriptionActionLoading, setSubscriptionActionLoading] = useState(false);
 
   const [editForm, setEditForm] = useState({
     name: user?.name || '',
@@ -64,21 +82,136 @@ export default function ProfileScreen({ navigation }) {
     { id: '2', type: 'Khalti', number: '98XXXXXXXX', icon: '💜', color: '#9C27B0' },
   ];
 
-  const mockReviews = [
-    { id: '1', reviewer: 'Nabin C.', rating: 5, comment: 'Amazing dal bhat! Very fresh and tasty.', date: '2025-01-15', avatar: 'https://i.pravatar.cc/150?img=3' },
-    { id: '2', reviewer: 'Suraj P.', rating: 4, comment: 'Good momos, slightly spicy but loved it!', date: '2025-01-12', avatar: 'https://i.pravatar.cc/150?img=4' },
-    { id: '3', reviewer: 'Aditya J.', rating: 5, comment: 'Best home-cooked food on campus!', date: '2025-01-10', avatar: 'https://i.pravatar.cc/150?img=5' },
-    { id: '4', reviewer: 'Priya S.', rating: 4, comment: 'Loved the pasta. Will book again!', date: '2025-01-08', avatar: 'https://i.pravatar.cc/150?img=6' },
-  ];
+  const sellerReviews = Array.isArray(reviewsReceived) ? reviewsReceived : [];
 
   const totalEarnings = myMeals.reduce(
     (sum, meal) => sum + meal.pricePerPortion * meal.bookings,
     0
   );
 
+  const isPro = Boolean(subscription?.isPro);
+  const daysRemaining = subscription?.daysRemaining ?? 0;
+  const expiresAt = subscription?.expiresAt;
+  const expiresLabel = expiresAt
+    ? new Date(expiresAt).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    })
+    : null;
+
+  const loadSubscription = async () => {
+    if (!user) return;
+    setSubscriptionLoading(true);
+    try {
+      const data = await apiCall('/subscription/', 'GET', null, true);
+      setSubscription(data);
+    } catch (error) {
+      console.log('Load subscription error:', error.message);
+    } finally {
+      setSubscriptionLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadSubscription();
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (!notifModalVisible) return;
+    loadNotifications();
+    markNotificationsRead();
+  }, [notifModalVisible]);
+
+  useEffect(() => {
+    if (!user) return;
+    setNotifications({
+      newMeals: user.notifyNewMeals ?? true,
+      bookingUpdates: user.notifyBookingUpdates ?? true,
+      reminders: user.notifyReminders ?? true,
+      promotions: user.notifyPromotions ?? false,
+      reviews: user.notifyReviews ?? true,
+    });
+  }, [user]);
+
+  const handleUpgrade = async () => {
+    setSubscriptionActionLoading(true);
+    try {
+      const data = await apiCall('/subscription/upgrade/', 'POST', null, true);
+      const next = data?.subscription ?? data;
+      setSubscription(next);
+      Alert.alert('✅ Pro Activated', 'Your meals will be featured immediately.');
+    } catch (error) {
+      Alert.alert('Upgrade Failed', error.message || 'Please try again.');
+    } finally {
+      setSubscriptionActionLoading(false);
+    }
+  };
+
+  const handleCancelSubscription = async () => {
+    Alert.alert(
+      'Cancel Subscription',
+      'You will keep Pro benefits until the current period ends.',
+      [
+        { text: 'Keep Pro', style: 'cancel' },
+        {
+          text: 'Cancel Renewal',
+          style: 'destructive',
+          onPress: async () => {
+            setSubscriptionActionLoading(true);
+            try {
+              await apiCall('/subscription/cancel/', 'POST', null, true);
+              await loadSubscription();
+              Alert.alert('Cancelled', 'Auto-renew is turned off.');
+            } catch (error) {
+              Alert.alert('Cancel Failed', error.message || 'Please try again.');
+            } finally {
+              setSubscriptionActionLoading(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleRenewSubscription = async () => {
+    setSubscriptionActionLoading(true);
+    try {
+      const data = await apiCall('/subscription/renew/', 'POST', null, true);
+      const next = data?.subscription ?? data;
+      setSubscription(next);
+      Alert.alert('✅ Renewed', 'Subscription extended by 30 days.');
+    } catch (error) {
+      Alert.alert('Renew Failed', error.message || 'Please try again.');
+    } finally {
+      setSubscriptionActionLoading(false);
+    }
+  };
+
   // ─────────────────────────────────────
   // AVATAR HELPERS
   // ─────────────────────────────────────
+  const persistUser = async (nextUser) => {
+    setUser(nextUser);
+    await AsyncStorage.setItem('user', JSON.stringify(nextUser));
+  };
+
+  const updateAvatar = async (avatarUrl) => {
+    const updated = await apiCall('/users/me/', 'PATCH', { avatar: avatarUrl }, true);
+    await persistUser(updated);
+  };
+
+  const saveNotificationPrefs = async () => {
+    const updated = await apiCall('/users/me/', 'PATCH', {
+      notifyNewMeals: notifications.newMeals,
+      notifyBookingUpdates: notifications.bookingUpdates,
+      notifyReminders: notifications.reminders,
+      notifyPromotions: notifications.promotions,
+      notifyReviews: notifications.reviews,
+    }, true);
+    await persistUser(updated);
+  };
+
   const requestPermission = async (type) => {
     if (type === 'camera') {
       const { status } = await ImagePicker.requestCameraPermissionsAsync();
@@ -116,7 +249,13 @@ export default function ProfileScreen({ navigation }) {
         quality: 0.8,
       });
       if (!result.canceled && result.assets?.length > 0) {
-        setUser({ ...user, avatar: result.assets[0].uri });
+        const localUri = result.assets[0].uri;
+        const url = await uploadImageToCloudinary(localUri);
+        if (!url) {
+          Alert.alert('Upload Failed', 'Could not upload image. Please try again.');
+          return;
+        }
+        await updateAvatar(url);
         Alert.alert('✅ Updated', 'Profile photo updated!');
       }
     } catch {
@@ -137,7 +276,13 @@ export default function ProfileScreen({ navigation }) {
         quality: 0.8,
       });
       if (!result.canceled && result.assets?.length > 0) {
-        setUser({ ...user, avatar: result.assets[0].uri });
+        const localUri = result.assets[0].uri;
+        const url = await uploadImageToCloudinary(localUri);
+        if (!url) {
+          Alert.alert('Upload Failed', 'Could not upload image. Please try again.');
+          return;
+        }
+        await updateAvatar(url);
         Alert.alert('✅ Updated', 'Profile photo updated!');
       }
     } catch {
@@ -156,9 +301,16 @@ export default function ProfileScreen({ navigation }) {
         {
           text: 'Remove',
           style: 'destructive',
-          onPress: () => {
-            setUser({ ...user, avatar: null });
-            Alert.alert('✅ Done', 'Profile photo removed.');
+          onPress: async () => {
+            setAvatarLoading(true);
+            try {
+              await updateAvatar('');
+              Alert.alert('✅ Done', 'Profile photo removed.');
+            } catch {
+              Alert.alert('Error', 'Failed to remove photo. Please try again.');
+            } finally {
+              setAvatarLoading(false);
+            }
           },
         },
       ]
@@ -269,7 +421,14 @@ export default function ProfileScreen({ navigation }) {
             {/* ❌ REMOVED: userEmail */}
             {/* ❌ REMOVED: editProfileBtn */}
 
-            <Text style={styles.userName}>{displayName}</Text>
+            <View style={styles.nameRow}>
+              <Text style={styles.userName}>{displayName}</Text>
+              {isPro && (
+                <View style={styles.proPill}>
+                  <Text style={styles.proPillText}>PRO</Text>
+                </View>
+              )}
+            </View>
 
             <Text style={styles.userUniversity}>
               🎓 {user?.university}
@@ -323,33 +482,140 @@ export default function ProfileScreen({ navigation }) {
         <View style={styles.activityCard}>
           <Text style={styles.activityTitle}>📊 Activity Summary</Text>
           <View style={styles.activityRow}>
-            <View style={styles.activityItem}>
+            <TouchableOpacity
+              style={styles.activityItem}
+              onPress={() => navigation.navigate('MyMeals', { initialTab: 'listings' })}
+            >
               <Text style={styles.activityEmoji}>🍽️</Text>
               <Text style={styles.activityValue}>{myMeals.length}</Text>
               <Text style={styles.activityLabel}>Listed</Text>
-            </View>
-            <View style={styles.activityItem}>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.activityItem}
+              onPress={() => navigation.navigate('MyMeals', { initialTab: 'bookings' })}
+            >
               <Text style={styles.activityEmoji}>✅</Text>
               <Text style={styles.activityValue}>
                 {activeBookings.length}
               </Text>
               <Text style={styles.activityLabel}>Active</Text>
-            </View>
-            <View style={styles.activityItem}>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.activityItem}
+              onPress={() => navigation.navigate('MyMeals', { initialTab: 'bookings' })}
+            >
               <Text style={styles.activityEmoji}>❌</Text>
               <Text style={styles.activityValue}>
                 {cancelledBookings.length}
               </Text>
               <Text style={styles.activityLabel}>Cancelled</Text>
-            </View>
-            <View style={styles.activityItem}>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.activityItem}
+              onPress={() => setReviewsModalVisible(true)}
+            >
               <Text style={styles.activityEmoji}>⭐</Text>
               <Text style={styles.activityValue}>
-                {mockReviews.length}
+                {sellerReviews.length}
               </Text>
               <Text style={styles.activityLabel}>Reviews</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* ══════════════ PREMIUM PLANS ══════════════ */}
+        <View style={styles.premiumCard}>
+          <View style={styles.premiumHeader}>
+            <Text style={styles.premiumTitle}>Premium Plans</Text>
+            <View
+              style={[
+                styles.premiumBadge,
+                isPro ? styles.premiumBadgePro : styles.premiumBadgeFree,
+              ]}
+            >
+              <Text style={styles.premiumBadgeText}>{isPro ? 'PRO' : 'FREE'}</Text>
             </View>
           </View>
+
+          <Text style={styles.premiumPrice}>
+            {isPro ? 'NPR 199 / month' : 'Upgrade to NPR 199 / month'}
+          </Text>
+          <Text style={styles.premiumSubtitle}>
+            Boost your meals with priority visibility and AI preference.
+          </Text>
+
+          <View style={styles.premiumFeatureRow}>
+            <Text style={styles.premiumFeatureIcon}>⬆️</Text>
+            <Text style={styles.premiumFeatureText}>
+              Meals pushed to top of Explore and Home
+            </Text>
+          </View>
+          <View style={styles.premiumFeatureRow}>
+            <Text style={styles.premiumFeatureIcon}>🤖</Text>
+            <Text style={styles.premiumFeatureText}>
+              AI recommendations prioritize your meals
+            </Text>
+          </View>
+          <View style={styles.premiumFeatureRow}>
+            <Text style={styles.premiumFeatureIcon}>⭐</Text>
+            <Text style={styles.premiumFeatureText}>
+              Featured badge on your listings
+            </Text>
+          </View>
+
+          {subscriptionLoading ? (
+            <Text style={styles.premiumStatus}>Checking subscription...</Text>
+          ) : (
+            <Text style={styles.premiumStatus}>
+              {isPro
+                ? `Pro active • ${daysRemaining} days left`
+                : 'You are on the Free plan'}
+            </Text>
+          )}
+
+          {isPro && expiresLabel && (
+            <Text style={styles.premiumExpiry}>Expires on {expiresLabel}</Text>
+          )}
+
+          {isPro ? (
+            <View style={styles.premiumActions}>
+              <TouchableOpacity
+                style={[styles.premiumButton, styles.premiumButtonOutline]}
+                onPress={handleCancelSubscription}
+                disabled={subscriptionActionLoading}
+              >
+                <Text style={styles.premiumButtonOutlineText}>Cancel Renewal</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.premiumButton}
+                onPress={handleRenewSubscription}
+                disabled={subscriptionActionLoading}
+              >
+                <Text style={styles.premiumButtonText}>Renew 30 Days</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <TouchableOpacity
+              style={styles.premiumButton}
+              onPress={handleUpgrade}
+              disabled={subscriptionActionLoading}
+            >
+              <Text style={styles.premiumButtonText}>Upgrade to Pro</Text>
+            </TouchableOpacity>
+          )}
+
+          <TouchableOpacity
+            style={styles.premiumLearnMore}
+            onPress={() =>
+              Alert.alert(
+                'Premium Plans',
+                'Pro sellers get featured placement in Explore/Home and priority in AI recommendations for NPR 199/month.',
+                [{ text: 'Got it' }]
+              )
+            }
+          >
+            <Text style={styles.premiumLearnMoreText}>Learn more</Text>
+          </TouchableOpacity>
         </View>
 
         {/* ══════════════ SDG IMPACT ══════════════ */}
@@ -408,6 +674,13 @@ export default function ProfileScreen({ navigation }) {
             onPress={() => setEditModalVisible(true)}
           />
           <MenuItem
+            icon="💎"
+            label="Premium Plans"
+            value={isPro ? 'Pro Active' : 'Free Plan'}
+            color="#FF6B35"
+            onPress={() => setPremiumModalVisible(true)}
+          />
+          <MenuItem
             icon="🔔"
             label="Notifications"
             color="#9C27B0"
@@ -438,7 +711,7 @@ export default function ProfileScreen({ navigation }) {
           <MenuItem
             icon="⭐"
             label="My Reviews"
-            value={`${mockReviews.length} reviews`}
+            value={`${sellerReviews.length} reviews`}
             color="#FFC107"
             onPress={() => setReviewsModalVisible(true)}
           />
@@ -702,11 +975,51 @@ export default function ProfileScreen({ navigation }) {
               </View>
             ))}
 
+            <View style={styles.notifSectionHeader}>
+              <Text style={styles.notifSectionTitle}>Recent Notifications</Text>
+              <TouchableOpacity onPress={() => loadNotifications()}>
+                <Text style={styles.notifRefresh}>Refresh</Text>
+              </TouchableOpacity>
+            </View>
+
+            {notificationsList.length === 0 ? (
+              <View style={styles.notifEmptyState}>
+                <Text style={styles.notifEmptyEmoji}>🔔</Text>
+                <Text style={styles.notifEmptyTitle}>No notifications yet</Text>
+                <Text style={styles.notifEmptySubtitle}>
+                  Updates will appear here based on your preferences.
+                </Text>
+              </View>
+            ) : (
+              notificationsList.slice(0, 10).map((n) => (
+                <View key={n.id} style={styles.notifItem}>
+                  {!n.isRead && <View style={styles.notifDot} />}
+                  <View style={styles.notifContent}>
+                    <Text style={styles.notifTitle}>{n.title}</Text>
+                    <Text style={styles.notifMessage}>{n.message}</Text>
+                    <Text style={styles.notifTime}>
+                      {new Date(n.createdAt).toLocaleString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                        hour: 'numeric',
+                        minute: '2-digit',
+                      })}
+                    </Text>
+                  </View>
+                </View>
+              ))
+            )}
+
             <TouchableOpacity
               style={styles.modalSaveButton}
-              onPress={() => {
-                setNotifModalVisible(false);
-                Alert.alert('✅ Saved', 'Notification preferences updated!');
+              onPress={async () => {
+                try {
+                  await saveNotificationPrefs();
+                  setNotifModalVisible(false);
+                  Alert.alert('✅ Saved', 'Notification preferences updated!');
+                } catch (error) {
+                  Alert.alert('Error', error.message || 'Failed to save preferences.');
+                }
               }}
             >
               <LinearGradient
@@ -885,7 +1198,7 @@ export default function ProfileScreen({ navigation }) {
               </Text>
               <RatingStars rating={user?.rating || 5} size={22} />
               <Text style={styles.reviewCount}>
-                Based on {mockReviews.length} reviews
+                Based on {sellerReviews.length} reviews
               </Text>
             </View>
 
@@ -893,18 +1206,38 @@ export default function ProfileScreen({ navigation }) {
               style={styles.reviewsList}
               showsVerticalScrollIndicator={false}
             >
-              {mockReviews.map((review) => (
+              {sellerReviews.length === 0 ? (
+                <View style={styles.reviewEmptyState}>
+                  <Text style={styles.reviewEmptyEmoji}>⭐</Text>
+                  <Text style={styles.reviewEmptyTitle}>No reviews yet</Text>
+                  <Text style={styles.reviewEmptySubtitle}>
+                    Reviews from buyers will appear here.
+                  </Text>
+                </View>
+              ) : sellerReviews.map((review) => (
                 <View key={review.id} style={styles.reviewCard}>
                   <View style={styles.reviewHeader}>
-                    <Image
-                      source={{ uri: review.avatar }}
-                      style={styles.reviewAvatar}
-                    />
+                    {review.reviewerAvatar ? (
+                      <Image
+                        source={{ uri: review.reviewerAvatar }}
+                        style={styles.reviewAvatar}
+                      />
+                    ) : (
+                      <View style={[styles.reviewAvatar, styles.reviewAvatarPlaceholder]}>
+                        <Text style={styles.reviewAvatarPlaceholderText}>👤</Text>
+                      </View>
+                    )}
                     <View style={styles.reviewMeta}>
                       <Text style={styles.reviewerName}>
-                        {review.reviewer}
+                        {review.reviewerName || 'Anonymous'}
                       </Text>
-                      <Text style={styles.reviewDate}>{review.date}</Text>
+                      <Text style={styles.reviewDate}>
+                        {new Date(review.createdAt).toLocaleDateString('en-US', {
+                          month: 'short',
+                          day: 'numeric',
+                          year: 'numeric',
+                        })}
+                      </Text>
                     </View>
                     <View style={styles.reviewStarsRow}>
                       {[1, 2, 3, 4, 5].map((s) => (
@@ -920,7 +1253,9 @@ export default function ProfileScreen({ navigation }) {
                       ))}
                     </View>
                   </View>
-                  <Text style={styles.reviewComment}>{review.comment}</Text>
+                  {review.comment ? (
+                    <Text style={styles.reviewComment}>{review.comment}</Text>
+                  ) : null}
                 </View>
               ))}
             </ScrollView>
@@ -928,6 +1263,111 @@ export default function ProfileScreen({ navigation }) {
             <TouchableOpacity
               style={styles.modalSaveButton}
               onPress={() => setReviewsModalVisible(false)}
+            >
+              <LinearGradient
+                colors={['#FF6B35', '#FF8C42']}
+                style={styles.modalSaveGradient}
+              >
+                <Text style={styles.modalSaveText}>Close</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ══════════════════════════════════════
+          PREMIUM MODAL
+      ══════════════════════════════════════ */}
+      <Modal visible={premiumModalVisible} animationType="slide" transparent>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>💎 Premium Plans</Text>
+              <TouchableOpacity onPress={() => setPremiumModalVisible(false)}>
+                <Text style={styles.modalClose}>✕</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.premiumModalHeaderRow}>
+              <Text style={styles.premiumModalTitle}>Plato Pro</Text>
+              <View
+                style={[
+                  styles.premiumBadge,
+                  isPro ? styles.premiumBadgePro : styles.premiumBadgeFree,
+                ]}
+              >
+                <Text style={styles.premiumBadgeText}>{isPro ? 'ACTIVE' : 'FREE'}</Text>
+              </View>
+            </View>
+
+            <Text style={styles.premiumPrice}>NPR 199 / month</Text>
+            <Text style={styles.premiumSubtitle}>
+              Featured placement and AI priority to grow your sales.
+            </Text>
+
+            <View style={styles.premiumFeatureRow}>
+              <Text style={styles.premiumFeatureIcon}>⬆️</Text>
+              <Text style={styles.premiumFeatureText}>
+                Meals pushed to top of Explore and Home
+              </Text>
+            </View>
+            <View style={styles.premiumFeatureRow}>
+              <Text style={styles.premiumFeatureIcon}>🤖</Text>
+              <Text style={styles.premiumFeatureText}>
+                AI recommendations prioritize your meals
+              </Text>
+            </View>
+            <View style={styles.premiumFeatureRow}>
+              <Text style={styles.premiumFeatureIcon}>⭐</Text>
+              <Text style={styles.premiumFeatureText}>
+                Featured badge on your listings
+              </Text>
+            </View>
+
+            {subscriptionLoading ? (
+              <Text style={styles.premiumStatus}>Checking subscription...</Text>
+            ) : (
+              <Text style={styles.premiumStatus}>
+                {isPro
+                  ? `Pro active • ${daysRemaining} days left`
+                  : 'You are on the Free plan'}
+              </Text>
+            )}
+
+            {isPro && expiresLabel && (
+              <Text style={styles.premiumExpiry}>Expires on {expiresLabel}</Text>
+            )}
+
+            {isPro ? (
+              <View style={styles.premiumActions}>
+                <TouchableOpacity
+                  style={[styles.premiumButton, styles.premiumButtonOutline]}
+                  onPress={handleCancelSubscription}
+                  disabled={subscriptionActionLoading}
+                >
+                  <Text style={styles.premiumButtonOutlineText}>Cancel Renewal</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.premiumButton}
+                  onPress={handleRenewSubscription}
+                  disabled={subscriptionActionLoading}
+                >
+                  <Text style={styles.premiumButtonText}>Renew 30 Days</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <TouchableOpacity
+                style={styles.premiumButton}
+                onPress={handleUpgrade}
+                disabled={subscriptionActionLoading}
+              >
+                <Text style={styles.premiumButtonText}>Upgrade to Pro</Text>
+              </TouchableOpacity>
+            )}
+
+            <TouchableOpacity
+              style={styles.modalSaveButton}
+              onPress={() => setPremiumModalVisible(false)}
             >
               <LinearGradient
                 colors={['#FF6B35', '#FF8C42']}
@@ -1089,6 +1529,23 @@ const styles = StyleSheet.create({
     marginBottom: 4,
     marginTop: 6,
   },
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  proPill: {
+    backgroundColor: '#FFD700',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
+  },
+  proPillText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#1A1A1A',
+    letterSpacing: 0.6,
+  },
   userUniversity: {
     fontSize: 13,
     color: 'rgba(255,255,255,0.75)',
@@ -1174,6 +1631,120 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: '#9E9E9E',
     fontWeight: '500',
+  },
+
+  // Premium
+  premiumCard: {
+    backgroundColor: '#fff',
+    marginHorizontal: 16,
+    marginTop: 16,
+    borderRadius: 20,
+    padding: 18,
+    elevation: 2,
+  },
+  premiumHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  premiumTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#1A1A1A',
+  },
+  premiumModalHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  premiumModalTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#1A1A1A',
+  },
+  premiumBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  premiumBadgePro: { backgroundColor: '#FF6B35' },
+  premiumBadgeFree: { backgroundColor: '#BDBDBD' },
+  premiumBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#fff',
+    letterSpacing: 0.6,
+  },
+  premiumPrice: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#FF6B35',
+    marginBottom: 6,
+  },
+  premiumSubtitle: {
+    fontSize: 13,
+    color: '#6B6B6B',
+    marginBottom: 12,
+  },
+  premiumFeatureRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 6,
+  },
+  premiumFeatureIcon: { fontSize: 16 },
+  premiumFeatureText: {
+    fontSize: 13,
+    color: '#424242',
+    flex: 1,
+  },
+  premiumStatus: {
+    fontSize: 12,
+    color: '#9E9E9E',
+    marginTop: 10,
+  },
+  premiumExpiry: {
+    fontSize: 12,
+    color: '#607D8B',
+    marginTop: 4,
+  },
+  premiumActions: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 12,
+  },
+  premiumButton: {
+    flex: 1,
+    backgroundColor: '#FF6B35',
+    borderRadius: 14,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  premiumButtonText: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 14,
+  },
+  premiumButtonOutline: {
+    backgroundColor: '#fff',
+    borderWidth: 1.5,
+    borderColor: '#FF6B35',
+  },
+  premiumButtonOutlineText: {
+    color: '#FF6B35',
+    fontWeight: '700',
+    fontSize: 14,
+  },
+  premiumLearnMore: {
+    marginTop: 10,
+    alignItems: 'center',
+  },
+  premiumLearnMoreText: {
+    fontSize: 12,
+    color: '#2196F3',
+    fontWeight: '600',
   },
 
   // SDG
@@ -1465,6 +2036,65 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   notifDesc: { fontSize: 12, color: '#9E9E9E' },
+  notifSectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  notifSectionTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#424242',
+  },
+  notifRefresh: {
+    fontSize: 12,
+    color: '#2196F3',
+    fontWeight: '600',
+  },
+  notifEmptyState: {
+    alignItems: 'center',
+    paddingVertical: 18,
+  },
+  notifEmptyEmoji: { fontSize: 26, marginBottom: 6 },
+  notifEmptyTitle: { fontSize: 14, fontWeight: '700', color: '#424242' },
+  notifEmptySubtitle: {
+    fontSize: 12,
+    color: '#9E9E9E',
+    textAlign: 'center',
+    marginTop: 4,
+  },
+  notifItem: {
+    flexDirection: 'row',
+    gap: 10,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F5F5F5',
+  },
+  notifDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#FF6B35',
+    marginTop: 6,
+  },
+  notifContent: { flex: 1 },
+  notifTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#1A1A1A',
+    marginBottom: 2,
+  },
+  notifMessage: {
+    fontSize: 12,
+    color: '#616161',
+  },
+  notifTime: {
+    fontSize: 11,
+    color: '#9E9E9E',
+    marginTop: 4,
+  },
 
   // Payment
   paymentRow: {
@@ -1570,6 +2200,12 @@ const styles = StyleSheet.create({
     height: 36,
     borderRadius: 18,
   },
+  reviewAvatarPlaceholder: {
+    backgroundColor: '#F5F5F5',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  reviewAvatarPlaceholderText: { fontSize: 16 },
   reviewMeta: { flex: 1 },
   reviewerName: {
     fontSize: 14,
@@ -1586,6 +2222,22 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#616161',
     lineHeight: 20,
+  },
+  reviewEmptyState: {
+    alignItems: 'center',
+    paddingVertical: 24,
+  },
+  reviewEmptyEmoji: { fontSize: 28, marginBottom: 8 },
+  reviewEmptyTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#424242',
+    marginBottom: 4,
+  },
+  reviewEmptySubtitle: {
+    fontSize: 12,
+    color: '#9E9E9E',
+    textAlign: 'center',
   },
 
   // Privacy
