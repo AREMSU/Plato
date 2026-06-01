@@ -23,6 +23,14 @@ urlpatterns = [
     path('bookings/', views.BookingListCreateView.as_view(), name='bookings'),
     path('bookings/<int:pk>/cancel/', views.CancelBookingView.as_view(), name='cancel-booking'),
 
+    # Reviews
+    path('reviews/', views.ReviewListCreateView.as_view(), name='reviews'),
+    path('reviews/received/', views.ReviewReceivedView.as_view(), name='reviews-received'),
+
+    # Notifications
+    path('notifications/', views.NotificationListView.as_view(), name='notifications'),
+    path('notifications/read/', views.NotificationReadView.as_view(), name='notifications-read'),
+
     # Subscription
     path('subscription/', views.SubscriptionStatusView.as_view()),
     path('subscription/upgrade/', views.SubscriptionUpgradeView.as_view()),

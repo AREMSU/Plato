@@ -13,6 +13,11 @@ class User(AbstractUser):
     rating = models.FloatField(default=0.0)
     meals_shared = models.IntegerField(default=0)
     email = models.EmailField(unique=True)
+    notify_new_meals = models.BooleanField(default=True)
+    notify_booking_updates = models.BooleanField(default=True)
+    notify_reminders = models.BooleanField(default=True)
+    notify_promotions = models.BooleanField(default=False)
+    notify_reviews = models.BooleanField(default=True)
 
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['username']
@@ -40,6 +45,13 @@ class Meal(models.Model):
         ('Snacks', 'Snacks'),
         ('Breakfast', 'Breakfast'),
     ]
+    
+    STATUS_CHOICES = [
+    ('pending_review', 'Pending Review'),
+    ('approved', 'Approved'),
+    ('rejected', 'Rejected'),
+    ]
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='approved')
 
     title = models.CharField(max_length=200)
     description = models.TextField()
@@ -81,6 +93,39 @@ class Booking(models.Model):
 
     def __str__(self):
         return f"{self.user.email} booked {self.meal.title}"
+
+
+class Review(models.Model):
+    booking = models.OneToOneField(Booking, on_delete=models.CASCADE, related_name='review')
+    meal = models.ForeignKey(Meal, on_delete=models.CASCADE, related_name='reviews_list')
+    reviewer = models.ForeignKey(User, on_delete=models.CASCADE, related_name='reviews_given')
+    seller = models.ForeignKey(User, on_delete=models.CASCADE, related_name='reviews_received')
+    rating = models.IntegerField()
+    comment = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.reviewer.email} → {self.seller.email} ({self.rating})"
+
+
+class Notification(models.Model):
+    CATEGORY_CHOICES = [
+        ('new_meals', 'New Meals'),
+        ('booking_updates', 'Booking Updates'),
+        ('reminders', 'Reminders'),
+        ('promotions', 'Promotions'),
+        ('reviews', 'Reviews'),
+    ]
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='notifications')
+    title = models.CharField(max_length=200)
+    message = models.TextField()
+    category = models.CharField(max_length=30, choices=CATEGORY_CHOICES)
+    is_read = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.user.email} — {self.title}"
     
 
 
