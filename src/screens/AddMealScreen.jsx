@@ -1244,11 +1244,11 @@ const styles = StyleSheet.create({
   },
   timeDisplayText: {
     flex: 1,
-    fontSize: 28,
-    fontWeight: '800',
-    color: '#0F172A',
-    letterSpacing: 1,
-    fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Bold' : 'sans-serif-black',
+    fontSize: 24,
+    fontWeight: '500',
+    color: '#334155',
+    letterSpacing: 0.5,
+    fontFamily: Platform.OS === 'ios' ? 'Avenir Next' : 'sans-serif',
   },
   amPmInlineButtons: {
     flexDirection: 'row',
