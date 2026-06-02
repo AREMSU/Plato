@@ -379,7 +379,8 @@ export default function AddMealScreen({ navigation }) {
           </View>
         </LinearGradient>
 
-        {/* ══════════════════════════════
+        <View style={styles.formContainer}>
+          {/* ══════════════════════════════
             MEAL PHOTO — REQUIRED
         ══════════════════════════════ */}
         <View style={styles.inputGroup}>
@@ -812,6 +813,7 @@ export default function AddMealScreen({ navigation }) {
         </Text>
 
         <View style={{ height: 40 }} />
+      </View>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -844,8 +846,12 @@ const styles = StyleSheet.create({
   },
   scrollView: { flex: 1 },
   scrollContent: {
-    paddingHorizontal: 20,
     paddingTop: 0,
+    paddingBottom: 0,
+  },
+  formContainer: {
+    paddingHorizontal: 20,
+    paddingTop: 24,
     paddingBottom: 20,
   },
   inputGroup: { marginBottom: 20 },

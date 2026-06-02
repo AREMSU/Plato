@@ -302,6 +302,8 @@ export default function MyMealsScreen({ navigation, route }) {
           </TouchableOpacity>
         </View>
 
+        <View style={styles.listContainer}>
+
         {activeTab === 'bookings' ? (
           <>
             {bookings.length === 0 ? (
@@ -407,6 +409,7 @@ export default function MyMealsScreen({ navigation, route }) {
         )}
 
         <View style={{ height: 100 }} />
+        </View>
       </ScrollView>
 
       <Modal
@@ -488,8 +491,6 @@ const styles = StyleSheet.create({
     paddingTop: Platform.OS === 'android' ? 48 : 58,
     paddingBottom: 24,
     paddingHorizontal: 20,
-    borderBottomLeftRadius: 28,
-    borderBottomRightRadius: 28,
   },
   headerTitle: {
     fontSize: 26,
@@ -530,7 +531,8 @@ const styles = StyleSheet.create({
     fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Medium' : 'sans-serif-medium',
   },
   tabTextActive: { color: '#FF6B35' },
-  scrollContent: { paddingHorizontal: 16, paddingTop: 0 },
+  scrollContent: { paddingTop: 0 },
+  listContainer: { paddingHorizontal: 16, paddingTop: 16 },
   sectionTitle: {
     fontSize: 17,
     fontWeight: '800',
