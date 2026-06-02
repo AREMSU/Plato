@@ -219,6 +219,24 @@ export default function ProfileScreen({ navigation }) {
     }
   };
 
+  const handleEsewaUpgrade = async () => {
+    setSubscriptionActionLoading(true);
+    try {
+      const data = await apiCall('/subscription/esewa/initiate/', 'POST', null, true);
+      if (data.checkout_url) {
+        setProUpgradeModalVisible(false);
+        setPremiumModalVisible(false);
+        Linking.openURL(data.checkout_url);
+      } else {
+        Alert.alert('Error', 'Failed to retrieve payment redirect from server.');
+      }
+    } catch (error) {
+      Alert.alert('Payment Error', error.message || 'Could not initiate eSewa payment.');
+    } finally {
+      setSubscriptionActionLoading(false);
+    }
+  };
+
   const handleCancelSubscription = async () => {
     Alert.alert(
       'Cancel Subscription',
@@ -1526,6 +1544,18 @@ export default function ProfileScreen({ navigation }) {
                 ) : (
                   <Text style={styles.submitRequestButtonText}>Submit Reference ID</Text>
                 )}
+              </TouchableOpacity>
+
+              <View style={{ marginVertical: 12, alignItems: 'center' }}>
+                <Text style={{ color: '#64748B', fontWeight: 'bold', fontSize: 13 }}>— OR —</Text>
+              </View>
+
+              <TouchableOpacity
+                style={[styles.submitRequestButton, { backgroundColor: '#60bb46', borderSide: 'none' }]}
+                onPress={handleEsewaUpgrade}
+                disabled={subscriptionActionLoading}
+              >
+                <Text style={styles.submitRequestButtonText}>🟢 Pay Instantly with eSewa (UAT)</Text>
               </TouchableOpacity>
             </ScrollView>
           </View>

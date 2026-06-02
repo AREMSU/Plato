@@ -80,6 +80,7 @@ class Meal(models.Model):
 
 class Booking(models.Model):
     STATUS = [
+        ('pending_payment', 'Pending Payment'),
         ('confirmed', 'Confirmed'),
         ('cancelled', 'Cancelled'),
     ]
@@ -89,10 +90,13 @@ class Booking(models.Model):
     portions = models.IntegerField()
     total_cost = models.FloatField()
     status = models.CharField(max_length=20, choices=STATUS, default='confirmed')
+    payment_reference = models.CharField(max_length=200, blank=True, null=True)
+    payment_method = models.CharField(max_length=50, default='cash')
     booked_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         return f"{self.user.email} booked {self.meal.title}"
+
 
 
 class Review(models.Model):

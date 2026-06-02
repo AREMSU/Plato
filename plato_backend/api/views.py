@@ -756,5 +756,322 @@ class SubscriptionRenewView(APIView):
             'message': 'Subscription renewed for 30 days!',
             'subscription': serializer.data,
         })
+
+
+from django.http import HttpResponse
+import requests
+from api.payment_helpers import generate_esewa_signature, decode_esewa_callback_data
+import time
+
+class EsewaSubscriptionInitiateView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        subscription, created = Subscription.objects.get_or_create(
+            user=request.user,
+            defaults={'plan': 'free', 'is_active': False, 'status': 'none'}
+        )
+
+        if subscription.is_pro():
+            return Response({'error': 'Already on Pro plan'}, status=400)
+
+        # Generate transaction UUID
+        transaction_uuid = f"SUB-{subscription.id}-{int(time.time())}"
+        subscription.payment_reference = transaction_uuid
+        subscription.plan = 'pro'
+        subscription.status = 'pending'
+        subscription.save()
+
+        # Generate checkout URL
+        checkout_url = f"https://lather-moonlit-plasma.ngrok-free.dev/api/payment/esewa/checkout/?uuid={transaction_uuid}&type=subscription"
+
+        return Response({
+            'checkout_url': checkout_url,
+            'transaction_uuid': transaction_uuid
+        })
+
+class EsewaBookingInitiateView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        meal_id = request.data.get('meal_id')
+        portions = int(request.data.get('portions', 1))
+
+        try:
+            meal = Meal.objects.get(pk=meal_id)
+        except Meal.DoesNotExist:
+            return Response({'error': 'Meal not found'}, status=404)
+
+        if meal.seller == request.user:
+            return Response({'error': 'You cannot book your own meal'}, status=400)
+
+        if meal.available_portions < portions:
+            return Response({'error': 'Not enough portions available'}, status=400)
+
+        total_cost = meal.price_per_portion * portions
+        
+        # Reserve portions
+        meal.available_portions -= portions
+        meal.bookings += portions
+        meal.save()
+
+        booking = Booking.objects.create(
+            meal=meal,
+            user=request.user,
+            portions=portions,
+            total_cost=total_cost,
+            status='pending_payment',
+            payment_method='esewa'
+        )
+
+        transaction_uuid = f"BKG-{booking.id}-{int(time.time())}"
+        booking.payment_reference = transaction_uuid
+        booking.save()
+
+        # Generate checkout URL
+        checkout_url = f"https://lather-moonlit-plasma.ngrok-free.dev/api/payment/esewa/checkout/?uuid={transaction_uuid}&type=booking"
+
+        return Response({
+            'checkout_url': checkout_url,
+            'transaction_uuid': transaction_uuid
+        })
+
+class EsewaCheckoutView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        uuid = request.query_params.get('uuid')
+        p_type = request.query_params.get('type')
+
+        if not uuid or not p_type:
+            return HttpResponse("Missing parameters", status=400)
+
+        amount = 0
+        if p_type == 'subscription':
+            try:
+                sub = Subscription.objects.get(payment_reference=uuid)
+                amount = 199  # Pro upgrade cost
+            except Subscription.DoesNotExist:
+                return HttpResponse("Subscription not found", status=404)
+        elif p_type == 'booking':
+            try:
+                booking = Booking.objects.get(payment_reference=uuid)
+                amount = int(booking.total_cost)
+            except Booking.DoesNotExist:
+                return HttpResponse("Booking not found", status=404)
+        else:
+            return HttpResponse("Invalid payment type", status=400)
+
+        # Generate signature
+        product_code = "EPAYTEST"
+        msg = f"total_amount={amount},transaction_uuid={uuid},product_code={product_code}"
+        signature = generate_esewa_signature(msg)
+
+        success_url = f"https://lather-moonlit-plasma.ngrok-free.dev/api/payment/esewa/success/"
+        failure_url = f"https://lather-moonlit-plasma.ngrok-free.dev/api/payment/esewa/failure/?uuid={uuid}"
+
+        html_content = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Plato eSewa Checkout</title>
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <style>
+                body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; text-align: center; margin-top: 100px; background-color: #FAF9F6; color: #0F172A; }}
+                .loader {{ border: 4px solid #f3f3f3; border-top: 4px solid #FF6B35; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; display: inline-block; margin-bottom: 20px; }}
+                @keyframes spin {{ 0% {{ transform: rotate(0deg); }} 100% {{ transform: rotate(360deg); }} }}
+            </style>
+        </head>
+        <body>
+            <div class="loader"></div>
+            <h2>Connecting to eSewa...</h2>
+            <p>Please wait while we securely redirect you to the payment gateway.</p>
+            
+            <form id="esewa-form" action="https://rc-epay.esewa.com.np/api/epay/main/v2/form" method="POST">
+                <input type="hidden" name="amount" value="{amount}">
+                <input type="hidden" name="tax_amount" value="0">
+                <input type="hidden" name="total_amount" value="{amount}">
+                <input type="hidden" name="transaction_uuid" value="{uuid}">
+                <input type="hidden" name="product_code" value="{product_code}">
+                <input type="hidden" name="product_service_charge" value="0">
+                <input type="hidden" name="product_delivery_charge" value="0">
+                <input type="hidden" name="success_url" value="{success_url}">
+                <input type="hidden" name="failure_url" value="{failure_url}">
+                <input type="hidden" name="signed_field_names" value="total_amount,transaction_uuid,product_code">
+                <input type="hidden" name="signature" value="{signature}">
+            </form>
+            <script type="text/javascript">
+                document.getElementById('esewa-form').submit();
+            </script>
+        </body>
+        </html>
+        """
+        return HttpResponse(html_content)
+
+class EsewaSuccessView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        encoded_data = request.query_params.get('data') or request.GET.get('data')
+        if not encoded_data:
+            return HttpResponse("No data received from eSewa", status=400)
+
+        response_data = decode_esewa_callback_data(encoded_data)
+        if not response_data:
+            return HttpResponse("Failed to decode eSewa response", status=400)
+
+        transaction_uuid = response_data.get('transaction_uuid')
+        total_amount = response_data.get('total_amount')
+        status_code = response_data.get('status')
+
+        if status_code != 'COMPLETE':
+            return HttpResponse(f"Payment status is not complete: {status_code}", status=400)
+
+        # Call eSewa UAT verification API to confirm
+        verification_url = f"https://rc.esewa.com.np/api/epay/transaction/status/?product_code=EPAYTEST&total_amount={total_amount}&transaction_uuid={transaction_uuid}"
+        try:
+            v_res = requests.get(verification_url, timeout=10)
+            v_data = v_res.json()
+        except Exception as e:
+            return HttpResponse(f"Verification request failed: {e}", status=500)
+
+        if v_data.get('status') != 'COMPLETE':
+            return HttpResponse("eSewa transaction verification failed", status=400)
+
+        # Handle subscription or booking
+        payment_title = ""
+        payment_msg = ""
+        if transaction_uuid.startswith('SUB-'):
+            try:
+                sub = Subscription.objects.get(payment_reference=transaction_uuid)
+                now = timezone.now()
+                sub.status = 'approved'
+                sub.is_active = True
+                sub.started_at = now
+                sub.expires_at = now + timedelta(days=30)
+                sub.amount_paid = float(total_amount)
+                sub.save()
+                
+                # Feature user meals
+                Meal.objects.filter(seller=sub.user).update(is_featured=True)
+                
+                payment_title = "Subscription Upgraded!"
+                payment_msg = "Your account is now Pro. Enjoy featured listings and premium badges!"
+            except Subscription.DoesNotExist:
+                return HttpResponse("Subscription not found", status=404)
+        elif transaction_uuid.startswith('BKG-'):
+            try:
+                booking = Booking.objects.get(payment_reference=transaction_uuid)
+                booking.status = 'confirmed'
+                booking.save()
+
+                # Trigger notifications
+                create_notification(
+                    booking.user,
+                    'booking_updates',
+                    'Booking Confirmed',
+                    f"Your booking for {booking.meal.title} is confirmed."
+                )
+                create_notification(
+                    booking.meal.seller,
+                    'booking_updates',
+                    'New Booking',
+                    f"{booking.user.first_name or booking.user.email} booked {booking.meal.title}."
+                )
+
+                payment_title = "Meal Booked Successfully!"
+                payment_msg = f"Your booking for {booking.meal.title} has been confirmed. Enjoy your meal!"
+            except Booking.DoesNotExist:
+                return HttpResponse("Booking not found", status=404)
+        else:
+            return HttpResponse("Unknown transaction prefix", status=400)
+
+        html_content = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Payment Successful</title>
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <style>
+                body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; text-align: center; margin-top: 80px; background-color: #FAF9F6; color: #0F172A; }}
+                .card {{ background: white; padding: 40px 30px; border-radius: 24px; box-shadow: 0 10px 25px rgba(0,0,0,0.03); display: inline-block; max-width: 400px; margin: 15px; border: 1px solid #F0EFEA; }}
+                .success-icon {{ font-size: 56px; color: #60bb46; margin-bottom: 24px; }}
+                h2 {{ margin-bottom: 12px; font-weight: 800; }}
+                p {{ color: #475569; font-size: 15px; line-height: 1.6; margin-bottom: 24px; }}
+                .btn {{ background: #FF6B35; color: white; padding: 14px 28px; text-decoration: none; border-radius: 14px; font-weight: 700; display: inline-block; box-shadow: 0 4px 12px rgba(255, 107, 53, 0.2); }}
+            </style>
+        </head>
+        <body>
+            <div class="card">
+                <div class="success-icon">✓</div>
+                <h2>{payment_title}</h2>
+                <p>{payment_msg}</p>
+                <p style="font-size: 13px; color: #94A3B8;">You can now close this browser and return to the Plato app. Your status will update automatically.</p>
+                <a href="plato://profile" class="btn">Return to Plato</a>
+            </div>
+        </body>
+        </html>
+        """
+        return HttpResponse(html_content)
+
+class EsewaFailureView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        transaction_uuid = request.query_params.get('uuid')
+        
+        # Handle cleanup if booking
+        if transaction_uuid and transaction_uuid.startswith('BKG-'):
+            try:
+                booking = Booking.objects.get(payment_reference=transaction_uuid)
+                if booking.status == 'pending_payment':
+                    # Release portions
+                    meal = booking.meal
+                    meal.available_portions += booking.portions
+                    meal.bookings = max(0, meal.bookings - booking.portions)
+                    meal.save()
+                    
+                    booking.status = 'cancelled'
+                    booking.save()
+            except Booking.DoesNotExist:
+                pass
+        elif transaction_uuid and transaction_uuid.startswith('SUB-'):
+            try:
+                sub = Subscription.objects.get(payment_reference=transaction_uuid)
+                if sub.status == 'pending':
+                    sub.status = 'none'
+                    sub.plan = 'free'
+                    sub.save()
+            except Subscription.DoesNotExist:
+                pass
+
+        html_content = """
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Payment Cancelled</title>
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <style>
+                body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; text-align: center; margin-top: 80px; background-color: #FAF9F6; color: #0F172A; }
+                .card { background: white; padding: 40px 30px; border-radius: 24px; box-shadow: 0 10px 25px rgba(0,0,0,0.03); display: inline-block; max-width: 400px; margin: 15px; border: 1px solid #F0EFEA; }
+                .fail-icon { font-size: 56px; color: #EF4444; margin-bottom: 24px; }
+                h2 { margin-bottom: 12px; font-weight: 800; }
+                p { color: #475569; font-size: 15px; line-height: 1.6; margin-bottom: 24px; }
+                .btn { background: #64748B; color: white; padding: 14px 28px; text-decoration: none; border-radius: 14px; font-weight: 700; display: inline-block; }
+            </style>
+        </head>
+        <body>
+            <div class="card">
+                <div class="fail-icon">✕</div>
+                <h2>Payment Cancelled</h2>
+                <p>The transaction was cancelled or could not be completed. You have not been charged.</p>
+                <p style="font-size: 13px; color: #94A3B8;">Please return to the Plato app to retry or select another payment method.</p>
+                <a href="plato://profile" class="btn">Return to Plato</a>
+            </div>
+        </body>
+        </html>
+        """
+        return HttpResponse(html_content)
+
     
 

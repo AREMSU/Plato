@@ -9,9 +9,11 @@ import {
   ActivityIndicator,
   Image,
   Platform,
+  Linking,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+import apiCall from '../api/client';
 import { useApp } from '../context/AppContext';
 import {
   formatCurrency,
@@ -41,6 +43,44 @@ export default function BookingScreen({ navigation, route }) {
           text: 'Confirm & Pay',
           onPress: async () => {
             setLoading(true);
+            
+            // If eSewa, initiate eSewa UAT transaction
+            if (paymentMethod === 'esewa') {
+              try {
+                const data = await apiCall('/bookings/esewa/initiate/', 'POST', {
+                  meal_id: meal.id,
+                  portions,
+                }, true);
+                setLoading(false);
+
+                if (data.checkout_url) {
+                  Alert.alert(
+                    '🟢 eSewa UAT Payment',
+                    'You will be redirected to the eSewa Sandbox page in your browser. Log in using test credentials (9711111111 / Nepal@123) to complete the payment.',
+                    [
+                      {
+                        text: 'Proceed to Pay',
+                        onPress: () => {
+                          Linking.openURL(data.checkout_url);
+                          // Redirect user to MyMeals (Bookings list) screen in app
+                          navigation.navigate('Main', {
+                            screen: 'MyMeals',
+                          });
+                        }
+                      }
+                    ]
+                  );
+                } else {
+                  Alert.alert('Booking Failed', data.error || 'Failed to initiate eSewa payment.');
+                }
+              } catch (error) {
+                setLoading(false);
+                Alert.alert('Booking Failed', error.message || 'Could not connect to server.');
+              }
+              return;
+            }
+
+            // Fallback for Cash or Khalti
             const result = await bookMeal(meal, portions);
             setLoading(false);
 
