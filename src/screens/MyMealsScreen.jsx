@@ -221,12 +221,14 @@ export default function MyMealsScreen({ navigation, route }) {
   return (
     <View style={styles.container}>
       <LinearGradient
-        colors={['#FF6B35', '#FF8C42']}
+        colors={['#E8500A', '#FF6B35', '#FF8C42']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
         style={styles.header}
       >
-        <Text style={styles.headerTitle}>My Meals</Text>
+        <Text style={styles.headerTitle}>My Orders</Text>
         <Text style={styles.headerSubtitle}>
-          Manage your bookings and listings
+          {activeBookings.length} active · {myMeals.length} listings
         </Text>
       </LinearGradient>
 
@@ -439,11 +441,13 @@ export default function MyMealsScreen({ navigation, route }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FAF9F6' },
+  container: { flex: 1, backgroundColor: '#F5F5F5' },
   header: {
-    paddingTop: 55,
-    paddingBottom: 20,
+    paddingTop: Platform.OS === 'android' ? 48 : 55,
+    paddingBottom: 24,
     paddingHorizontal: 20,
+    borderBottomLeftRadius: 28,
+    borderBottomRightRadius: 28,
   },
   headerTitle: {
     fontSize: 26,

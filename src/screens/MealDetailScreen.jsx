@@ -29,13 +29,18 @@ export default function MealDetailScreen({ navigation, route }) {
   const [portions, setPortions] = useState(1);
 
   const badge = getReliabilityBadge(meal.sellerRating);
-  const totalCost = meal.pricePerPortion * portions;
-  const isOwner = user?.id === meal.sellerId;
+  const price = meal.pricePerPortion || meal.price_per_portion || 0;
+  const totalCost = price * portions;
+  const isOwner = user?.id === (meal.sellerId || meal.seller_id);
   const mealImage = meal?.image || '';
   const sellerAvatar = meal?.sellerAvatar || meal?.seller_avatar || '';
+  const sellerName = meal?.sellerName || meal?.seller_name || 'Unknown';
+  const sellerId = meal?.sellerId || meal?.seller_id || null;
+  const sellerRating = meal?.sellerRating || meal?.seller_rating || 0;
+  const portionsLeft = meal?.availablePortions ?? meal?.available_portions ?? 0;
 
   const incrementPortions = () => {
-    if (portions < meal.availablePortions)
+    if (portions < portionsLeft)
       setPortions(portions + 1);
   };
 
@@ -48,7 +53,7 @@ export default function MealDetailScreen({ navigation, route }) {
       Alert.alert('Oops!', "You can't book your own meal.");
       return;
     }
-    if (meal.availablePortions === 0) {
+    if (portionsLeft === 0) {
       Alert.alert('Sold Out', 'No portions available.');
       return;
     }
@@ -110,36 +115,25 @@ export default function MealDetailScreen({ navigation, route }) {
             <View style={styles.priceBox}>
               <Text style={styles.priceLabel}>per portion</Text>
               <Text style={styles.priceValue}>
-                {formatCurrency(meal.pricePerPortion)}
+                {formatCurrency(price)}
               </Text>
             </View>
           </View>
 
-          {/* Nutrition */}
-          <View style={styles.nutritionRow}>
-            <View style={styles.nutritionItem}>
-              <Ionicons name="flame-outline" size={20} color="#FF6B35" style={{ marginBottom: 4 }} />
-              <Text style={styles.nutritionValue}>
-                {meal.calories}
+          {/* Portions left chip */}
+          <View style={styles.portionsChipRow}>
+            <View style={styles.portionsChip}>
+              <Ionicons name="layers-outline" size={14} color="#FF6B35" />
+              <Text style={styles.portionsChipText}>
+                {portionsLeft > 0 ? `${portionsLeft} portions left` : 'Sold out'}
               </Text>
-              <Text style={styles.nutritionLabel}>kcal</Text>
             </View>
-            <View style={styles.nutritionDivider} />
-            <View style={styles.nutritionItem}>
-              <Ionicons name="barbell-outline" size={20} color="#FF6B35" style={{ marginBottom: 4 }} />
-              <Text style={styles.nutritionValue}>
-                {meal.protein}g
-              </Text>
-              <Text style={styles.nutritionLabel}>protein</Text>
-            </View>
-            <View style={styles.nutritionDivider} />
-            <View style={styles.nutritionItem}>
-              <Ionicons name="restaurant-outline" size={20} color="#FF6B35" style={{ marginBottom: 4 }} />
-              <Text style={styles.nutritionValue}>
-                {meal.availablePortions}
-              </Text>
-              <Text style={styles.nutritionLabel}>left</Text>
-            </View>
+            {meal.isVegetarian && (
+              <View style={styles.vegChip}>
+                <Ionicons name="leaf" size={13} color="#4CAF50" />
+                <Text style={styles.vegChipText}>Vegetarian</Text>
+              </View>
+            )}
           </View>
 
           {/* Description */}
@@ -195,53 +189,46 @@ export default function MealDetailScreen({ navigation, route }) {
             </View>
           </View>
 
-          {/* Seller Info */}
+          {/* Seller Info — tappable */}
           <Text style={styles.sectionTitle}>About the Cook</Text>
-          <View style={styles.sellerCard}>
-            <UserAvatar uri={sellerAvatar} name={meal.sellerName} size={52} borderWidth={0} />
+          <TouchableOpacity
+            style={styles.sellerCard}
+            activeOpacity={0.85}
+            onPress={() =>
+              navigation.navigate('CookProfile', {
+                sellerId,
+                sellerName,
+                sellerAvatar,
+                sellerRating,
+              })
+            }
+          >
+            <UserAvatar uri={sellerAvatar} name={sellerName} size={52} borderWidth={0} />
             <View style={styles.sellerInfo}>
-              <Text style={styles.sellerName}>
-                {meal.sellerName}
-              </Text>
+              <Text style={styles.sellerNameText}>{sellerName}</Text>
               <View style={styles.sellerMeta}>
-                <View
-                  style={[
-                    styles.badge,
-                    { backgroundColor: badge.color + '15' },
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.badgeText,
-                      { color: badge.color },
-                    ]}
-                  >
+                <View style={[styles.badge, { backgroundColor: badge.color + '15' }]}>
+                  <Text style={[styles.badgeText, { color: badge.color }]}>
                     {badge.label}
                   </Text>
                 </View>
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <Ionicons name="star" size={14} color="#FFB300" style={{ marginRight: 4 }} />
-                  <Text style={styles.sellerRatingText}>
-                    {meal.sellerRating}
-                  </Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+                  <Ionicons name="star" size={13} color="#FFB300" />
+                  <Text style={styles.sellerRatingText}>{sellerRating}</Text>
                 </View>
               </View>
             </View>
-          </View>
+            <Ionicons name="chevron-forward" size={18} color="#BDBDBD" />
+          </TouchableOpacity>
 
-          {/* Portion Selector */}
-          {!isOwner && meal.availablePortions > 0 && (
+          {/* Portion Selector — only for non-owners */}
+          {!isOwner && portionsLeft > 0 && (
             <>
-              <Text style={styles.sectionTitle}>
-                Select Portions
-              </Text>
+              <Text style={styles.sectionTitle}>Select Portions</Text>
               <View style={styles.portionSelector}>
                 <TouchableOpacity
                   onPress={decrementPortions}
-                  style={[
-                    styles.portionBtn,
-                    portions === 1 && styles.portionBtnDisabled,
-                  ]}
+                  style={[styles.portionBtn, portions === 1 && styles.portionBtnDisabled]}
                   activeOpacity={0.7}
                 >
                   <Ionicons
@@ -251,35 +238,23 @@ export default function MealDetailScreen({ navigation, route }) {
                   />
                 </TouchableOpacity>
                 <View style={styles.portionCount}>
-                  <Text style={styles.portionNumber}>
-                    {portions}
-                  </Text>
-                  <Text style={styles.portionLabel}>
-                    portion{portions > 1 ? 's' : ''}
-                  </Text>
+                  <Text style={styles.portionNumber}>{portions}</Text>
+                  <Text style={styles.portionLabel}>portion{portions > 1 ? 's' : ''}</Text>
                 </View>
                 <TouchableOpacity
                   onPress={incrementPortions}
-                  style={[
-                    styles.portionBtn,
-                    portions >= meal.availablePortions &&
-                      styles.portionBtnDisabled,
-                  ]}
+                  style={[styles.portionBtn, portions >= portionsLeft && styles.portionBtnDisabled]}
                   activeOpacity={0.7}
                 >
                   <Ionicons
                     name="add-outline"
                     size={22}
-                    color={portions >= meal.availablePortions ? '#BDBDBD' : '#FF6B35'}
+                    color={portions >= portionsLeft ? '#BDBDBD' : '#FF6B35'}
                   />
                 </TouchableOpacity>
                 <View style={styles.portionTotal}>
-                  <Text style={styles.portionTotalLabel}>
-                    Total
-                  </Text>
-                  <Text style={styles.portionTotalValue}>
-                    {formatCurrency(totalCost)}
-                  </Text>
+                  <Text style={styles.portionTotalLabel}>Total</Text>
+                  <Text style={styles.portionTotalValue}>{formatCurrency(totalCost)}</Text>
                 </View>
               </View>
             </>
@@ -289,49 +264,28 @@ export default function MealDetailScreen({ navigation, route }) {
         </View>
       </ScrollView>
 
-      {/* Bottom Bar */}
-      {!isOwner ? (
+      {/* Bottom Bar — hide Book Now for owner */}
+      {!isOwner && (
         <View style={styles.bottomBar}>
           <View style={styles.bottomInfo}>
             <Text style={styles.bottomLabel}>Total Cost</Text>
-            <Text style={styles.bottomPrice}>
-              {formatCurrency(totalCost)}
-            </Text>
+            <Text style={styles.bottomPrice}>{formatCurrency(totalCost)}</Text>
           </View>
           <TouchableOpacity
-            style={[
-              styles.bookButton,
-              meal.availablePortions === 0 &&
-                styles.bookButtonDisabled,
-            ]}
+            style={[styles.bookButton, portionsLeft === 0 && styles.bookButtonDisabled]}
             onPress={handleBook}
-            disabled={meal.availablePortions === 0}
+            disabled={portionsLeft === 0}
             activeOpacity={0.85}
           >
             <LinearGradient
-              colors={
-                meal.availablePortions === 0
-                  ? ['#BDBDBD', '#9E9E9E']
-                  : ['#FF6B35', '#FF8C42']
-              }
+              colors={portionsLeft === 0 ? ['#BDBDBD', '#9E9E9E'] : ['#FF6B35', '#FF8C42']}
               style={styles.bookGradient}
             >
               <Text style={styles.bookText}>
-                {meal.availablePortions === 0
-                  ? 'Sold Out'
-                  : 'Book Now'}
+                {portionsLeft === 0 ? 'Sold Out' : 'Book Now'}
               </Text>
             </LinearGradient>
           </TouchableOpacity>
-        </View>
-      ) : (
-        <View style={styles.bottomBar}>
-          <View style={styles.ownerNote}>
-            <Ionicons name="information-circle-outline" size={20} color="#FF6B35" style={{ marginRight: 6 }} />
-            <Text style={styles.ownerNoteText}>
-              This is your meal listing
-            </Text>
-          </View>
         </View>
       )}
     </View>
@@ -450,40 +404,46 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Bold' : 'sans-serif-medium',
   },
-  nutritionRow: {
+  // Portions chip
+  portionsChipRow: {
     flexDirection: 'row',
-    backgroundColor: '#FFF8F5',
-    borderRadius: 16,
-    padding: 16,
+    gap: 8,
     marginBottom: 20,
-    borderWidth: 1,
-    borderColor: '#FFE8DC',
-    shadowColor: '#1E293B',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.02,
-    shadowRadius: 8,
-    elevation: 1,
+    flexWrap: 'wrap',
   },
-  nutritionItem: { flex: 1, alignItems: 'center' },
-  nutritionValue: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: '#0F172A',
+  portionsChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#FFF3EE',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#FFD5C2',
+  },
+  portionsChipText: {
+    fontSize: 13,
+    color: '#FF6B35',
+    fontWeight: '700',
     fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Bold' : 'sans-serif-medium',
   },
-  nutritionLabel: {
-    fontSize: 11,
-    color: '#64748B',
-    marginTop: 2,
-    fontWeight: '600',
-    fontFamily: Platform.OS === 'ios' ? 'Avenir Next' : 'sans-serif',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
+  vegChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: '#E8F5E9',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#C8E6C9',
   },
-  nutritionDivider: {
-    width: 1,
-    backgroundColor: '#FFE8DC',
-    marginHorizontal: 8,
+  vegChipText: {
+    fontSize: 13,
+    color: '#2E7D32',
+    fontWeight: '700',
+    fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Bold' : 'sans-serif-medium',
   },
   sectionTitle: {
     fontSize: 17,
@@ -576,7 +536,7 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   sellerInfo: { flex: 1 },
-  sellerName: {
+  sellerNameText: {
     fontSize: 16,
     fontWeight: '700',
     color: '#0F172A',

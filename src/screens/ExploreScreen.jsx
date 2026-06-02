@@ -7,25 +7,25 @@ import {
   ScrollView,
   TouchableOpacity,
   Platform,
+  StatusBar,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useApp } from '../context/AppContext';
 import MealCard from '../components/MealCard';
 import { categories, dietaryFilters } from '../data/mockData';
 import { isMealOwner } from '../utils/helpers';
 
-// Category icons mapping helper
-const getCategoryIcon = (categoryId) => {
-  switch (categoryId) {
-    case 'all': return 'restaurant-outline';
-    case 'Nepali': return 'fast-food-outline';
-    case 'Continental': return 'pizza-outline';
-    case 'Chinese': return 'restaurant-outline';
-    case 'Snacks': return 'cafe-outline';
-    case 'Breakfast': return 'egg-outline';
-    default: return 'restaurant-outline';
-  }
+// Category icons mapping helper (consistent with CategoryFilter)
+const CATEGORY_ICONS = {
+  all:         'apps',
+  Nepali:      'flame-outline',
+  Continental: 'pizza-outline',
+  Chinese:     'leaf-outline',
+  Snacks:      'fast-food-outline',
+  Breakfast:   'sunny-outline',
 };
+const getCategoryIcon = (id) => CATEGORY_ICONS[id] || 'grid-outline';
 
 export default function ExploreScreen({ navigation }) {
   const { meals, user } = useApp();
@@ -72,23 +72,27 @@ export default function ExploreScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
+      <StatusBar barStyle="dark-content" />
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Explore Meals</Text>
+        <View style={styles.headerTop}>
+          <Text style={styles.headerTitle}>Explore</Text>
+          <View style={styles.resultsBadge}>
+            <Text style={styles.resultsBadgeText}>{sorted.length} meals</Text>
+          </View>
+        </View>
         <View style={styles.searchBar}>
-          <Ionicons name="search" size={18} color="#94A3B8" />
+          <Ionicons name="search-outline" size={18} color="#9E9E9E" />
           <TextInput
             style={styles.searchInput}
             placeholder="Search meals, cuisines, tags..."
-            placeholderTextColor="#94A3B8"
+            placeholderTextColor="#BDBDBD"
             value={searchQuery}
             onChangeText={setSearchQuery}
             autoCorrect={false}
           />
           {searchQuery.length > 0 && (
-            <TouchableOpacity
-              onPress={() => setSearchQuery('')}
-            >
-              <Ionicons name="close-circle" size={18} color="#94A3B8" />
+            <TouchableOpacity onPress={() => setSearchQuery('')}>
+              <Ionicons name="close-circle" size={18} color="#BDBDBD" />
             </TouchableOpacity>
           )}
         </View>
@@ -190,11 +194,11 @@ export default function ExploreScreen({ navigation }) {
           ))}
         </ScrollView>
 
-        {/* Results */}
+        {/* Results label */}
         <View style={styles.resultsRow}>
+          <Ionicons name="funnel-outline" size={13} color="#9E9E9E" />
           <Text style={styles.resultsText}>
-            {sorted.length} meal
-            {sorted.length !== 1 ? 's' : ''} found
+            {sorted.length} result{sorted.length !== 1 ? 's' : ''}
           </Text>
         </View>
 
@@ -229,42 +233,62 @@ export default function ExploreScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FAF9F6' },
+  container: { flex: 1, backgroundColor: '#F5F5F5' },
   header: {
     backgroundColor: '#fff',
-    paddingTop: 55,
+    paddingTop: Platform.OS === 'android' ? 48 : 58,
     paddingHorizontal: 20,
     paddingBottom: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#F0EFEA',
+    borderBottomColor: '#F0F0F0',
     shadowColor: '#1E293B',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.02,
-    shadowRadius: 8,
-    elevation: 2,
+    shadowOpacity: 0.04,
+    shadowRadius: 10,
+    elevation: 4,
+  },
+  headerTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 14,
   },
   headerTitle: {
-    fontSize: 26,
+    fontSize: 28,
     fontWeight: '800',
-    color: '#0F172A',
-    marginBottom: 14,
+    color: '#1A1A1A',
+    letterSpacing: -0.5,
+    fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Bold' : 'sans-serif-medium',
+  },
+  resultsBadge: {
+    backgroundColor: '#FFF3EE',
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#FFD5C2',
+  },
+  resultsBadgeText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#FF6B35',
     fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Bold' : 'sans-serif-medium',
   },
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F8FAFC',
-    borderRadius: 14,
+    backgroundColor: '#F8F8F8',
+    borderRadius: 16,
     paddingHorizontal: 14,
-    paddingVertical: 12,
+    paddingVertical: 13,
     gap: 10,
     borderWidth: 1.5,
-    borderColor: '#E2E8F0',
+    borderColor: '#EBEBEB',
   },
   searchInput: {
     flex: 1,
     fontSize: 14,
-    color: '#0F172A',
+    color: '#1A1A1A',
     fontWeight: '500',
     fontFamily: Platform.OS === 'ios' ? 'Avenir Next' : 'sans-serif',
   },
@@ -331,10 +355,16 @@ const styles = StyleSheet.create({
     fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Medium' : 'sans-serif-medium',
   },
   categoryTextActive: { color: '#fff' },
-  resultsRow: { paddingHorizontal: 20, paddingBottom: 8 },
+  resultsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 20,
+    paddingBottom: 8,
+  },
   resultsText: {
-    fontSize: 14,
-    color: '#94A3B8',
+    fontSize: 13,
+    color: '#9E9E9E',
     fontWeight: '600',
     fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Medium' : 'sans-serif-medium',
   },
