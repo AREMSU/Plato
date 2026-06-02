@@ -40,6 +40,7 @@ urlpatterns = [
 
     # eSewa UAT Payment Gateway Integration
     path('subscription/esewa/initiate/', views.EsewaSubscriptionInitiateView.as_view()),
+    path('subscription/esewa/renew/', views.EsewaSubscriptionRenewView.as_view()),
     path('bookings/esewa/initiate/', views.EsewaBookingInitiateView.as_view()),
     path('payment/esewa/checkout/', views.EsewaCheckoutView.as_view()),
     path('payment/esewa/success/', views.EsewaSuccessView.as_view()),

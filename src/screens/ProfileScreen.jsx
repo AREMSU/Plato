@@ -266,13 +266,14 @@ export default function ProfileScreen({ navigation }) {
   const handleRenewSubscription = async () => {
     setSubscriptionActionLoading(true);
     try {
-      const data = await apiCall('/subscription/renew/', 'POST', null, true);
-      const next = data?.subscription ?? data;
-      setSubscription(next);
-      setRenewalCancelled(false);
-      Alert.alert('✅ Renewed', 'Subscription extended by 30 days.');
+      const data = await apiCall('/subscription/esewa/renew/', 'POST', null, true);
+      if (data.checkoutUrl) {
+        Linking.openURL(data.checkoutUrl);
+      } else {
+        Alert.alert('Error', 'Failed to initiate renewal payment.');
+      }
     } catch (error) {
-      Alert.alert('Renew Failed', error.message || 'Please try again.');
+      Alert.alert('Renewal Failed', error.message || 'Could not initiate eSewa payment.');
     } finally {
       setSubscriptionActionLoading(false);
     }

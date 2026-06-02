@@ -790,6 +790,29 @@ class EsewaSubscriptionInitiateView(APIView):
             'transaction_uuid': transaction_uuid
         })
 
+
+class EsewaSubscriptionRenewView(APIView):
+    """POST /api/subscription/esewa/renew/ — initiate eSewa payment for Pro renewal"""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        subscription, created = Subscription.objects.get_or_create(
+            user=request.user,
+            defaults={'plan': 'free', 'is_active': False, 'status': 'none'}
+        )
+
+        # Generate renewal transaction UUID (RNW- prefix so success handler extends expiry)
+        transaction_uuid = f"RNW-{subscription.id}-{int(time.time())}"
+        subscription.payment_reference = transaction_uuid
+        subscription.save()
+
+        checkout_url = f"https://lather-moonlit-plasma.ngrok-free.dev/api/payment/esewa/checkout/?uuid={transaction_uuid}&type=subscription"
+
+        return Response({
+            'checkout_url': checkout_url,
+            'transaction_uuid': transaction_uuid
+        })
+
 class EsewaBookingInitiateView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -941,7 +964,27 @@ class EsewaSuccessView(APIView):
         # Handle subscription or booking
         payment_title = ""
         payment_msg = ""
-        if transaction_uuid.startswith('SUB-'):
+        if transaction_uuid.startswith('RNW-'):
+            # Renewal: extend existing Pro subscription
+            try:
+                sub = Subscription.objects.get(payment_reference=transaction_uuid)
+                now = timezone.now()
+                # Stack from current expiry if still active, else from now
+                base = sub.expires_at if (sub.expires_at and sub.expires_at > now) else now
+                sub.status = 'approved'
+                sub.is_active = True
+                sub.started_at = now
+                sub.expires_at = base + timedelta(days=30)
+                sub.amount_paid = float(total_amount)
+                sub.save()
+
+                Meal.objects.filter(seller=sub.user).update(is_featured=True)
+
+                payment_title = "Pro Renewed!"
+                payment_msg = f"Your Pro subscription has been extended by 30 days!"
+            except Subscription.DoesNotExist:
+                return HttpResponse("Subscription not found", status=404)
+        elif transaction_uuid.startswith('SUB-'):
             try:
                 sub = Subscription.objects.get(payment_reference=transaction_uuid)
                 now = timezone.now()
