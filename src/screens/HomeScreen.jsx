@@ -10,7 +10,7 @@ import MealCard from '../components/MealCard';
 import AIRecommendation from '../components/AIRecommendation';
 import CategoryFilter from '../components/CategoryFilter';
 import { getDisplayName, getGreeting, isMealOwner } from '../utils/helpers';
-import { categories } from '../data/mockData';
+import { categories } from '../utils/constants';
 
 export default function HomeScreen({ navigation }) {
   const { user, meals, bookings } = useApp();
@@ -56,8 +56,8 @@ export default function HomeScreen({ navigation }) {
           <View style={styles.headerTop}>
             <View style={styles.headerLeft}>
               <View style={styles.locationPill}>
-                <Ionicons name="location" size={13} color="#FF6B35" />
-                <Text style={styles.locationText}>Campus</Text>
+                <Ionicons name="location" size={14} color="#FF6B35" />
+                <Text style={styles.locationText}>KU</Text>
                 <Ionicons name="chevron-down" size={13} color="#FF6B35" />
               </View>
               <Text style={styles.greeting}>{greeting} 👋</Text>

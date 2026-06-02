@@ -17,6 +17,7 @@ import {
   formatCurrency,
   getReliabilityBadge,
   formatDate,
+  isMealOwner,
 } from '../utils/helpers';
 import RatingStars from '../components/RatingStars';
 import UserAvatar from '../components/UserAvatar';
@@ -31,7 +32,7 @@ export default function MealDetailScreen({ navigation, route }) {
   const badge = getReliabilityBadge(meal.sellerRating);
   const price = meal.pricePerPortion || meal.price_per_portion || 0;
   const totalCost = price * portions;
-  const isOwner = user?.id === (meal.sellerId || meal.seller_id);
+  const isOwner = isMealOwner(user, meal);
   const mealImage = meal?.image || '';
   const sellerAvatar = meal?.sellerAvatar || meal?.seller_avatar || '';
   const sellerName = meal?.sellerName || meal?.seller_name || 'Unknown';

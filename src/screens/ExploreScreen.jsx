@@ -13,7 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useApp } from '../context/AppContext';
 import MealCard from '../components/MealCard';
-import { categories, dietaryFilters } from '../data/mockData';
+import { categories, dietaryFilters } from '../utils/constants';
 import { isMealOwner } from '../utils/helpers';
 
 // Category icons mapping helper (consistent with CategoryFilter)

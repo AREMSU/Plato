@@ -18,7 +18,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useApp } from '../context/AppContext';
-import { categories } from '../data/mockData';
+import { categories } from '../utils/constants';
 import { uploadImageToCloudinary, verifyImageWithBackend } from '../api/uploadImage';
 
 const { width } = Dimensions.get('window');

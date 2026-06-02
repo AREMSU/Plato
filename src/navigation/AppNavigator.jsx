@@ -34,7 +34,7 @@ function TabIcon({ name, focused, label }) {
   const icons = {
     Home:    { active: 'home',           inactive: 'home-outline' },
     Explore: { active: 'compass',        inactive: 'compass-outline' },
-    MyMeals: { active: 'bag-handle',     inactive: 'bag-handle-outline' },
+    MyMeals: { active: 'receipt',        inactive: 'receipt-outline' },
     Profile: { active: 'person-circle',  inactive: 'person-circle-outline' },
   };
 

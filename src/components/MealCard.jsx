@@ -88,7 +88,7 @@ export default function MealCard({ meal, onPress }) {
           <View style={styles.metaChip}>
             <Ionicons name="navigate-outline" size={13} color="#757575" />
             <Text style={styles.metaText} numberOfLines={1}>
-              {truncateText(pickupLocation, 18) || 'Campus'}
+              {truncateText(pickupLocation, 18) || 'Not specified'}
             </Text>
           </View>
           <View style={styles.categoryPill}>

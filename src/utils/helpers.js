@@ -55,7 +55,7 @@ export const getReliabilityBadge = (rating) => {
 
 export const isMealOwner = (user, meal) => {
   const userId = user?.id;
-  if (!userId || !meal) return false;
+  if (userId == null || !meal) return false;
   const sellerId = meal.seller?.id ?? meal.sellerId ?? meal.seller_id ?? meal.seller;
-  return sellerId === userId;
+  return String(sellerId) === String(userId);
 };
