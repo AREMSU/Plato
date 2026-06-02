@@ -16,6 +16,32 @@ const convertKeys = (obj, converter) => {
     return obj;
 };
 
+const redactSensitive = (obj) => {
+    if (obj === null || obj === undefined) return obj;
+    if (Array.isArray(obj)) {
+        return obj.map(redactSensitive);
+    }
+    if (typeof obj === 'object') {
+        const redacted = {};
+        for (const [key, value] of Object.entries(obj)) {
+            const lowerKey = key.toLowerCase();
+            if (
+                lowerKey.includes('password') ||
+                lowerKey.includes('email') ||
+                lowerKey.includes('token') ||
+                lowerKey === 'access' ||
+                lowerKey === 'refresh'
+            ) {
+                redacted[key] = '[REDACTED]';
+            } else {
+                redacted[key] = redactSensitive(value);
+            }
+        }
+        return redacted;
+    }
+    return obj;
+};
+
 const getErrorMessage = (data) => {
     if (!data) return 'Request failed';
     if (typeof data === 'string') return data;
@@ -53,7 +79,7 @@ const apiCall = async (endpoint, method = 'GET', body = null, requiresAuth = fal
             const snakeBody = convertKeys(body, toSnakeCase);
             config.body = JSON.stringify(snakeBody);
             console.log('API CALL:', method, `${API_BASE_URL}${endpoint}`);
-            console.log('REQUEST BODY:', JSON.stringify(snakeBody));
+            console.log('REQUEST BODY:', JSON.stringify(redactSensitive(snakeBody)));
         } else {
             console.log('API CALL:', method, `${API_BASE_URL}${endpoint}`);
         }
@@ -66,10 +92,10 @@ const apiCall = async (endpoint, method = 'GET', body = null, requiresAuth = fal
         }
 
         const data = await response.json();
-        console.log('API RESPONSE:', response.status, JSON.stringify(data));
+        console.log('API RESPONSE:', response.status, JSON.stringify(redactSensitive(data)));
 
         if (!response.ok) {
-            console.log('API ERROR:', response.status, JSON.stringify(data));
+            console.log('API ERROR:', response.status, JSON.stringify(redactSensitive(data)));
             throw new Error(getErrorMessage(data));
         }
 
@@ -78,7 +104,8 @@ const apiCall = async (endpoint, method = 'GET', body = null, requiresAuth = fal
 
     } catch (error) {
         console.error('API CALL FAILED:', error.message);
-        throw new Error(error.message || 'Network error. Is the server running?');
+        // Only log raw error to terminal — never expose API details in the app UI
+        throw new Error('Something went wrong. Please try again.');
     }
 };
 

@@ -211,7 +211,8 @@ export default function ProfileScreen({ navigation }) {
                 Alert.alert('Error', 'Failed to retrieve payment redirect from server.');
               }
             } catch (error) {
-              Alert.alert('Payment Error', error.message || 'Could not initiate eSewa payment.');
+              console.error('Payment error:', error.message);
+              Alert.alert('Payment Error', 'Could not initiate payment. Please try again.');
             } finally {
               setSubscriptionActionLoading(false);
             }
@@ -237,7 +238,8 @@ export default function ProfileScreen({ navigation }) {
               setRenewalCancelled(true);
               Alert.alert('Cancelled', 'Auto-renew is turned off.');
             } catch (error) {
-              Alert.alert('Cancel Failed', error.message || 'Please try again.');
+              console.error('Cancel subscription error:', error.message);
+              Alert.alert('Cancel Failed', 'Something went wrong. Please try again.');
             } finally {
               setSubscriptionActionLoading(false);
             }
@@ -266,7 +268,8 @@ export default function ProfileScreen({ navigation }) {
                 Alert.alert('Error', 'Failed to initiate renewal payment.');
               }
             } catch (error) {
-              Alert.alert('Renewal Failed', error.message || 'Could not initiate eSewa payment.');
+              console.error('Renewal error:', error.message);
+              Alert.alert('Renewal Failed', 'Could not initiate payment. Please try again.');
             } finally {
               setSubscriptionActionLoading(false);
             }
@@ -1083,7 +1086,8 @@ export default function ProfileScreen({ navigation }) {
                 setNotifModalVisible(false);
                 Alert.alert('✅ Saved', 'Notification preferences updated!');
               } catch (error) {
-                Alert.alert('Error', error.message || 'Failed to save preferences.');
+                console.error('Save notification prefs error:', error.message);
+                Alert.alert('Error', 'Failed to save preferences. Please try again.');
               }
             }}
           >

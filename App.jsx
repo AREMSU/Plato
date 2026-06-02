@@ -1,11 +1,14 @@
 import 'react-native-gesture-handler';
 import React, { useEffect, useState, useRef } from 'react';
 import { StatusBar } from 'expo-status-bar';
-import { AppState } from 'react-native';
+import { AppState, LogBox } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { AppProvider } from './src/context/AppContext';
 import AppNavigator from './src/navigation/AppNavigator';
 import SplashScreen from './src/screens/SplashScreen';
+
+// Suppress all yellow/red warning boxes in the app UI — errors only appear in terminal
+LogBox.ignoreAllLogs(true);
 
 // Deep link configuration — maps plato:// URLs to navigator routes
 const linking = {

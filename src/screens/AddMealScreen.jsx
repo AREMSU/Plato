@@ -203,7 +203,8 @@ export default function AddMealScreen({ navigation }) {
             Alert.alert('Upload Failed', 'Could not upload image. The meal will be listed without a photo.');
           }
         } catch (error) {
-          Alert.alert('Verification Failed', error.message || 'Please try again.');
+          console.error('Image verification error:', error.message);
+          Alert.alert('Verification Failed', 'Please try again.');
         } finally {
           setImageLoading(false);
         }
@@ -254,7 +255,8 @@ export default function AddMealScreen({ navigation }) {
             );
           }
         } catch (error) {
-          Alert.alert('Verification Failed', error.message || 'Please try again.');
+          console.error('Image verification error:', error.message);
+          Alert.alert('Verification Failed', 'Please try again.');
         } finally {
           setImageLoading(false);
         }

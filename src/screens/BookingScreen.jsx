@@ -76,7 +76,8 @@ export default function BookingScreen({ navigation, route }) {
                 }
               } catch (error) {
                 setLoading(false);
-                Alert.alert('Booking Failed', error.message || 'Could not connect to server.');
+                console.error('Booking error:', error.message);
+                Alert.alert('Booking Failed', 'Could not connect to server. Please try again.');
               }
               return;
             }

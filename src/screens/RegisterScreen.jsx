@@ -51,7 +51,8 @@ export default function RegisterScreen({ navigation }) {
             name: form.name.trim(),
         });
     } catch (error) {
-        Alert.alert('Registration Failed', error.message || 'Something went wrong');
+        console.error('Registration error:', error.message);
+        Alert.alert('Registration Failed', 'Something went wrong. Please try again.');
     } finally {
         setLoading(false);
     }

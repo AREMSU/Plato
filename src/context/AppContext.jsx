@@ -40,7 +40,8 @@ export const AppProvider = ({ children }) => {
             await getSubscription();
             return { success: true };
         } catch (error) {
-            return { success: false, error: error.message || 'Login failed' };
+            console.error('Login error:', error.message);
+            return { success: false, error: 'Login failed. Please try again.' };
         } finally {
             setLoading(false);
         }
@@ -127,7 +128,8 @@ export const AppProvider = ({ children }) => {
             setMeals(prev => [data, ...prev]);
             return data;  // return meal object so AddMealScreen can check !result.error
         } catch (error) {
-            return { error: error.message || 'Failed to add meal' };
+            console.error('Add meal error:', error.message);
+            return { error: 'Failed to add meal. Please try again.' };
         } finally {
             setLoading(false);
         }
@@ -152,7 +154,8 @@ export const AppProvider = ({ children }) => {
             ));
             return { success: true, booking: data };
         } catch (error) {
-            return { error: error.message || 'Failed to book meal' };
+            console.error('Book meal error:', error.message);
+            return { error: 'Failed to book meal. Please try again.' };
         } finally {
             setLoading(false);
         }
@@ -187,7 +190,8 @@ export const AppProvider = ({ children }) => {
             }));
             return { success: true };
         } catch (error) {
-            return { error: error.message || 'Failed to cancel booking' };
+            console.error('Cancel booking error:', error.message);
+            return { error: 'Failed to cancel booking. Please try again.' };
         }
     };
 
@@ -249,7 +253,8 @@ export const AppProvider = ({ children }) => {
             await loadMeals();
             return { success: true, review: data };
         } catch (error) {
-            return { error: error.message || 'Failed to submit review' };
+            console.error('Submit review error:', error.message);
+            return { error: 'Failed to submit review. Please try again.' };
         }
     };
 
@@ -279,8 +284,8 @@ export const AppProvider = ({ children }) => {
             if (!data?.error) setSubscription(data);
             return data;
         } catch (error) {
-            console.log('Get subscription error:', error.message);
-            return { error: error.message };
+            console.error('Get subscription error:', error.message);
+            return { error: 'Something went wrong. Please try again.' };
         }
     };
 
@@ -290,7 +295,8 @@ export const AppProvider = ({ children }) => {
             if (!data?.error) await getSubscription();
             return data;
         } catch (error) {
-            return { error: error.message };
+            console.error('Upgrade subscription error:', error.message);
+            return { error: 'Something went wrong. Please try again.' };
         }
     };
 
@@ -300,7 +306,8 @@ export const AppProvider = ({ children }) => {
             if (!data?.error) await getSubscription();
             return data;
         } catch (error) {
-            return { error: error.message };
+            console.error('Cancel subscription error:', error.message);
+            return { error: 'Something went wrong. Please try again.' };
         }
     };
 
@@ -310,7 +317,8 @@ export const AppProvider = ({ children }) => {
             if (!data?.error) await getSubscription();
             return data;
         } catch (error) {
-            return { error: error.message };
+            console.error('Renew subscription error:', error.message);
+            return { error: 'Something went wrong. Please try again.' };
         }
     };
 

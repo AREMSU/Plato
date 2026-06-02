@@ -48,7 +48,8 @@ export default function OTPScreen({ navigation, route }) {
         // Navigator will automatically switch to Main since isLoggedIn becomes true
         await loginAfterVerification(data.user, data.tokens);
     } catch (error) {
-        Alert.alert('Error', error.message || 'Invalid OTP');
+        console.error('OTP verify error:', error.message);
+        Alert.alert('Error', 'Verification failed. Please try again.');
     } finally {
         setLoading(false);
     }
@@ -61,7 +62,8 @@ export default function OTPScreen({ navigation, route }) {
             Alert.alert('✅ Sent!', 'New OTP sent to your email');
             setOtp(['', '', '', '', '', '']);
         } catch (error) {
-            Alert.alert('Error', error.message || 'Failed to resend OTP');
+            console.error('Resend OTP error:', error.message);
+            Alert.alert('Error', 'Failed to resend OTP. Please try again.');
         } finally {
             setResending(false);
         }
