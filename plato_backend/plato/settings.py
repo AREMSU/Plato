@@ -46,6 +46,7 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt',
     'corsheaders',
     'api',
+    'panel_api',
 ]
 
 AUTH_USER_MODEL = 'api.User'  # ← add this right here
