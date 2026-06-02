@@ -111,31 +111,28 @@ export default function BookingScreen({ navigation, route }) {
     );
   };
 
-  const PaymentOption = ({ id, name, icon, color, logo }) => (
+  const PaymentOption = ({ id, name, subtitle, icon, color, logo }) => (
     <TouchableOpacity
       style={[
         styles.paymentOption,
         paymentMethod === id && styles.paymentOptionActive,
       ]}
       onPress={() => setPaymentMethod(id)}
-      activeOpacity={0.7}
+      activeOpacity={0.75}
     >
       <View
         style={[
           styles.paymentIconBox,
-          { backgroundColor: color + '15' },
-          logo && { width: 88, borderRadius: 10 },
+          logo ? styles.paymentLogoBox : { backgroundColor: color + '15' }
         ]}
       >
         {logo ? (
-          <Image source={logo} style={{ width: 80, height: 28 }} resizeMode="contain" />
+          <Image source={logo} style={styles.paymentLogoImage} resizeMode="contain" />
         ) : (
-          <Ionicons name={icon} size={20} color={color} />
+          <Ionicons name={icon} size={22} color={color} />
         )}
       </View>
-      {logo ? (
-        <View style={{ flex: 1 }} />
-      ) : (
+      <View style={styles.paymentTextContainer}>
         <Text
           style={[
             styles.paymentName,
@@ -144,7 +141,8 @@ export default function BookingScreen({ navigation, route }) {
         >
           {name}
         </Text>
-      )}
+        <Text style={styles.paymentSubtitle}>{subtitle}</Text>
+      </View>
       <View style={[styles.radioOuter, paymentMethod === id && styles.radioOuterActive]}>
         {paymentMethod === id && (
           <View style={styles.radioInner} />
@@ -239,12 +237,14 @@ export default function BookingScreen({ navigation, route }) {
           <PaymentOption
             id="esewa"
             name="eSewa"
+            subtitle="Pay instantly via eSewa digital wallet"
             logo={esewaLogo}
-            color="#4CAF50"
+            color="#60BB46"
           />
           <PaymentOption
             id="cash"
             name="Cash on Pickup"
+            subtitle="Pay in person during meal collection"
             icon="cash-outline"
             color="#FF6B35"
           />
@@ -485,12 +485,38 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginRight: 14,
   },
-  paymentName: {
+  paymentLogoBox: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
+    justifyContent: 'center',
+    alignItems: 'flex-start',
+    marginRight: 14,
+    overflow: 'hidden',
+  },
+  paymentLogoImage: {
+    width: 105,
+    height: 40,
+    marginLeft: 2,
+  },
+  paymentTextContainer: {
     flex: 1,
+    justifyContent: 'center',
+  },
+  paymentName: {
     fontSize: 15,
-    fontWeight: '600',
-    color: '#334155',
+    fontWeight: '700',
+    color: '#1E293B',
     fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Medium' : 'sans-serif-medium',
+  },
+  paymentSubtitle: {
+    fontSize: 12,
+    color: '#64748B',
+    marginTop: 2,
+    fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Regular' : 'sans-serif',
   },
   paymentNameActive: {
     color: '#FF6B35',

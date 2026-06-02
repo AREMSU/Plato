@@ -46,6 +46,7 @@ class UserSerializer(serializers.ModelSerializer):
     reliability_badge = serializers.SerializerMethodField()
     is_pro = serializers.SerializerMethodField()
     subscription_expires = serializers.SerializerMethodField()
+    meals_shared = serializers.SerializerMethodField()
 
     class Meta:
         model = User
@@ -74,6 +75,9 @@ class UserSerializer(serializers.ModelSerializer):
             return obj.subscription.expires_at
         except Exception:
             return None
+
+    def get_meals_shared(self, obj):
+        return obj.meals.filter(status='approved').count()
 
 class MealSerializer(serializers.ModelSerializer):
     seller_name = serializers.SerializerMethodField()

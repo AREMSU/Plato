@@ -13,6 +13,7 @@ import {
   Linking,
   Platform,
   AppState,
+  RefreshControl,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -53,7 +54,24 @@ export default function ProfileScreen({ navigation }) {
     notifications: notificationsList,
     loadNotifications,
     markNotificationsRead,
+    refreshUserData,
   } = useApp();
+
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    try {
+      if (typeof refreshUserData === 'function') {
+        await refreshUserData();
+      }
+      await loadSubscription();
+    } catch (error) {
+      console.error('Refresh profile error:', error.message);
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   const myMeals = meals.filter((m) => isMealOwner(user, m));
   const activeBookings = bookings.filter((b) => b.status === 'confirmed');
@@ -482,7 +500,16 @@ export default function ProfileScreen({ navigation }) {
   // ─────────────────────────────────────
   return (
     <View style={styles.container}>
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor="#FF6B35"
+          />
+        }
+      >
 
         {/* ══════════════ HEADER ══════════════ */}
         <LinearGradient
@@ -573,160 +600,6 @@ export default function ProfileScreen({ navigation }) {
           </View>
         </View>
 
-        {/* ══════════════ ACTIVITY ══════════════ */}
-        <View style={styles.activityCard}>
-          <Text style={styles.activityTitle}>Activity Summary</Text>
-          <View style={styles.activityRow}>
-            <TouchableOpacity
-              style={styles.activityItem}
-              onPress={() => navigation.navigate('MyMeals', { initialTab: 'listings' })}
-            >
-              <Ionicons name="restaurant" size={24} color="#FF6B35" style={{ marginBottom: 4 }} />
-              <Text style={styles.activityValue}>{myMeals.length}</Text>
-              <Text style={styles.activityLabel}>Listed</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.activityItem}
-              onPress={() => navigation.navigate('MyMeals', { initialTab: 'bookings' })}
-            >
-              <Ionicons name="checkmark-circle" size={24} color="#4CAF50" style={{ marginBottom: 4 }} />
-              <Text style={styles.activityValue}>{activeBookings.length}</Text>
-              <Text style={styles.activityLabel}>Active</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.activityItem}
-              onPress={() => navigation.navigate('MyMeals', { initialTab: 'bookings' })}
-            >
-              <Ionicons name="close-circle" size={24} color="#F44336" style={{ marginBottom: 4 }} />
-              <Text style={styles.activityValue}>{cancelledBookings.length}</Text>
-              <Text style={styles.activityLabel}>Cancelled</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.activityItem}
-              onPress={() => setReviewsModalVisible(true)}
-            >
-              <Ionicons name="star" size={24} color="#FFC107" style={{ marginBottom: 4 }} />
-              <Text style={styles.activityValue}>{sellerReviews.length}</Text>
-              <Text style={styles.activityLabel}>Reviews</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-    {/* ══════════════ PREMIUM PLANS ══════════════ */ }
-    < View style = { styles.premiumCard } >
-          <View style={styles.premiumHeader}>
-            <Text style={styles.premiumTitle}>Premium Plans</Text>
-            <View
-              style={[
-                styles.premiumBadge,
-                isPro ? styles.premiumBadgePro : (subscription?.status === 'pending' ? styles.premiumBadgePending : (subscription?.status === 'rejected' ? styles.premiumBadgeRejected : styles.premiumBadgeFree)),
-              ]}
-            >
-              <Text style={styles.premiumBadgeText}>
-                {isPro ? 'PRO' : (subscription?.status === 'pending' ? 'PENDING' : (subscription?.status === 'rejected' ? 'REJECTED' : 'FREE'))}
-              </Text>
-            </View>
-          </View>
-
-          <Text style={styles.premiumPrice}>
-            {isPro ? 'NPR 199 / month' : 'Upgrade to NPR 199 / month'}
-          </Text>
-          <Text style={styles.premiumSubtitle}>
-            Boost your meals with priority visibility and AI preference.
-          </Text>
-
-          <View style={styles.premiumFeatureRow}>
-            <Ionicons name="cloud-upload-outline" size={18} color="#FF6B35" style={{ marginRight: 10 }} />
-            <Text style={styles.premiumFeatureText}>
-              Meals pushed to top of Explore and Home
-            </Text>
-          </View>
-          <View style={styles.premiumFeatureRow}>
-            <Ionicons name="ribbon-outline" size={18} color="#FF6B35" style={{ marginRight: 10 }} />
-            <Text style={styles.premiumFeatureText}>
-              AI recommendations prioritize your meals
-            </Text>
-          </View>
-          <View style={styles.premiumFeatureRow}>
-            <Ionicons name="star-outline" size={18} color="#FF6B35" style={{ marginRight: 10 }} />
-            <Text style={styles.premiumFeatureText}>
-              Featured badge on your listings
-            </Text>
-          </View>
-
-  {
-    subscriptionLoading ? (
-      <Text style={styles.premiumStatus}>Checking subscription...</Text>
-    ) : (
-      <Text style={styles.premiumStatus}>
-        {isPro
-          ? `Pro active • ${daysRemaining} days left`
-          : (subscription?.status === 'pending'
-            ? 'Upgrade request pending approval'
-            : (subscription?.status === 'rejected'
-              ? 'Previous request was rejected'
-              : 'You are on the Free plan'))}
-      </Text>
-    )
-  }
-
-  {
-    isPro && expiresLabel && (
-      <Text style={styles.premiumExpiry}>Expires on {expiresLabel}</Text>
-    )
-  }
-
-  {
-    isPro ? (
-      <View style={styles.premiumActions}>
-        <TouchableOpacity
-          style={[styles.premiumButton, styles.premiumButtonOutline]}
-          onPress={handleCancelSubscription}
-          disabled={subscriptionActionLoading}
-        >
-          <Text style={styles.premiumButtonOutlineText}>Cancel Renewal</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.premiumButton}
-          onPress={handleRenewSubscription}
-          disabled={subscriptionActionLoading}
-        >
-          <Text style={styles.premiumButtonText}>Renew 30 Days</Text>
-        </TouchableOpacity>
-      </View>
-    ) : subscription?.status === 'pending' ? (
-      <TouchableOpacity
-        style={[styles.premiumButton, styles.premiumButtonDisabled]}
-        disabled={true}
-      >
-        <Text style={styles.premiumButtonText}>Verification in Progress</Text>
-      </TouchableOpacity>
-    ) : (
-      <TouchableOpacity
-        style={styles.premiumButton}
-        onPress={handleUpgrade}
-        disabled={subscriptionActionLoading}
-      >
-        <Text style={styles.premiumButtonText}>
-          {subscription?.status === 'rejected' ? 'Retry Upgrade to Pro' : 'Upgrade to Pro'}
-        </Text>
-      </TouchableOpacity>
-    )
-  }
-
-  <TouchableOpacity
-    style={styles.premiumLearnMore}
-    onPress={() =>
-      Alert.alert(
-        'Premium Plans',
-        'Pro sellers get featured placement in Explore/Home and priority in AI recommendations for NPR 199/month.',
-        [{ text: 'Got it' }]
-      )
-    }
-  >
-    <Text style={styles.premiumLearnMoreText}>Learn more</Text>
-  </TouchableOpacity>
-        </View >
 
     {/* ══════════════ MENU ══════════════ */ }
     <View style={styles.menuSection}>
@@ -845,7 +718,7 @@ export default function ProfileScreen({ navigation }) {
           </Text>
         </View>
 
-        <View style={{ height: 100 }} />
+        <View style={{ height: 24 }} />
       </ScrollView >
 
   {/* ══════════════════════════════════════
@@ -1195,18 +1068,17 @@ export default function ProfileScreen({ navigation }) {
               <View
                 style={[
                   styles.paymentIconBox,
-                  { backgroundColor: pm.color + '20' },
-                  pm.logo && { width: 90, borderRadius: 10 },
+                  pm.logo ? styles.paymentLogoBox : { backgroundColor: pm.color + '20' },
                 ]}
               >
                 {pm.logo ? (
-                  <Image source={pm.logo} style={{ width: 82, height: 28 }} resizeMode="contain" />
+                  <Image source={pm.logo} style={styles.paymentLogoImage} resizeMode="contain" />
                 ) : (
                   <Ionicons name={pm.icon} size={20} color={pm.color} />
                 )}
               </View>
               <View style={styles.paymentInfo}>
-                {!pm.logo && <Text style={styles.paymentType}>{pm.type}</Text>}
+                <Text style={styles.paymentType}>{pm.type}</Text>
                 <Text style={styles.paymentNumber}>{pm.number}</Text>
               </View>
               <View style={styles.paymentActiveBadge}>
@@ -1453,22 +1325,26 @@ export default function ProfileScreen({ navigation }) {
               </TouchableOpacity>
             </View>
           ) : subscription?.status === 'pending' ? (
-            <TouchableOpacity
-              style={[styles.premiumButton, styles.premiumButtonDisabled]}
-              disabled={true}
-            >
-              <Text style={styles.premiumButtonText}>Verification in Progress</Text>
-            </TouchableOpacity>
+            <View style={styles.premiumActions}>
+              <TouchableOpacity
+                style={[styles.premiumButton, styles.premiumButtonDisabled]}
+                disabled={true}
+              >
+                <Text style={styles.premiumButtonText}>Verification in Progress</Text>
+              </TouchableOpacity>
+            </View>
           ) : (
-            <TouchableOpacity
-              style={styles.premiumButton}
-              onPress={handleUpgrade}
-              disabled={subscriptionActionLoading}
-            >
-              <Text style={styles.premiumButtonText}>
-                {subscription?.status === 'rejected' ? 'Retry Upgrade to Pro' : 'Upgrade to Pro'}
-              </Text>
-            </TouchableOpacity>
+            <View style={styles.premiumActions}>
+              <TouchableOpacity
+                style={styles.premiumButton}
+                onPress={handleUpgrade}
+                disabled={subscriptionActionLoading}
+              >
+                <Text style={styles.premiumButtonText}>
+                  {subscription?.status === 'rejected' ? 'Retry Upgrade to Pro' : 'Upgrade to Pro'}
+                </Text>
+              </TouchableOpacity>
+            </View>
           )}
 
           <TouchableOpacity
@@ -1719,38 +1595,6 @@ const styles = StyleSheet.create({
     lineHeight: 14,
   },
   statDivider: { width: 1, backgroundColor: '#F0F0F0' },
-
-  // Activity
-  activityCard: {
-    backgroundColor: '#fff',
-    marginHorizontal: 16,
-    marginTop: 16,
-    borderRadius: 20,
-    padding: 18,
-    elevation: 2,
-  },
-  activityTitle: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: '#1A1A1A',
-    marginBottom: 14,
-  },
-  activityRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-  },
-  activityItem: { alignItems: 'center' },
-  activityValue: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: '#1A1A1A',
-    marginBottom: 2,
-  },
-  activityLabel: {
-    fontSize: 11,
-    color: '#9E9E9E',
-    fontWeight: '500',
-  },
 
   // Premium
   premiumCard: {
@@ -2257,6 +2101,22 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  paymentLogoBox: {
+    width: 46,
+    height: 46,
+    borderRadius: 12,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    justifyContent: 'center',
+    alignItems: 'flex-start',
+    overflow: 'hidden',
+  },
+  paymentLogoImage: {
+    width: 110,
+    height: 42,
+    marginLeft: 2,
   },
   paymentIcon: { fontSize: 22 },
   paymentInfo: { flex: 1 },

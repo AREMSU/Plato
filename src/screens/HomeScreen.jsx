@@ -13,7 +13,7 @@ import { getDisplayName, getGreeting, isMealOwner } from '../utils/helpers';
 import { categories } from '../utils/constants';
 
 export default function HomeScreen({ navigation }) {
-  const { user, meals, bookings } = useApp();
+  const { user, meals, bookings, refreshUserData } = useApp();
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [refreshing, setRefreshing] = useState(false);
 
@@ -40,9 +40,17 @@ export default function HomeScreen({ navigation }) {
     : sortFeaturedFirst(availableMeals.filter((m) => m.category === selectedCategory));
   const activeBookings = bookings.filter((b) => b.status === 'confirmed');
 
-  const onRefresh = () => {
+  const onRefresh = async () => {
     setRefreshing(true);
-    setTimeout(() => setRefreshing(false), 1000);
+    try {
+      if (typeof refreshUserData === 'function') {
+        await refreshUserData();
+      }
+    } catch (e) {
+      console.error('Home refresh failed:', e);
+    } finally {
+      setRefreshing(false);
+    }
   };
 
   return (

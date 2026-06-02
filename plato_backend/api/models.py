@@ -36,6 +36,17 @@ class User(AbstractUser):
     def __str__(self):
         return self.email
 
+    def delete(self, *args, **kwargs):
+        self.meals.all().delete()
+        self.bookings.all().delete()
+        self.reviews_given.all().delete()
+        self.reviews_received.all().delete()
+        self.notifications.all().delete()
+        self.otps.all().delete()
+        if hasattr(self, 'subscription'):
+            self.subscription.delete()
+        super().delete(*args, **kwargs)
+
 
 class Meal(models.Model):
     CATEGORIES = [
@@ -196,3 +207,36 @@ class Subscription(models.Model):
 
     def __str__(self):
         return f"{self.user.email} — {self.plan}"
+
+
+from django.db.models.signals import post_save, post_delete
+from django.dispatch import receiver
+from django.db.models import Avg
+
+def recalculate_ratings(meal, seller):
+    try:
+        if meal and Meal.objects.filter(pk=meal.pk).exists():
+            meal_reviews = Review.objects.filter(meal=meal)
+            meal_avg = meal_reviews.aggregate(avg=Avg('rating'))['avg'] or 0.0
+            meal.rating = round(meal_avg, 1)
+            meal.reviews = meal_reviews.count()
+            meal.save(update_fields=['rating', 'reviews'])
+    except Exception:
+        pass
+
+    try:
+        if seller and User.objects.filter(pk=seller.pk).exists():
+            seller_reviews = Review.objects.filter(seller=seller)
+            seller_avg = seller_reviews.aggregate(avg=Avg('rating'))['avg'] or 0.0
+            seller.rating = round(seller_avg, 1)
+            seller.save(update_fields=['rating'])
+    except Exception:
+        pass
+
+@receiver(post_save, sender=Review)
+def review_saved(sender, instance, **kwargs):
+    recalculate_ratings(instance.meal, instance.seller)
+
+@receiver(post_delete, sender=Review)
+def review_deleted(sender, instance, **kwargs):
+    recalculate_ratings(instance.meal, instance.seller)

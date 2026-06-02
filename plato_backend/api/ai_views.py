@@ -137,7 +137,9 @@ class RecommendedMealsView(APIView):
         now = timezone.now()
         meals = Meal.objects.filter(
             available_portions__gt=0,
-            status='approved'
+            status='approved',
+            seller__isnull=False,
+            seller__is_active=True
         )
 
         def score(meal):

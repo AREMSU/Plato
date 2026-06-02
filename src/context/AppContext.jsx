@@ -93,6 +93,27 @@ export const AppProvider = ({ children }) => {
         }
     };
 
+    const refreshUserData = async () => {
+        try {
+            const data = await apiCall('/users/me/', 'GET', null, true);
+            if (data && !data.error) {
+                setUser(data);
+                await AsyncStorage.setItem('user', JSON.stringify(data));
+            }
+            await Promise.all([
+                loadMeals(),
+                loadBookings(),
+                loadBookingsReceived(),
+                loadReviewsReceived(),
+                loadNotifications(),
+                loadAIRecommendations(),
+                getSubscription()
+            ]);
+        } catch (error) {
+            console.log('Refresh user data error:', error.message);
+        }
+    };
+
     // ─── MEALS ────────────────────────────────────────────────
 
     const loadMeals = async () => {
@@ -355,6 +376,7 @@ export const AppProvider = ({ children }) => {
             upgradeSubscription,
             cancelSubscription,
             renewSubscription,
+            refreshUserData,
         }}>
             {children}
         </AppContext.Provider>

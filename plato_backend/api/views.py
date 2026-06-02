@@ -288,7 +288,7 @@ class MealListCreateView(APIView):
         return [IsAuthenticated()]
 
     def get(self, request):
-        meals = Meal.objects.all()
+        meals = Meal.objects.filter(seller__isnull=False, seller__is_active=True)
 
         # Filters
         category = request.query_params.get('category')
@@ -350,7 +350,7 @@ class MealListView(APIView):
     permission_classes = [IsAuthenticatedOrReadOnly]
 
     def get(self, request):
-        meals = Meal.objects.all()
+        meals = Meal.objects.filter(seller__isnull=False, seller__is_active=True)
 
         # Filters
         category = request.query_params.get('category')
