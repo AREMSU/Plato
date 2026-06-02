@@ -15,9 +15,10 @@ export default function CookProfileScreen({ navigation, route }) {
   const { meals, user } = useApp();
 
   // Get all meals listed by this seller that aren't owned by current user
-  const cookMeals = meals.filter(
-    (m) => (m.sellerId === sellerId || m.seller_id === sellerId)
-  );
+  const cookMeals = meals.filter((m) => {
+    const mSellerId = m?.seller?.id ?? m?.sellerId ?? m?.seller_id ?? m?.seller;
+    return String(mSellerId) === String(sellerId);
+  });
 
   const badge = getReliabilityBadge(sellerRating || 4.5);
   const isMe = user?.id === sellerId;

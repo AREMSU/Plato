@@ -36,7 +36,7 @@ export default function MealDetailScreen({ navigation, route }) {
   const mealImage = meal?.image || '';
   const sellerAvatar = meal?.sellerAvatar || meal?.seller_avatar || '';
   const sellerName = meal?.sellerName || meal?.seller_name || 'Unknown';
-  const sellerId = meal?.sellerId || meal?.seller_id || null;
+  const sellerId = meal?.seller?.id ?? meal?.sellerId ?? meal?.seller_id ?? meal?.seller ?? null;
   const sellerRating = meal?.sellerRating || meal?.seller_rating || 0;
   const portionsLeft = meal?.availablePortions ?? meal?.available_portions ?? 0;
 
