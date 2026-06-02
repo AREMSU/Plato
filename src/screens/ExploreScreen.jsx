@@ -74,12 +74,7 @@ export default function ExploreScreen({ navigation }) {
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" />
       <View style={styles.header}>
-        <View style={styles.headerTop}>
-          <Text style={styles.headerTitle}>Explore</Text>
-          <View style={styles.resultsBadge}>
-            <Text style={styles.resultsBadgeText}>{sorted.length} meals</Text>
-          </View>
-        </View>
+
         <View style={styles.searchBar}>
           <Ionicons name="search-outline" size={18} color="#9E9E9E" />
           <TextInput
@@ -238,7 +233,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     paddingTop: Platform.OS === 'android' ? 48 : 58,
     paddingHorizontal: 20,
-    paddingBottom: 16,
+    paddingBottom: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#F0F0F0',
     shadowColor: '#1E293B',
@@ -247,43 +242,20 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     elevation: 4,
   },
-  headerTop: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 14,
-  },
-  headerTitle: {
-    fontSize: 28,
-    fontWeight: '800',
-    color: '#1A1A1A',
-    letterSpacing: -0.5,
-    fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Bold' : 'sans-serif-medium',
-  },
-  resultsBadge: {
-    backgroundColor: '#FFF3EE',
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#FFD5C2',
-  },
-  resultsBadgeText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#FF6B35',
-    fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Bold' : 'sans-serif-medium',
-  },
+
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F8F8F8',
-    borderRadius: 16,
-    paddingHorizontal: 14,
-    paddingVertical: 13,
+    backgroundColor: '#F1F5F9',
+    borderRadius: 24,
+    paddingHorizontal: 16,
+    paddingVertical: 11,
     gap: 10,
-    borderWidth: 1.5,
-    borderColor: '#EBEBEB',
+    shadowColor: '#1E293B',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
   },
   searchInput: {
     flex: 1,
