@@ -103,6 +103,9 @@ export const cancelBooking = (id) =>
 export const getSubscriptions = (params = '') =>
   customFetch(`/subscriptions/?${params}`).then(handleResponse);
 
+export const subscriptionAction = (id, action) =>
+  customFetch(`/subscriptions/${id}/action/`, { method: 'POST', body: JSON.stringify({ action }) }).then(handleResponse);
+
 // OTPs
 export const getOTPs = () =>
   customFetch('/otps/').then(handleResponse);

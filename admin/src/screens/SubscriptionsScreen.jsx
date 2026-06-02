@@ -1,17 +1,18 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, RefreshControl } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, StyleSheet, RefreshControl, Alert } from 'react-native';
 import Header from '../components/Header';
 import Badge from '../components/Badge';
-import { getSubscriptions } from '../api/client';
+import { getSubscriptions, subscriptionAction } from '../api/client';
 import { COLORS, formatCurrency, formatDate } from '../utils/helpers';
 
-const FILTERS = ['all', 'pro', 'free', 'expired'];
+const FILTERS = ['all', 'pending', 'pro', 'free', 'expired'];
 
 const SubscriptionsScreen = () => {
   const [subs, setSubs] = useState([]);
   const [filter, setFilter] = useState('all');
   const [total, setTotal] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
+  const [actionLoading, setActionLoading] = useState(null); // ID of subscription being processed
 
   const load = useCallback(async () => {
     try {
@@ -25,20 +26,74 @@ const SubscriptionsScreen = () => {
   useEffect(() => { load(); }, [load]);
   const onRefresh = async () => { setRefreshing(true); await load(); setRefreshing(false); };
 
-  const renderSub = ({ item }) => (
-    <View style={styles.row}>
-      <View style={styles.topRow}>
-        <Text style={styles.email} numberOfLines={1}>{item.user_email}</Text>
-        <Badge text={item.plan.toUpperCase()} type={item.plan === 'pro' ? 'purple' : 'muted'} />
+  const handleAction = async (id, action) => {
+    setActionLoading(id);
+    try {
+      const res = await subscriptionAction(id, action);
+      Alert.alert('Success', `Subscription successfully ${action === 'approve' ? 'approved' : 'rejected'}.`);
+      await load();
+    } catch (e) {
+      console.log(e);
+      Alert.alert('Error', e.error || e.message || `Failed to ${action} subscription.`);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const renderSub = ({ item }) => {
+    // Determine badge type based on status field
+    let statusType = 'muted';
+    let statusText = item.status || 'free';
+    if (item.status === 'approved') {
+      statusType = 'success';
+      statusText = 'Approved';
+    } else if (item.status === 'pending') {
+      statusType = 'warning';
+      statusText = 'Pending Approval';
+    } else if (item.status === 'rejected') {
+      statusType = 'danger';
+      statusText = 'Rejected';
+    } else if (item.plan === 'pro' && item.is_active) {
+      statusType = 'success';
+      statusText = 'Active Pro';
+    }
+
+    return (
+      <View style={styles.row}>
+        <View style={styles.topRow}>
+          <Text style={styles.email} numberOfLines={1}>{item.user_email}</Text>
+          <Badge text={item.plan.toUpperCase()} type={item.plan === 'pro' ? 'purple' : 'muted'} />
+        </View>
+        <View style={styles.metaRow}>
+          <Badge text={statusText} type={statusType} />
+          {item.is_pro && <Text style={styles.days}>{item.days_remaining} days left</Text>}
+        </View>
+        <Text style={styles.detail}>Paid: {formatCurrency(item.amount_paid)} · Ref: {item.payment_reference || '—'}</Text>
+        {item.started_at && (
+          <Text style={styles.dates}>Started: {formatDate(item.started_at)} · Expires: {formatDate(item.expires_at)}</Text>
+        )}
+
+        {item.status === 'pending' && (
+          <View style={styles.actionRow}>
+            <TouchableOpacity
+              style={[styles.actionBtn, styles.rejectBtn, actionLoading === item.id && styles.btnDisabled]}
+              onPress={() => handleAction(item.id, 'reject')}
+              disabled={actionLoading !== null}
+            >
+              <Text style={styles.rejectBtnText}>Reject</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.actionBtn, styles.approveBtn, actionLoading === item.id && styles.btnDisabled]}
+              onPress={() => handleAction(item.id, 'approve')}
+              disabled={actionLoading !== null}
+            >
+              <Text style={styles.approveBtnText}>Approve</Text>
+            </TouchableOpacity>
+          </View>
+        )}
       </View>
-      <View style={styles.metaRow}>
-        <Badge text={item.is_active ? 'Active' : 'Inactive'} type={item.is_active ? 'success' : 'danger'} />
-        {item.is_pro && <Text style={styles.days}>{item.days_remaining} days left</Text>}
-      </View>
-      <Text style={styles.detail}>Paid: {formatCurrency(item.amount_paid)} · Ref: {item.payment_reference || '—'}</Text>
-      <Text style={styles.dates}>Started: {formatDate(item.started_at)} · Expires: {formatDate(item.expires_at)}</Text>
-    </View>
-  );
+    );
+  };
 
   return (
     <View style={styles.container}>
@@ -73,6 +128,44 @@ const styles = StyleSheet.create({
   detail: { fontSize: 12, color: COLORS.textSecondary, marginTop: 4 },
   dates: { fontSize: 11, color: COLORS.textMuted, marginTop: 2 },
   empty: { textAlign: 'center', color: COLORS.textMuted, padding: 40 },
+  actionRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 10,
+    marginTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.border,
+    paddingTop: 12
+  },
+  actionBtn: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+    minWidth: 85,
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  approveBtn: {
+    backgroundColor: COLORS.accent
+  },
+  approveBtnText: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '700'
+  },
+  rejectBtn: {
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: COLORS.danger
+  },
+  rejectBtnText: {
+    color: COLORS.danger,
+    fontSize: 13,
+    fontWeight: '700'
+  },
+  btnDisabled: {
+    opacity: 0.5
+  }
 });
 
 export default SubscriptionsScreen;

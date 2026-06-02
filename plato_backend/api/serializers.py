@@ -150,7 +150,7 @@ class SubscriptionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Subscription
         fields = [
-            'id', 'plan', 'is_active', 'is_pro',
+            'id', 'plan', 'status', 'is_active', 'is_pro',
             'started_at', 'expires_at', 'days_remaining',
             'payment_reference', 'amount_paid', 'created_at',
         ]

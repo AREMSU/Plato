@@ -15,5 +15,6 @@ urlpatterns = [
     path('api/bookings/', views.AdminBookingsView.as_view(), name='bookings'),
     path('api/bookings/<int:booking_id>/cancel/', views.AdminBookingCancelView.as_view(), name='booking_cancel'),
     path('api/subscriptions/', views.AdminSubscriptionsView.as_view(), name='subscriptions'),
+    path('api/subscriptions/<int:subscription_id>/action/', views.AdminSubscriptionActionView.as_view(), name='subscription_action'),
     path('api/otps/', views.AdminOTPsView.as_view(), name='otps'),
 ]

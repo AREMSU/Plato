@@ -662,16 +662,17 @@ class SubscriptionStatusView(APIView):
 
 
 class SubscriptionUpgradeView(APIView):
-    """POST /api/subscription/upgrade/ — mock upgrade to pro"""
+    """POST /api/subscription/upgrade/ — submit upgrade request to pro"""
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        # In real version: verify eSewa/Khalti payment here
-        # For now: mock payment — just activate pro
+        payment_reference = request.data.get('payment_reference', '').strip()
+        if not payment_reference:
+            return Response({'error': 'Payment reference / Transaction ID is required.'}, status=400)
 
         subscription, created = Subscription.objects.get_or_create(
             user=request.user,
-            defaults={'plan': 'free', 'is_active': False}
+            defaults={'plan': 'free', 'is_active': False, 'status': 'none'}
         )
 
         if subscription.is_pro():
@@ -681,24 +682,23 @@ class SubscriptionUpgradeView(APIView):
                 'days_remaining': subscription.days_remaining(),
             }, status=400)
 
-        # Activate pro for 30 days
-        now = timezone.now()
-        subscription.plan = 'pro'
-        subscription.is_active = True
-        subscription.started_at = now
-        subscription.expires_at = now + timedelta(days=30)
-        subscription.amount_paid = 199.00
-        subscription.payment_reference = f"MOCK-{uuid.uuid4().hex[:12].upper()}"
-        subscription.save()
+        if subscription.status == 'pending':
+            return Response({'error': 'You already have a pending upgrade request.'}, status=400)
 
-        # Feature all existing meals by this user
-        Meal.objects.filter(seller=request.user).update(is_featured=True)
+        # Set request as pending, require admin approval
+        subscription.plan = 'pro'
+        subscription.status = 'pending'
+        subscription.is_active = False
+        subscription.started_at = None
+        subscription.expires_at = None
+        subscription.amount_paid = 199.00
+        subscription.payment_reference = payment_reference
+        subscription.save()
 
         serializer = SubscriptionSerializer(subscription)
         return Response({
-            'message': 'Upgraded to Pro successfully!',
+            'message': 'Upgrade request submitted successfully! Waiting for admin approval.',
             'subscription': serializer.data,
-            'payment_reference': subscription.payment_reference,
         })
 
 

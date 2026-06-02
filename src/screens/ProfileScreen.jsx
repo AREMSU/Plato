@@ -71,6 +71,8 @@ export default function ProfileScreen({ navigation }) {
   const [subscriptionLoading, setSubscriptionLoading] = useState(false);
   const [subscriptionActionLoading, setSubscriptionActionLoading] = useState(false);
   const [renewalCancelled, setRenewalCancelled] = useState(false);
+  const [proUpgradeModalVisible, setProUpgradeModalVisible] = useState(false);
+  const [paymentRef, setPaymentRef] = useState('');
 
   const [editForm, setEditForm] = useState({
     name: user?.name || '',
@@ -152,16 +154,27 @@ export default function ProfileScreen({ navigation }) {
     });
   }, [user]);
 
-  const handleUpgrade = async () => {
+  const handleUpgrade = () => {
+    setProUpgradeModalVisible(true);
+  };
+
+  const submitUpgradeRequest = async () => {
+    if (!paymentRef.trim()) {
+      Alert.alert('Error', 'Please enter your payment Transaction ID / Reference.');
+      return;
+    }
     setSubscriptionActionLoading(true);
     try {
-      const data = await apiCall('/subscription/upgrade/', 'POST', null, true);
+      const data = await apiCall('/subscription/upgrade/', 'POST', { payment_reference: paymentRef.trim() }, true);
       const next = data?.subscription ?? data;
       setSubscription(next);
       setRenewalCancelled(false);
-      Alert.alert('✅ Pro Activated', 'Your meals will be featured immediately.');
+      setProUpgradeModalVisible(false);
+      setPremiumModalVisible(false);
+      setPaymentRef('');
+      Alert.alert('✅ Request Submitted', 'Your payment reference has been sent to the admin. Verification will take up to 24 hours.');
     } catch (error) {
-      Alert.alert('Upgrade Failed', error.message || 'Please try again.');
+      Alert.alert('Upgrade Request Failed', error.message || 'Please try again.');
     } finally {
       setSubscriptionActionLoading(false);
     }
@@ -548,10 +561,12 @@ export default function ProfileScreen({ navigation }) {
             <View
               style={[
                 styles.premiumBadge,
-                isPro ? styles.premiumBadgePro : styles.premiumBadgeFree,
+                isPro ? styles.premiumBadgePro : (subscription?.status === 'pending' ? styles.premiumBadgePending : (subscription?.status === 'rejected' ? styles.premiumBadgeRejected : styles.premiumBadgeFree)),
               ]}
             >
-              <Text style={styles.premiumBadgeText}>{isPro ? 'PRO' : 'FREE'}</Text>
+              <Text style={styles.premiumBadgeText}>
+                {isPro ? 'PRO' : (subscription?.status === 'pending' ? 'PENDING' : (subscription?.status === 'rejected' ? 'REJECTED' : 'FREE'))}
+              </Text>
             </View>
           </View>
 
@@ -588,7 +603,11 @@ export default function ProfileScreen({ navigation }) {
       <Text style={styles.premiumStatus}>
         {isPro
           ? `Pro active • ${daysRemaining} days left`
-          : 'You are on the Free plan'}
+          : (subscription?.status === 'pending'
+            ? 'Upgrade request pending approval'
+            : (subscription?.status === 'rejected'
+              ? 'Previous request was rejected'
+              : 'You are on the Free plan'))}
       </Text>
     )
   }
@@ -617,13 +636,22 @@ export default function ProfileScreen({ navigation }) {
           <Text style={styles.premiumButtonText}>Renew 30 Days</Text>
         </TouchableOpacity>
       </View>
+    ) : subscription?.status === 'pending' ? (
+      <TouchableOpacity
+        style={[styles.premiumButton, styles.premiumButtonDisabled]}
+        disabled={true}
+      >
+        <Text style={styles.premiumButtonText}>Verification in Progress</Text>
+      </TouchableOpacity>
     ) : (
       <TouchableOpacity
         style={styles.premiumButton}
         onPress={handleUpgrade}
         disabled={subscriptionActionLoading}
       >
-        <Text style={styles.premiumButtonText}>Upgrade to Pro</Text>
+        <Text style={styles.premiumButtonText}>
+          {subscription?.status === 'rejected' ? 'Retry Upgrade to Pro' : 'Upgrade to Pro'}
+        </Text>
       </TouchableOpacity>
     )
   }
@@ -1295,10 +1323,12 @@ export default function ProfileScreen({ navigation }) {
             <View
               style={[
                 styles.premiumBadge,
-                isPro ? styles.premiumBadgePro : styles.premiumBadgeFree,
+                isPro ? styles.premiumBadgePro : (subscription?.status === 'pending' ? styles.premiumBadgePending : (subscription?.status === 'rejected' ? styles.premiumBadgeRejected : styles.premiumBadgeFree)),
               ]}
             >
-              <Text style={styles.premiumBadgeText}>{isPro ? 'ACTIVE' : 'FREE'}</Text>
+              <Text style={styles.premiumBadgeText}>
+                {isPro ? 'ACTIVE' : (subscription?.status === 'pending' ? 'PENDING' : (subscription?.status === 'rejected' ? 'REJECTED' : 'FREE'))}
+              </Text>
             </View>
           </View>
 
@@ -1334,7 +1364,11 @@ export default function ProfileScreen({ navigation }) {
                 ? (renewalCancelled
                   ? 'Pro active • renewal cancelled'
                   : `Pro active • ${daysRemaining} days left`)
-                : 'You are on the Free plan'}
+                : (subscription?.status === 'pending'
+                  ? 'Upgrade request pending approval'
+                  : (subscription?.status === 'rejected'
+                    ? 'Previous request was rejected'
+                    : 'You are on the Free plan'))}
             </Text>
           )}
 
@@ -1359,13 +1393,22 @@ export default function ProfileScreen({ navigation }) {
                 <Text style={styles.premiumButtonText}>Renew 30 Days</Text>
               </TouchableOpacity>
             </View>
+          ) : subscription?.status === 'pending' ? (
+            <TouchableOpacity
+              style={[styles.premiumButton, styles.premiumButtonDisabled]}
+              disabled={true}
+            >
+              <Text style={styles.premiumButtonText}>Verification in Progress</Text>
+            </TouchableOpacity>
           ) : (
             <TouchableOpacity
               style={styles.premiumButton}
               onPress={handleUpgrade}
               disabled={subscriptionActionLoading}
             >
-              <Text style={styles.premiumButtonText}>Upgrade to Pro</Text>
+              <Text style={styles.premiumButtonText}>
+                {subscription?.status === 'rejected' ? 'Retry Upgrade to Pro' : 'Upgrade to Pro'}
+              </Text>
             </TouchableOpacity>
           )}
 
@@ -1383,6 +1426,72 @@ export default function ProfileScreen({ navigation }) {
         </View>
       </View>
       </Modal >
+
+  {/* ══════════════════════════════════════
+          PRO UPGRADE / PAYMENT REFERENCE MODAL
+      ══════════════════════════════════════ */}
+      <Modal
+        visible={proUpgradeModalVisible}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setProUpgradeModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>💳 Pro Payment Verify</Text>
+              <TouchableOpacity onPress={() => setProUpgradeModalVisible(false)}>
+                <Ionicons name="close-circle" size={22} color="#9E9E9E" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 16 }}>
+              <Text style={styles.paymentInstructionsTitle}>Instructions:</Text>
+              <Text style={styles.paymentInstructionsText}>
+                Please transfer <Text style={{ fontWeight: 'bold' }}>NPR 199</Text> to our official eSewa or Khalti account:
+              </Text>
+              
+              <View style={styles.paymentMethodBox}>
+                <View style={styles.paymentDetailsRow}>
+                  <Text style={styles.paymentMethodLabel}>🟢 eSewa ID:</Text>
+                  <Text style={styles.paymentMethodValue}>9812345678</Text>
+                </View>
+                <View style={styles.paymentDetailsRow}>
+                  <Text style={styles.paymentMethodLabel}>🟣 Khalti ID:</Text>
+                  <Text style={styles.paymentMethodValue}>9812345678</Text>
+                </View>
+              </View>
+
+              <Text style={styles.paymentInstructionsText}>
+                After payment completion, enter your transaction reference ID below to submit for manual approval:
+              </Text>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Transaction ID / Ref Code</Text>
+                <TextInput
+                  style={styles.textInput}
+                  value={paymentRef}
+                  onChangeText={setPaymentRef}
+                  placeholder="e.g. 8X3Y9Z2W"
+                  autoCapitalize="characters"
+                />
+              </View>
+
+              <TouchableOpacity
+                style={styles.submitRequestButton}
+                onPress={submitUpgradeRequest}
+                disabled={subscriptionActionLoading}
+              >
+                {subscriptionActionLoading ? (
+                  <Text style={styles.submitRequestButtonText}>Submitting...</Text>
+                ) : (
+                  <Text style={styles.submitRequestButtonText}>Submit Reference ID</Text>
+                )}
+              </TouchableOpacity>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
 
   {/* ══════════════════════════════════════
           PRIVACY MODAL
@@ -1685,7 +1794,10 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   premiumBadgePro: { backgroundColor: '#FF6B35' },
+  premiumBadgePending: { backgroundColor: '#F59E0B' },
+  premiumBadgeRejected: { backgroundColor: '#EF4444' },
   premiumBadgeFree: { backgroundColor: '#BDBDBD' },
+  premiumButtonDisabled: { backgroundColor: '#BDBDBD' },
   premiumBadgeText: {
     fontSize: 11,
     fontWeight: '700',
@@ -2336,5 +2448,72 @@ const styles = StyleSheet.create({
     width: 18,
     height: 18,
     resizeMode: 'contain',
+  },
+  paymentInstructionsTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#1A1A1A',
+    marginTop: 10,
+    marginBottom: 6,
+  },
+  paymentInstructionsText: {
+    fontSize: 13,
+    color: '#424242',
+    lineHeight: 18,
+    marginBottom: 12,
+  },
+  paymentMethodBox: {
+    backgroundColor: '#F9F9F9',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    padding: 12,
+    marginBottom: 12,
+  },
+  paymentDetailsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 4,
+  },
+  paymentMethodLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#4A5568',
+  },
+  paymentMethodValue: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#1A202C',
+  },
+  inputGroup: {
+    marginBottom: 16,
+  },
+  inputLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#4A5568',
+    marginBottom: 6,
+  },
+  textInput: {
+    borderWidth: 1,
+    borderColor: '#CBD5E0',
+    borderRadius: 8,
+    padding: 10,
+    fontSize: 14,
+    color: '#1A202C',
+    backgroundColor: '#FFF',
+    height: 44,
+  },
+  submitRequestButton: {
+    backgroundColor: '#FF6B35',
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  submitRequestButtonText: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 14,
   },
 });

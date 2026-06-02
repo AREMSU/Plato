@@ -185,11 +185,37 @@ class AdminSubscriptionsView(APIView):
         if f == 'pro': subs = subs.filter(plan='pro', is_active=True)
         elif f == 'free': subs = subs.filter(plan='free')
         elif f == 'expired': subs = subs.filter(is_active=False)
+        elif f == 'pending': subs = subs.filter(status='pending')
         data = [{'id':s.id,'user_email':s.user.email,'user_id':s.user.id,'plan':s.plan,
                  'is_active':s.is_active,'is_pro':s.is_pro(),'days_remaining':s.days_remaining(),
                  'amount_paid':s.amount_paid,'payment_reference':s.payment_reference,
-                 'started_at':s.started_at,'expires_at':s.expires_at} for s in subs[:100]]
+                 'started_at':s.started_at,'expires_at':s.expires_at, 'status': s.status} for s in subs[:100]]
         return Response({'subscriptions':data,'total':subs.count()})
+
+
+class AdminSubscriptionActionView(APIView):
+    permission_classes = [IsAdminUser]
+    def post(self, request, subscription_id):
+        action = request.data.get('action')
+        try: sub = Subscription.objects.get(pk=subscription_id)
+        except Subscription.DoesNotExist: return Response({'error': 'Not found'}, status=404)
+
+        if action == 'approve':
+            now = timezone.now()
+            sub.status = 'approved'
+            sub.is_active = True
+            sub.started_at = now
+            sub.expires_at = now + timezone.timedelta(days=30)
+            sub.save()
+            # Feature all existing meals by this user
+            Meal.objects.filter(seller=sub.user).update(is_featured=True)
+            return Response({'message': 'Approved successfully'})
+        elif action == 'reject':
+            sub.status = 'rejected'
+            sub.is_active = False
+            sub.save()
+            return Response({'message': 'Rejected successfully'})
+        return Response({'error': 'Invalid action'}, status=400)
 
 
 class AdminOTPsView(APIView):

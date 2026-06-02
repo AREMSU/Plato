@@ -156,9 +156,16 @@ class Subscription(models.Model):
         ('free', 'Free'),
         ('pro', 'Pro'),
     ]
+    STATUS_CHOICES = [
+        ('none', 'None'),
+        ('pending', 'Pending Approval'),
+        ('approved', 'Approved'),
+        ('rejected', 'Rejected'),
+    ]
 
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='subscription')
     plan = models.CharField(max_length=20, choices=PLANS, default='free')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='none')
     is_active = models.BooleanField(default=False)
     started_at = models.DateTimeField(null=True, blank=True)
     expires_at = models.DateTimeField(null=True, blank=True)
