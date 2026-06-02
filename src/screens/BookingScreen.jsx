@@ -53,7 +53,7 @@ export default function BookingScreen({ navigation, route }) {
                 }, true);
                 setLoading(false);
 
-                if (data.checkout_url) {
+                if (data.checkoutUrl) {
                   Alert.alert(
                     '🟢 eSewa UAT Payment',
                     'You will be redirected to the eSewa Sandbox page in your browser. Log in using test credentials (9711111111 / Nepal@123) to complete the payment.',
@@ -61,7 +61,7 @@ export default function BookingScreen({ navigation, route }) {
                       {
                         text: 'Proceed to Pay',
                         onPress: () => {
-                          Linking.openURL(data.checkout_url);
+                          Linking.openURL(data.checkoutUrl);
                           // Redirect user to MyMeals (Bookings list) screen in app
                           navigation.navigate('Main', {
                             screen: 'MyMeals',

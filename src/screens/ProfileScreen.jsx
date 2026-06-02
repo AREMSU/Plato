@@ -223,10 +223,10 @@ export default function ProfileScreen({ navigation }) {
     setSubscriptionActionLoading(true);
     try {
       const data = await apiCall('/subscription/esewa/initiate/', 'POST', null, true);
-      if (data.checkout_url) {
+      if (data.checkoutUrl) {
         setProUpgradeModalVisible(false);
         setPremiumModalVisible(false);
-        Linking.openURL(data.checkout_url);
+        Linking.openURL(data.checkoutUrl);
       } else {
         Alert.alert('Error', 'Failed to retrieve payment redirect from server.');
       }
