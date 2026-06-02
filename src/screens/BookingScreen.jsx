@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
+const esewaLogo = require('../../assets/branding/esewa-logo.png');
 import apiCall from '../api/client';
 import { useApp } from '../context/AppContext';
 import {
@@ -80,7 +81,7 @@ export default function BookingScreen({ navigation, route }) {
               return;
             }
 
-            // Fallback for Cash or Khalti
+            // Fallback for Cash
             const result = await bookMeal(meal, portions);
             setLoading(false);
 
@@ -109,7 +110,7 @@ export default function BookingScreen({ navigation, route }) {
     );
   };
 
-  const PaymentOption = ({ id, name, icon, color }) => (
+  const PaymentOption = ({ id, name, icon, color, logo }) => (
     <TouchableOpacity
       style={[
         styles.paymentOption,
@@ -122,18 +123,27 @@ export default function BookingScreen({ navigation, route }) {
         style={[
           styles.paymentIconBox,
           { backgroundColor: color + '15' },
+          logo && { width: 88, borderRadius: 10 },
         ]}
       >
-        <Ionicons name={icon} size={20} color={color} />
+        {logo ? (
+          <Image source={logo} style={{ width: 80, height: 28 }} resizeMode="contain" />
+        ) : (
+          <Ionicons name={icon} size={20} color={color} />
+        )}
       </View>
-      <Text
-        style={[
-          styles.paymentName,
-          paymentMethod === id && styles.paymentNameActive,
-        ]}
-      >
-        {name}
-      </Text>
+      {logo ? (
+        <View style={{ flex: 1 }} />
+      ) : (
+        <Text
+          style={[
+            styles.paymentName,
+            paymentMethod === id && styles.paymentNameActive,
+          ]}
+        >
+          {name}
+        </Text>
+      )}
       <View style={[styles.radioOuter, paymentMethod === id && styles.radioOuterActive]}>
         {paymentMethod === id && (
           <View style={styles.radioInner} />
@@ -228,14 +238,8 @@ export default function BookingScreen({ navigation, route }) {
           <PaymentOption
             id="esewa"
             name="eSewa"
-            icon="wallet-outline"
+            logo={esewaLogo}
             color="#4CAF50"
-          />
-          <PaymentOption
-            id="khalti"
-            name="Khalti"
-            icon="card-outline"
-            color="#9C27B0"
           />
           <PaymentOption
             id="cash"

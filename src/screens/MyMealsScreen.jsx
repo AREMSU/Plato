@@ -26,6 +26,19 @@ import {
   isMealOwner,
 } from '../utils/helpers';
 
+const isPickupPassed = (booking) => {
+  try {
+    const mealDate = booking?.meal?.mealDate;
+    const pickupTime = booking?.meal?.pickupTime;
+    if (!pickupTime) return false;
+    const dateStr = mealDate || new Date().toISOString().split('T')[0];
+    const dt = new Date(`${dateStr} ${pickupTime}`);
+    return !isNaN(dt.getTime()) && dt < new Date();
+  } catch {
+    return false;
+  }
+};
+
 export default function MyMealsScreen({ navigation, route }) {
   const { bookings, bookingsReceived, cancelBooking, user, meals, createReview } = useApp();
   const [activeTab, setActiveTab] = useState('bookings');
@@ -42,12 +55,16 @@ export default function MyMealsScreen({ navigation, route }) {
   const [reviewLoading, setReviewLoading] = useState(false);
 
   const myMeals = meals.filter((meal) => isMealOwner(user, meal));
-  const activeBookings = bookings.filter(
-    (b) => b.status === 'confirmed'
+  const upcomingBookings = bookings.filter(
+    (b) => b.status === 'confirmed' && !isPickupPassed(b)
+  );
+  const completedBookings = bookings.filter(
+    (b) => b.status === 'confirmed' && isPickupPassed(b)
   );
   const cancelledBookings = bookings.filter(
     (b) => b.status === 'cancelled'
   );
+  const ordersReceived = bookingsReceived || [];
 
   const handleCancel = (booking) => {
     const fee = calculateCancellationFee(booking.totalCost);
@@ -100,12 +117,20 @@ export default function MyMealsScreen({ navigation, route }) {
 
   const BookingCard = ({ booking }) => {
     const hasReviewed = booking.hasReviewed ?? booking.has_reviewed ?? false;
+    const isPast = isPickupPassed(booking);
+    const isCancelled = booking.status === 'cancelled';
     const canReview = booking.status === 'confirmed' && !hasReviewed;
+
+    const displayStatus = isCancelled ? 'Cancelled' : isPast ? 'Completed' : 'Confirmed';
+    const statusColor = isCancelled ? '#FF5252' : isPast ? '#607D8B' : '#4CAF50';
+    const statusBg = isCancelled ? '#FF525220' : isPast ? '#607D8B20' : '#4CAF5020';
+    const statusIcon = isCancelled ? 'close-circle' : isPast ? 'checkmark-done-circle' : 'checkmark-circle';
+
     return (
     <View
       style={[
         styles.bookingCard,
-        booking.status === 'cancelled' && styles.cancelledCard,
+        (isCancelled || isPast) && styles.cancelledCard,
       ]}
     >
       {booking?.meal?.image ? (
@@ -123,34 +148,12 @@ export default function MyMealsScreen({ navigation, route }) {
           <View
             style={[
               styles.statusBadge,
-              {
-                backgroundColor:
-                  booking.status === 'confirmed'
-                    ? '#4CAF5020'
-                    : '#FF525220',
-                flexDirection: 'row',
-                alignItems: 'center',
-                gap: 4,
-              },
+              { backgroundColor: statusBg, flexDirection: 'row', alignItems: 'center', gap: 4 },
             ]}
           >
-            <Ionicons
-              name={booking.status === 'confirmed' ? "checkmark-circle" : "close-circle"}
-              size={12}
-              color={booking.status === 'confirmed' ? '#4CAF50' : '#FF5252'}
-            />
-            <Text
-              style={[
-                styles.statusText,
-                {
-                  color:
-                    booking.status === 'confirmed'
-                      ? '#4CAF50'
-                      : '#FF5252',
-                },
-              ]}
-            >
-              {booking.status === 'confirmed' ? 'Confirmed' : 'Cancelled'}
+            <Ionicons name={statusIcon} size={12} color={statusColor} />
+            <Text style={[styles.statusText, { color: statusColor }]}>
+              {displayStatus}
             </Text>
           </View>
         </View>
@@ -165,14 +168,12 @@ export default function MyMealsScreen({ navigation, route }) {
         <Text style={styles.bookingDetail} numberOfLines={1}>
           <Ionicons name="location-outline" size={13} color="#757575" /> {booking.meal.pickupLocation}
         </Text>
-        {booking.status === 'confirmed' && (
+        {booking.status === 'confirmed' && !isPast && (
           <TouchableOpacity
             style={styles.cancelButton}
             onPress={() => handleCancel(booking)}
           >
-            <Text style={styles.cancelButtonText}>
-              Cancel Booking
-            </Text>
+            <Text style={styles.cancelButtonText}>Cancel Booking</Text>
           </TouchableOpacity>
         )}
         {canReview && (
@@ -262,43 +263,42 @@ export default function MyMealsScreen({ navigation, route }) {
         >
           <Text style={styles.headerTitle}>My Orders</Text>
           <Text style={styles.headerSubtitle}>
-            {activeBookings.length} active · {myMeals.length} listings
+            {upcomingBookings.length} upcoming · {ordersReceived.length} orders received
           </Text>
         </LinearGradient>
 
         {/* ── Tabs ── */}
         <View style={styles.tabsContainer}>
           <TouchableOpacity
-            style={[
-              styles.tab,
-              activeTab === 'bookings' && styles.tabActive,
-            ]}
+            style={[styles.tab, activeTab === 'bookings' && styles.tabActive]}
             onPress={() => setActiveTab('bookings')}
           >
-            <Text
-              style={[
-                styles.tabText,
-                activeTab === 'bookings' && styles.tabTextActive,
-              ]}
-            >
-              My Bookings ({activeBookings.length})
+            <Text style={[styles.tabText, activeTab === 'bookings' && styles.tabTextActive]}>
+              Bookings ({upcomingBookings.length})
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[
-              styles.tab,
-              activeTab === 'listings' && styles.tabActive,
-            ]}
+            style={[styles.tab, activeTab === 'listings' && styles.tabActive]}
             onPress={() => setActiveTab('listings')}
           >
-            <Text
-              style={[
-                styles.tabText,
-                activeTab === 'listings' && styles.tabTextActive,
-              ]}
-            >
-              My Listings ({myMeals.length})
+            <Text style={[styles.tabText, activeTab === 'listings' && styles.tabTextActive]}>
+              Listings ({myMeals.length})
             </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.tab, activeTab === 'orders' && styles.tabActive]}
+            onPress={() => setActiveTab('orders')}
+          >
+            <View style={styles.tabLabelRow}>
+              <Text style={[styles.tabText, activeTab === 'orders' && styles.tabTextActive]}>
+                Orders
+              </Text>
+              {ordersReceived.length > 0 && (
+                <View style={styles.tabBadge}>
+                  <Text style={styles.tabBadgeText}>{ordersReceived.length}</Text>
+                </View>
+              )}
+            </View>
           </TouchableOpacity>
         </View>
 
@@ -309,9 +309,7 @@ export default function MyMealsScreen({ navigation, route }) {
             {bookings.length === 0 ? (
               <View style={styles.emptyState}>
                 <Ionicons name="receipt-outline" size={52} color="#BDBDBD" style={{ marginBottom: 14 }} />
-                <Text style={styles.emptyTitle}>
-                  No bookings yet
-                </Text>
+                <Text style={styles.emptyTitle}>No bookings yet</Text>
                 <Text style={styles.emptySubtitle}>
                   Explore meals and make your first booking!
                 </Text>
@@ -319,54 +317,53 @@ export default function MyMealsScreen({ navigation, route }) {
                   style={styles.actionButton}
                   onPress={() => navigation.navigate('Explore')}
                 >
-                  <LinearGradient
-                    colors={['#FF6B35', '#FF8C42']}
-                    style={styles.actionGradient}
-                  >
-                    <Text style={styles.actionText}>
-                      Explore Meals
-                    </Text>
+                  <LinearGradient colors={['#FF6B35', '#FF8C42']} style={styles.actionGradient}>
+                    <Text style={styles.actionText}>Explore Meals</Text>
                   </LinearGradient>
                 </TouchableOpacity>
               </View>
             ) : (
               <>
-                {activeBookings.length > 0 && (
+                {upcomingBookings.length > 0 && (
                   <>
-                    <Text style={styles.sectionTitle}>
-                      Active Bookings
-                    </Text>
-                    {activeBookings.map((b) => (
+                    <Text style={styles.sectionTitle}>Upcoming</Text>
+                    {upcomingBookings.map((b) => (
+                      <BookingCard key={b.id} booking={b} />
+                    ))}
+                  </>
+                )}
+                {completedBookings.length > 0 && (
+                  <>
+                    <Text style={[styles.sectionTitle, { marginTop: 16 }]}>Completed</Text>
+                    {completedBookings.map((b) => (
                       <BookingCard key={b.id} booking={b} />
                     ))}
                   </>
                 )}
                 {cancelledBookings.length > 0 && (
                   <>
-                    <Text
-                      style={[
-                        styles.sectionTitle,
-                        { marginTop: 16 },
-                      ]}
-                    >
-                      Cancelled
-                    </Text>
+                    <Text style={[styles.sectionTitle, { marginTop: 16 }]}>Cancelled</Text>
                     {cancelledBookings.map((b) => (
                       <BookingCard key={b.id} booking={b} />
                     ))}
                   </>
                 )}
+                {upcomingBookings.length === 0 && completedBookings.length === 0 && cancelledBookings.length === 0 && (
+                  <View style={styles.emptyState}>
+                    <Ionicons name="receipt-outline" size={52} color="#BDBDBD" style={{ marginBottom: 14 }} />
+                    <Text style={styles.emptyTitle}>No bookings yet</Text>
+                    <Text style={styles.emptySubtitle}>Explore meals and make your first booking!</Text>
+                  </View>
+                )}
               </>
             )}
           </>
-        ) : (
+        ) : activeTab === 'listings' ? (
           <>
             {myMeals.length === 0 ? (
               <View style={styles.emptyState}>
                 <Ionicons name="restaurant-outline" size={52} color="#BDBDBD" style={{ marginBottom: 14 }} />
-                <Text style={styles.emptyTitle}>
-                  No meals listed yet
-                </Text>
+                <Text style={styles.emptyTitle}>No meals listed yet</Text>
                 <Text style={styles.emptySubtitle}>
                   Share your cooking with the community!
                 </Text>
@@ -374,35 +371,39 @@ export default function MyMealsScreen({ navigation, route }) {
                   style={styles.actionButton}
                   onPress={() => navigation.navigate('Add')}
                 >
-                  <LinearGradient
-                    colors={['#FF6B35', '#FF8C42']}
-                    style={styles.actionGradient}
-                  >
-                    <Text style={styles.actionText}>
-                      Add a Meal
-                    </Text>
+                  <LinearGradient colors={['#FF6B35', '#FF8C42']} style={styles.actionGradient}>
+                    <Text style={styles.actionText}>Add a Meal</Text>
                   </LinearGradient>
                 </TouchableOpacity>
               </View>
             ) : (
               <>
-                <Text style={styles.sectionTitle}>
-                  Your Meal Listings
-                </Text>
+                <Text style={styles.sectionTitle}>Your Meal Listings</Text>
                 {myMeals.map((meal) => (
                   <MyMealCard key={meal.id} meal={meal} />
                 ))}
-
-                {bookingsReceived && bookingsReceived.length > 0 && (
-                  <>
-                    <Text style={[styles.sectionTitle, { marginTop: 20 }]}>
-                      Orders Received
-                    </Text>
-                    {bookingsReceived.map((b) => (
-                      <ReceivedBookingCard key={b.id} booking={b} />
-                    ))}
-                  </>
-                )}
+              </>
+            )}
+          </>
+        ) : (
+          /* ── Orders Received tab ── */
+          <>
+            {ordersReceived.length === 0 ? (
+              <View style={styles.emptyState}>
+                <Ionicons name="bag-handle-outline" size={52} color="#BDBDBD" style={{ marginBottom: 14 }} />
+                <Text style={styles.emptyTitle}>No orders yet</Text>
+                <Text style={styles.emptySubtitle}>
+                  When someone books your meal, they'll appear here.
+                </Text>
+              </View>
+            ) : (
+              <>
+                <Text style={styles.sectionTitle}>
+                  Who Booked Your Meals
+                </Text>
+                {ordersReceived.map((b) => (
+                  <ReceivedBookingCard key={b.id} booking={b} />
+                ))}
               </>
             )}
           </>
@@ -525,12 +526,31 @@ const styles = StyleSheet.create({
   },
   tabActive: { borderBottomColor: '#FF6B35' },
   tabText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
     color: '#9E9E9E',
     fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Medium' : 'sans-serif-medium',
   },
   tabTextActive: { color: '#FF6B35' },
+  tabLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  tabBadge: {
+    backgroundColor: '#FF6B35',
+    borderRadius: 9,
+    minWidth: 18,
+    height: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+  },
+  tabBadgeText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#fff',
+  },
   scrollContent: { paddingTop: 0 },
   listContainer: { paddingHorizontal: 16, paddingTop: 16 },
   sectionTitle: {

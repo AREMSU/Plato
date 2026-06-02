@@ -106,6 +106,20 @@ export default function AddMealScreen({ navigation }) {
   });
   const [errors, setErrors] = useState({});
 
+  // ── Date Picker State ──
+  const DAYS = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date();
+    d.setDate(d.getDate() + i);
+    return d;
+  });
+  const toDateStr = (d) => d.toISOString().split('T')[0];
+  const formatDayLabel = (d, i) => {
+    if (i === 0) return 'Today';
+    if (i === 1) return 'Tomorrow';
+    return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+  };
+  const [selDate, setSelDate] = useState(toDateStr(DAYS[0]));
+
   // ── Time Picker State ──
   const HOURS   = Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, '0'));
   const MINUTES = ['00', '05', '10', '15', '20', '25', '30', '35', '40', '45', '50', '55'];
@@ -269,15 +283,10 @@ export default function AddMealScreen({ navigation }) {
     if (!form.totalPortions || isNaN(Number(form.totalPortions)) || Number(form.totalPortions) <= 0)
       newErrors.totalPortions = 'Enter valid portions';
 
-    // ── Validate pickup time is not in the past ──
-    const now = new Date();
-    let hr = Number(selHour);
-    if (selAmPm === 'PM' && hr !== 12) hr += 12;
-    if (selAmPm === 'AM' && hr === 12) hr = 0;
-    const pickupDate = new Date();
-    pickupDate.setHours(hr, Number(selMinute), 0, 0);
-    if (pickupDate <= now) {
-      newErrors.pickupTime = 'Pickup time must be in the future';
+    // ── Validate pickup date+time is not in the past ──
+    const pickupDateTime = new Date(`${selDate} ${getPickupTimeString()}`);
+    if (isNaN(pickupDateTime.getTime()) || pickupDateTime <= new Date()) {
+      newErrors.pickupTime = 'Pickup date and time must be in the future';
     }
 
     if (!form.pickupLocation.trim()) newErrors.pickupLocation = 'Location required';
@@ -310,7 +319,7 @@ export default function AddMealScreen({ navigation }) {
         image: uploadedImageUrl,
         calories: 400,
         protein: 15,
-        mealDate: new Date().toISOString().split('T')[0],
+        mealDate: selDate,
       });
 
       if (result && !result.error) {
@@ -327,6 +336,7 @@ export default function AddMealScreen({ navigation }) {
                 pickupLocation: '',
                 isVegetarian: false, tags: '',
               });
+              setSelDate(toDateStr(new Date()));
               setSelHour(String(new Date().getHours() % 12 || 12).padStart(2,'0'));
               setSelMinute('00');
               setSelAmPm(new Date().getHours() >= 12 ? 'PM' : 'AM');
@@ -616,16 +626,52 @@ export default function AddMealScreen({ navigation }) {
           </View>
         </View>
 
+        {/* ── Pickup Date Picker ── */}
+        <View style={styles.inputGroup}>
+          <Text style={styles.inputLabel}>
+            Pickup Date <Text style={styles.required}>*</Text>
+          </Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.timeChipRow}
+            keyboardShouldPersistTaps="handled"
+            nestedScrollEnabled
+          >
+            {DAYS.map((d, i) => {
+              const ds = toDateStr(d);
+              const isActive = selDate === ds;
+              return (
+                <TouchableOpacity
+                  key={ds}
+                  onPress={() => { setSelDate(ds); setErrors(p => ({ ...p, pickupTime: null })); }}
+                  style={[styles.dateChip, isActive && styles.timeChipActive]}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[styles.dateChipText, isActive && styles.timeChipTextActive]}>
+                    {formatDayLabel(d, i)}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        </View>
+
         {/* ── Pickup Time Picker ── */}
         <View style={styles.inputGroup}>
           <Text style={styles.inputLabel}>
             Pickup Time <Text style={styles.required}>*</Text>
           </Text>
 
-          {/* Big time display */}
+          {/* Date + time display */}
           <View style={[styles.timeDisplayBox, errors.pickupTime && styles.inputError]}>
             <Ionicons name="time-outline" size={22} color="#FF6B35" />
-            <Text style={styles.timeDisplayText}>{getPickupTimeString()}</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.timeDisplayText, { fontSize: 20 }]}>{getPickupTimeString()}</Text>
+              <Text style={{ fontSize: 11, color: '#94A3B8', marginTop: 1 }}>
+                {new Date(selDate + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+              </Text>
+            </View>
             <View style={styles.amPmInlineButtons}>
               {['AM', 'PM'].map((ap) => (
                 <TouchableOpacity
@@ -760,7 +806,7 @@ export default function AddMealScreen({ navigation }) {
               <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 3 }}>
                 <Ionicons name="time-outline" size={12} color="#64748B" style={{ marginRight: 4 }} />
                 <Text style={styles.previewMeta} numberOfLines={1}>
-                  {getPickupTimeString()}
+                  {new Date(selDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} · {getPickupTimeString()}
                 </Text>
               </View>
               <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 3 }}>
@@ -1299,6 +1345,23 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingBottom: 4,
     paddingRight: 8,
+  },
+  dateChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#fff',
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
+    marginRight: 2,
+  },
+  dateChipText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#475569',
+    fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Bold' : 'sans-serif-medium',
   },
   timeChip: {
     width: 52,

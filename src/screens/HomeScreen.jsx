@@ -20,7 +20,14 @@ export default function HomeScreen({ navigation }) {
   const greeting = getGreeting();
   const displayName = getDisplayName(user);
   const firstName = displayName.split(' ')[0] || displayName;
-  const availableMeals = meals.filter((meal) => !isMealOwner(user, meal));
+  const isMealExpired = (meal) => {
+    try {
+      const dateStr = meal?.mealDate || new Date().toISOString().split('T')[0];
+      const dt = new Date(`${dateStr} ${meal?.pickupTime}`);
+      return !isNaN(dt.getTime()) && dt < new Date();
+    } catch { return false; }
+  };
+  const availableMeals = meals.filter((meal) => !isMealOwner(user, meal) && !isMealExpired(meal));
   const getFeaturedFlag = (meal) => meal.isFeatured ?? meal.is_featured ?? false;
   const sortFeaturedFirst = (list) => [...list].sort((a, b) => {
     const aFeatured = getFeaturedFlag(a) ? 1 : 0;

@@ -37,8 +37,17 @@ export default function ExploreScreen({ navigation }) {
   const [isFocused, setIsFocused] = useState(false);
   const inputRef = useRef(null);
 
+  const isMealExpired = (meal) => {
+    try {
+      const dateStr = meal?.mealDate || new Date().toISOString().split('T')[0];
+      const dt = new Date(`${dateStr} ${meal?.pickupTime}`);
+      return !isNaN(dt.getTime()) && dt < new Date();
+    } catch { return false; }
+  };
+
   const filtered = meals.filter((meal) => {
     if (isMealOwner(user, meal)) return false;
+    if (isMealExpired(meal)) return false;
     const matchSearch =
       meal.title
         .toLowerCase()

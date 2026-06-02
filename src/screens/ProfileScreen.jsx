@@ -31,6 +31,7 @@ const PROFILE_ICONS = {
   safety: require('../../assets/branding/safety.png'),
   dietary: require('../../assets/branding/button.png'),
   payment: require('../../assets/branding/cashless-payment.png'),
+  esewaLogo: require('../../assets/branding/esewa-logo.png'),
   rating: require('../../assets/branding/rating.png'),
   faq: require('../../assets/branding/faq.png'),
   contact: require('../../assets/branding/contact-us.png'),
@@ -98,8 +99,7 @@ export default function ProfileScreen({ navigation }) {
   });
 
   const savedPayments = [
-    { id: '1', type: 'eSewa', number: '98XXXXXXXX', icon: 'wallet-outline', color: '#4CAF50' },
-    { id: '2', type: 'Khalti', number: '98XXXXXXXX', icon: 'wallet-outline', color: '#9C27B0' },
+    { id: '1', type: 'eSewa', number: '98XXXXXXXX', logo: PROFILE_ICONS.esewaLogo, color: '#4CAF50' },
   ];
 
   const sellerReviews = Array.isArray(reviewsReceived) ? reviewsReceived : [];
@@ -1192,12 +1192,17 @@ export default function ProfileScreen({ navigation }) {
                 style={[
                   styles.paymentIconBox,
                   { backgroundColor: pm.color + '20' },
+                  pm.logo && { width: 90, borderRadius: 10 },
                 ]}
               >
-                <Ionicons name={pm.icon} size={20} color={pm.color} />
+                {pm.logo ? (
+                  <Image source={pm.logo} style={{ width: 82, height: 28 }} resizeMode="contain" />
+                ) : (
+                  <Ionicons name={pm.icon} size={20} color={pm.color} />
+                )}
               </View>
               <View style={styles.paymentInfo}>
-                <Text style={styles.paymentType}>{pm.type}</Text>
+                {!pm.logo && <Text style={styles.paymentType}>{pm.type}</Text>}
                 <Text style={styles.paymentNumber}>{pm.number}</Text>
               </View>
               <View style={styles.paymentActiveBadge}>
@@ -1217,11 +1222,6 @@ export default function ProfileScreen({ navigation }) {
                     text: 'eSewa',
                     onPress: () =>
                       Alert.alert('eSewa', 'eSewa integration coming soon!'),
-                  },
-                  {
-                    text: 'Khalti',
-                    onPress: () =>
-                      Alert.alert('Khalti', 'Khalti integration coming soon!'),
                   },
                   { text: 'Cancel', style: 'cancel' },
                 ]
