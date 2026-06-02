@@ -485,7 +485,7 @@ export default function MyMealsScreen({ navigation, route }) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F5F5F5' },
   header: {
-    paddingTop: Platform.OS === 'android' ? 48 : 55,
+    paddingTop: Platform.OS === 'android' ? 48 : 58,
     paddingBottom: 24,
     paddingHorizontal: 20,
     borderBottomLeftRadius: 28,

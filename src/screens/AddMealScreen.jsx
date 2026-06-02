@@ -363,7 +363,9 @@ export default function AddMealScreen({ navigation }) {
       >
         {/* ── Header (scrolls with content) ── */}
         <LinearGradient
-          colors={['#FF6B35', '#FF8C42']}
+          colors={['#E8500A', '#FF6B35', '#FF8C42']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
           style={styles.header}
         >
           <View style={styles.headerContentRow}>
@@ -818,7 +820,7 @@ export default function AddMealScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FAF9F6' },
   header: {
-    paddingTop: Platform.OS === 'android' ? 44 : 54,
+    paddingTop: Platform.OS === 'android' ? 48 : 58,
     paddingBottom: 24,
     paddingHorizontal: 20,
   },

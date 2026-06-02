@@ -251,7 +251,7 @@ export default function ExploreScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F8FAFC' },
   header: {
-    paddingTop: Platform.OS === 'android' ? 44 : 54,
+    paddingTop: Platform.OS === 'android' ? 48 : 58,
     paddingHorizontal: 20,
     paddingBottom: 16,
   },
