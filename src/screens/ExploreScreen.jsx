@@ -76,44 +76,45 @@ export default function ExploreScreen({ navigation }) {
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#E8500A" />
-      <LinearGradient
-        colors={['#E8500A', '#FF6B35', '#FF8C42']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.header}
-      >
-        {/* Title row */}
-        <View style={styles.headerTitleRow}>
-          <Text style={styles.headerTitle}>Explore</Text>
-          <Text style={styles.resultsBadge}>{sorted?.length ?? 0} meals</Text>
-        </View>
+      <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+        {/* ── Header (scrolls with content) ── */}
+        <LinearGradient
+          colors={['#E8500A', '#FF6B35', '#FF8C42']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.header}
+        >
+          {/* Title row */}
+          <View style={styles.headerTitleRow}>
+            <Text style={styles.headerTitle}>Explore</Text>
+            <Text style={styles.resultsBadge}>{sorted?.length ?? 0} meals</Text>
+          </View>
 
-        {/* Search bar */}
-        <View style={[styles.searchBar, isFocused && styles.searchBarFocused]}>
-          <Ionicons name="search-outline" size={18} color={isFocused ? '#FF6B35' : '#94A3B8'} />
-          <TextInput
-            ref={inputRef}
-            style={styles.searchInput}
-            placeholder="Search meals, cuisines, tags..."
-            placeholderTextColor="#BDBDBD"
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            onFocus={() => setIsFocused(true)}
-            onBlur={() => setIsFocused(false)}
-            autoCorrect={false}
-            returnKeyType="search"
-          />
-          {searchQuery.length > 0 ? (
-            <TouchableOpacity onPress={() => setSearchQuery('')} activeOpacity={0.7}>
-              <Ionicons name="close-circle" size={18} color="#94A3B8" />
-            </TouchableOpacity>
-          ) : (
-            <View style={styles.searchDivider} />
-          )}
-        </View>
-      </LinearGradient>
+          {/* Search bar */}
+          <View style={[styles.searchBar, isFocused && styles.searchBarFocused]}>
+            <Ionicons name="search-outline" size={18} color={isFocused ? '#FF6B35' : '#94A3B8'} />
+            <TextInput
+              ref={inputRef}
+              style={styles.searchInput}
+              placeholder="Search meals, cuisines, tags..."
+              placeholderTextColor="#BDBDBD"
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              onFocus={() => setIsFocused(true)}
+              onBlur={() => setIsFocused(false)}
+              autoCorrect={false}
+              returnKeyType="search"
+            />
+            {searchQuery.length > 0 ? (
+              <TouchableOpacity onPress={() => setSearchQuery('')} activeOpacity={0.7}>
+                <Ionicons name="close-circle" size={18} color="#94A3B8" />
+              </TouchableOpacity>
+            ) : (
+              <View style={styles.searchDivider} />
+            )}
+          </View>
+        </LinearGradient>
 
-      <ScrollView showsVerticalScrollIndicator={false}>
         {/* Filters Row */}
         <ScrollView
           horizontal

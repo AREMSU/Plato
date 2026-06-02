@@ -352,22 +352,7 @@ export default function AddMealScreen({ navigation }) {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
     >
-      {/* ── Header ── */}
-      <LinearGradient
-        colors={['#FF6B35', '#FF8C42']}
-        style={styles.header}
-      >
-        <View style={styles.headerContentRow}>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.headerTitle}>Share a Meal</Text>
-            <Text style={styles.headerSubtitle}>
-              Let your campus community enjoy your cooking
-            </Text>
-          </View>
-          <Ionicons name="restaurant-outline" size={32} color="rgba(255,255,255,0.9)" />
-        </View>
-      </LinearGradient>
-
+      <StatusBar barStyle="light-content" backgroundColor="#E8500A" />
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
@@ -375,6 +360,22 @@ export default function AddMealScreen({ navigation }) {
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="none"
       >
+        {/* ── Header (scrolls with content) ── */}
+        <LinearGradient
+          colors={['#FF6B35', '#FF8C42']}
+          style={styles.header}
+        >
+          <View style={styles.headerContentRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.headerTitle}>Share a Meal</Text>
+              <Text style={styles.headerSubtitle}>
+                Let your community enjoy your cooking
+              </Text>
+            </View>
+            <Ionicons name="restaurant-outline" size={32} color="rgba(255,255,255,0.9)" />
+          </View>
+        </LinearGradient>
+
         {/* ══════════════════════════════
             MEAL PHOTO — REQUIRED
         ══════════════════════════════ */}
@@ -816,7 +817,7 @@ export default function AddMealScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FAF9F6' },
   header: {
-    paddingTop: 55,
+    paddingTop: Platform.OS === 'android' ? 44 : 54,
     paddingBottom: 24,
     paddingHorizontal: 20,
   },
@@ -841,7 +842,7 @@ const styles = StyleSheet.create({
   scrollView: { flex: 1 },
   scrollContent: {
     paddingHorizontal: 20,
-    paddingTop: 24,
+    paddingTop: 0,
     paddingBottom: 20,
   },
   inputGroup: { marginBottom: 20 },

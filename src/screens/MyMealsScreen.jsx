@@ -14,6 +14,7 @@ import {
   TouchableWithoutFeedback,
   Keyboard,
   Platform,
+  StatusBar,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -247,57 +248,60 @@ export default function MyMealsScreen({ navigation, route }) {
 
   return (
     <View style={styles.container}>
-      <LinearGradient
-        colors={['#E8500A', '#FF6B35', '#FF8C42']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.header}
-      >
-        <Text style={styles.headerTitle}>My Orders</Text>
-        <Text style={styles.headerSubtitle}>
-          {activeBookings.length} active · {myMeals.length} listings
-        </Text>
-      </LinearGradient>
-
-      <View style={styles.tabsContainer}>
-        <TouchableOpacity
-          style={[
-            styles.tab,
-            activeTab === 'bookings' && styles.tabActive,
-          ]}
-          onPress={() => setActiveTab('bookings')}
-        >
-          <Text
-            style={[
-              styles.tabText,
-              activeTab === 'bookings' && styles.tabTextActive,
-            ]}
-          >
-            My Bookings ({activeBookings.length})
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[
-            styles.tab,
-            activeTab === 'listings' && styles.tabActive,
-          ]}
-          onPress={() => setActiveTab('listings')}
-        >
-          <Text
-            style={[
-              styles.tabText,
-              activeTab === 'listings' && styles.tabTextActive,
-            ]}
-          >
-            My Listings ({myMeals.length})
-          </Text>
-        </TouchableOpacity>
-      </View>
-
+      <StatusBar barStyle="light-content" backgroundColor="#E8500A" />
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
       >
+        {/* ── Header (scrolls with content) ── */}
+        <LinearGradient
+          colors={['#E8500A', '#FF6B35', '#FF8C42']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.header}
+        >
+          <Text style={styles.headerTitle}>My Orders</Text>
+          <Text style={styles.headerSubtitle}>
+            {activeBookings.length} active · {myMeals.length} listings
+          </Text>
+        </LinearGradient>
+
+        {/* ── Tabs ── */}
+        <View style={styles.tabsContainer}>
+          <TouchableOpacity
+            style={[
+              styles.tab,
+              activeTab === 'bookings' && styles.tabActive,
+            ]}
+            onPress={() => setActiveTab('bookings')}
+          >
+            <Text
+              style={[
+                styles.tabText,
+                activeTab === 'bookings' && styles.tabTextActive,
+              ]}
+            >
+              My Bookings ({activeBookings.length})
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[
+              styles.tab,
+              activeTab === 'listings' && styles.tabActive,
+            ]}
+            onPress={() => setActiveTab('listings')}
+          >
+            <Text
+              style={[
+                styles.tabText,
+                activeTab === 'listings' && styles.tabTextActive,
+              ]}
+            >
+              My Listings ({myMeals.length})
+            </Text>
+          </TouchableOpacity>
+        </View>
+
         {activeTab === 'bookings' ? (
           <>
             {bookings.length === 0 ? (
@@ -526,7 +530,7 @@ const styles = StyleSheet.create({
     fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Medium' : 'sans-serif-medium',
   },
   tabTextActive: { color: '#FF6B35' },
-  scrollContent: { paddingHorizontal: 16, paddingTop: 16 },
+  scrollContent: { paddingHorizontal: 16, paddingTop: 0 },
   sectionTitle: {
     fontSize: 17,
     fontWeight: '800',
