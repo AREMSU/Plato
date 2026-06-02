@@ -288,7 +288,8 @@ class MealListCreateView(APIView):
         return [IsAuthenticated()]
 
     def get(self, request):
-        meals = Meal.objects.filter(seller__isnull=False, seller__is_active=True)
+        today = timezone.now().date()
+        meals = Meal.objects.filter(seller__isnull=False, seller__is_active=True, meal_date__gte=today, status='approved')
 
         # Filters
         category = request.query_params.get('category')
@@ -320,15 +321,18 @@ class MealListCreateView(APIView):
         serializer = MealSerializer(data=request.data)
         if serializer.is_valid():
             image_url = serializer.validated_data.get('image')
+            status = 'approved'
             if image_url:
                 result = classify_food_image(image_url)
-                if result['verdict'] != 'approved':
+                if result['verdict'] == 'rejected':
                     return Response({
                         'error': result['reason'],
                         'verdict': result['verdict'],
                         'confidence': result['confidence'],
                         'labels_detected': result['labels_detected'],
                     }, status=400)
+                elif result['verdict'] == 'pending_review':
+                    status = 'pending_review'
 
             is_featured = False
             try:
@@ -341,6 +345,7 @@ class MealListCreateView(APIView):
                 seller=request.user,
                 available_portions=request.data.get('total_portions'),
                 is_featured=is_featured,
+                status=status,
             )
             return Response(serializer.data, status=201)
         return Response(serializer.errors, status=400)
@@ -350,7 +355,8 @@ class MealListView(APIView):
     permission_classes = [IsAuthenticatedOrReadOnly]
 
     def get(self, request):
-        meals = Meal.objects.filter(seller__isnull=False, seller__is_active=True)
+        today = timezone.now().date()
+        meals = Meal.objects.filter(seller__isnull=False, seller__is_active=True, meal_date__gte=today, status='approved')
 
         # Filters
         category = request.query_params.get('category')
@@ -402,6 +408,10 @@ class BookingListCreateView(APIView):
         if meal.seller == request.user:
             return Response(
                 {'error': 'You cannot book your own meal'}, status=400
+            )
+        if meal.meal_date < timezone.now().date():
+            return Response(
+                {'error': 'This meal has expired and can no longer be booked'}, status=400
             )
         if meal.available_portions < portions:
             return Response(
@@ -836,6 +846,9 @@ class EsewaBookingInitiateView(APIView):
         if meal.seller == request.user:
             return Response({'error': 'You cannot book your own meal'}, status=400)
 
+        if meal.meal_date < timezone.now().date():
+            return Response({'error': 'This meal has expired and can no longer be booked'}, status=400)
+
         if meal.available_portions < portions:
             return Response({'error': 'Not enough portions available'}, status=400)
 
@@ -1062,7 +1075,7 @@ class EsewaSuccessView(APIView):
                 <h2>{payment_title}</h2>
                 <p class="subtitle">{payment_msg}</p>
                 <p class="hint">Tap the button below to return to Plato. If it doesn't open, close this browser tab manually.</p>
-                <a href="plato://mymeals" class="btn-primary" id="returnBtn">↩ Return to Plato</a>
+                <a href="exp+plato://mymeals" class="btn-primary" id="returnBtn">↩ Return to Plato</a>
                 <div class="countdown">Auto-redirecting in <span id="timer">5</span>s...</div>
             </div>
             <script>
@@ -1074,7 +1087,7 @@ class EsewaSuccessView(APIView):
                     if (el) el.textContent = count;
                     if (count <= 0) {{
                         clearInterval(interval);
-                        window.location.href = 'plato://mymeals';
+                        window.location.href = 'exp+plato://mymeals';
                     }}
                 }}, 1000);
                 // Also trigger immediately on button click
@@ -1143,7 +1156,7 @@ class EsewaFailureView(APIView):
                 <h2>Payment Cancelled</h2>
                 <p class="subtitle">The transaction was cancelled or could not be completed.</p>
                 <p class="hint">You have not been charged. Tap below to return to Plato and try again.</p>
-                <a href="plato://mymeals" class="btn-primary" id="returnBtn">↩ Return to Plato</a>
+                <a href="exp+plato://mymeals" class="btn-primary" id="returnBtn">↩ Return to Plato</a>
                 <div class="countdown">Auto-redirecting in <span id="timer">5</span>s...</div>
             </div>
             <script>
@@ -1154,7 +1167,7 @@ class EsewaFailureView(APIView):
                     if (el) el.textContent = count;
                     if (count <= 0) {
                         clearInterval(interval);
-                        window.location.href = 'plato://mymeals';
+                        window.location.href = 'exp+plato://mymeals';
                     }
                 }, 1000);
                 document.getElementById('returnBtn').addEventListener('click', function() {

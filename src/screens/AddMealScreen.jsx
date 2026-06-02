@@ -187,10 +187,10 @@ export default function AddMealScreen({ navigation }) {
         try {
           const verification = await verifyImageWithBackend(uri);
           console.log('VERIFY RESPONSE:', verification);
-          if (verification.verdict !== 'approved') {
+          if (verification.verdict === 'rejected') {
             setUploadedImageUrl('');
             setImageVerified(false);
-            Alert.alert('Image Not Verified', verification.reason || 'Please use a clearer food image.');
+            Alert.alert('Image Rejected', verification.reason || 'Please use a clearer food image.');
             return;
           }
 
@@ -199,6 +199,12 @@ export default function AddMealScreen({ navigation }) {
             setUploadedImageUrl(url);
             setImageVerified(true);
             console.log('Image uploaded:', url);
+            if (verification.verdict === 'pending_review') {
+              Alert.alert(
+                'Verification Pending',
+                verification.reason || 'AI verification is offline or inconclusive. The meal will be listed but will require admin approval before appearing in the feed.'
+              );
+            }
           } else {
             Alert.alert('Upload Failed', 'Could not upload image. The meal will be listed without a photo.');
           }
@@ -236,10 +242,10 @@ export default function AddMealScreen({ navigation }) {
         try {
           const verification = await verifyImageWithBackend(uri);
           console.log('VERIFY RESPONSE:', verification);
-          if (verification.verdict !== 'approved') {
+          if (verification.verdict === 'rejected') {
             setUploadedImageUrl('');
             setImageVerified(false);
-            Alert.alert('Image Not Verified', verification.reason || 'Please use a clearer food image.');
+            Alert.alert('Image Rejected', verification.reason || 'Please use a clearer food image.');
             return;
           }
 
@@ -248,6 +254,12 @@ export default function AddMealScreen({ navigation }) {
             setUploadedImageUrl(url);
             setImageVerified(true);
             console.log('Image uploaded:', url);
+            if (verification.verdict === 'pending_review') {
+              Alert.alert(
+                'Verification Pending',
+                verification.reason || 'AI verification is offline or inconclusive. The meal will be listed but will require admin approval before appearing in the feed.'
+              );
+            }
           } else {
             Alert.alert(
               'Upload Failed',
@@ -286,7 +298,20 @@ export default function AddMealScreen({ navigation }) {
       newErrors.totalPortions = 'Enter valid portions';
 
     // ── Validate pickup date+time is not in the past ──
-    const pickupDateTime = new Date(`${selDate} ${getPickupTimeString()}`);
+    let hour = parseInt(selHour, 10);
+    if (selAmPm === 'PM' && hour < 12) {
+      hour += 12;
+    } else if (selAmPm === 'AM' && hour === 12) {
+      hour = 0;
+    }
+    const minute = parseInt(selMinute, 10);
+    const dateParts = selDate.split('-');
+    const year = parseInt(dateParts[0], 10);
+    const month = parseInt(dateParts[1], 10) - 1; // 0-indexed
+    const day = parseInt(dateParts[2], 10);
+
+    const pickupDateTime = new Date(year, month, day, hour, minute);
+
     if (isNaN(pickupDateTime.getTime()) || pickupDateTime <= new Date()) {
       newErrors.pickupTime = 'Pickup date and time must be in the future';
     }
@@ -325,9 +350,12 @@ export default function AddMealScreen({ navigation }) {
       });
 
       if (result && !result.error) {
+        const isPending = result.status === 'pending_review';
         Alert.alert(
-          '🎉 Meal Listed!',
-          'Your meal has been successfully added to the platform.',
+          isPending ? 'Verification Pending' : '🎉 Meal Listed!',
+          isPending
+            ? 'We are not sure the image is of food, so admin will review that and we will reply shortly.'
+            : 'Your meal has been successfully added to the platform.',
           [{
             text: 'View Home',
             onPress: () => {

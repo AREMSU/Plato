@@ -93,11 +93,11 @@ class MealSerializer(serializers.ModelSerializer):
             'seller_name', 'seller_avatar', 'seller_rating',
             'pickup_time', 'pickup_location', 'meal_date',
             'tags', 'rating', 'reviews', 'calories', 'protein',
-            'created_at', 'is_featured'
+            'created_at', 'is_featured', 'status'
         ]
         read_only_fields = [
             'seller', 'available_portions', 'bookings',
-            'rating', 'reviews', 'created_at'
+            'rating', 'reviews', 'created_at', 'status'
         ]
 
     def get_seller_name(self, obj):

@@ -54,6 +54,7 @@ class DashboardView(APIView):
             'recent_bookings': BookingSerializer(Booking.objects.select_related('user', 'meal').order_by('-booked_at')[:8], many=True).data,
             'recent_users': UserSerializer(User.objects.order_by('-date_joined')[:5], many=True).data,
             'recent_meals': MealSerializer(Meal.objects.select_related('seller').order_by('-created_at')[:5], many=True).data,
+            'pending_meals': MealSerializer(Meal.objects.filter(status='pending_review').select_related('seller').order_by('-created_at')[:10], many=True).data,
         })
 
 
@@ -126,6 +127,7 @@ class AdminMealsView(APIView):
         elif f == 'sold_out': meals = meals.filter(available_portions=0)
         elif f == 'featured': meals = meals.filter(is_featured=True)
         elif f == 'vegetarian': meals = meals.filter(is_vegetarian=True)
+        elif f == 'pending_review': meals = meals.filter(status='pending_review')
         return Response({'meals':MealSerializer(meals[:100], many=True).data,'total':meals.count()})
 
 
@@ -152,6 +154,14 @@ class AdminMealActionView(APIView):
         elif action == 'toggle_featured':
             meal.is_featured = not meal.is_featured; meal.save(update_fields=['is_featured'])
             return Response({'message':'Done','is_featured':meal.is_featured})
+        elif action == 'approve':
+            meal.status = 'approved'
+            meal.save(update_fields=['status'])
+            return Response({'message':'Meal approved successfully','status':meal.status})
+        elif action == 'reject':
+            meal.status = 'rejected'
+            meal.save(update_fields=['status'])
+            return Response({'message':'Meal rejected successfully','status':meal.status})
         return Response({'error':'Invalid action'}, status=400)
 
 

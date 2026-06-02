@@ -14,6 +14,8 @@ from pathlib import Path
 from dotenv import load_dotenv
 import os
 from pathlib import Path
+# Load environment variables from .env
+# Trigger reload to pick up new HUGGINGFACE_API_KEY from .env
 load_dotenv(Path(__file__).resolve().parent.parent / '.env')
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.

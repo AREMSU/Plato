@@ -78,6 +78,25 @@ const DashboardScreen = ({ navigation }) => {
           ))}
         </View>
 
+        {/* Meals Pending Review */}
+        {data.pending_meals && data.pending_meals.length > 0 && (
+          <View style={[styles.card, { borderColor: COLORS.warning, borderWidth: 1.2 }]}>
+            <Text style={[styles.cardTitle, { color: COLORS.warning }]}>🍛 Pending Review ({data.pending_meals.length})</Text>
+            {data.pending_meals.map((m, i) => (
+              <TouchableOpacity key={i} style={styles.activityItem} onPress={() => navigation.navigate('MealDetail', { mealId: m.id })} activeOpacity={0.7}>
+                <View style={[styles.actIcon, { backgroundColor: COLORS.warningBg }]}>
+                  <Text>⏳</Text>
+                </View>
+                <View style={styles.actText}>
+                  <Text style={styles.actTitle} numberOfLines={1}>{m.title}</Text>
+                  <Text style={styles.actSub}>by {m.seller_name || 'Seller'} · {formatCurrency(m.price_per_portion)}</Text>
+                </View>
+                <Badge text="Review" type="warning" />
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
+
         {/* Recent Bookings */}
         <View style={styles.card}>
           <Text style={styles.cardTitle}>⚡ Recent Bookings</Text>

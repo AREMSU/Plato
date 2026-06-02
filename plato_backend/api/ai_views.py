@@ -24,29 +24,48 @@ def classify_food_bytes(image_bytes):
         return {
             'verdict': 'pending_review',
             'confidence': 0.0,
-            'reason': 'We could not verify your photo right now. Please try again in a minute.',
+            'reason': 'AI verification is offline. Submitted for admin review.',
             'labels_detected': [],
         }
 
-    hf_response = httpx.post(
-        'https://router.huggingface.co/hf-inference/models/google/vit-base-patch16-224',
-        headers={
-            'Authorization': f'Bearer {api_key}',
-            'Content-Type': 'image/jpeg'
-        },
-        content=image_bytes,
-        timeout=30
-    )
+    try:
+        hf_response = httpx.post(
+            'https://api-inference.huggingface.co/models/google/vit-base-patch16-224',
+            headers={
+                'Authorization': f'Bearer {api_key}',
+                'Content-Type': 'image/jpeg'
+            },
+            content=image_bytes,
+            timeout=10
+        )
+    except Exception as e:
+        return {
+            'verdict': 'pending_review',
+            'confidence': 0.0,
+            'reason': 'AI verification is offline. Submitted for admin review.',
+            'labels_detected': [],
+            'debug': str(e),
+        }
 
     if not hf_response.text.strip():
         return {
             'verdict': 'pending_review',
             'confidence': 0.0,
-            'reason': 'We could not verify your photo right now. Please try again in a minute.',
+            'reason': 'AI verification is offline. Submitted for admin review.',
             'labels_detected': [],
         }
 
-    results = hf_response.json()
+    try:
+        results = hf_response.json()
+    except Exception as e:
+        return {
+            'verdict': 'pending_review',
+            'confidence': 0.0,
+            'reason': 'AI verification is offline. Submitted for admin review.',
+            'labels_detected': [],
+            'debug': str(e),
+        }
+
     if isinstance(results, dict) and 'error' in results:
         debug_detail = None
         if settings.DEBUG:
@@ -57,7 +76,7 @@ def classify_food_bytes(image_bytes):
         return {
             'verdict': 'pending_review',
             'confidence': 0.0,
-            'reason': 'We could not verify your photo right now. Please try again in a minute.',
+            'reason': 'AI verification is offline. Submitted for admin review.',
             'labels_detected': [],
             'debug': debug_detail,
         }
@@ -66,7 +85,7 @@ def classify_food_bytes(image_bytes):
         return {
             'verdict': 'pending_review',
             'confidence': 0.0,
-            'reason': 'We could not verify your photo right now. Please try again in a minute.',
+            'reason': 'AI verification is offline. Submitted for admin review.',
             'labels_detected': [],
         }
 
@@ -76,24 +95,20 @@ def classify_food_bytes(image_bytes):
         any(food_word in (label or '').lower() for food_word in ImageFilterView.FOOD_LABELS)
         for label in top_labels
     )
-    cookware_only = all(
-        any(tool_word in (label or '').lower() for tool_word in ImageFilterView.COOKWARE_LABELS)
-        for label in top_labels
-    )
 
-    # Require a food-related label for approval when using a general vision model.
-    if matched_food_label and top_score >= 0.20:
-        verdict = 'approved'
-        reason = 'Image confirmed as food'
-    elif cookware_only:
-        verdict = 'pending_review'
-        reason = 'We could not verify this photo as food. Please use a clearer food image.'
-    elif not matched_food_label:
+    if not matched_food_label:
         verdict = 'rejected'
         reason = 'This does not look like food. Please upload a real meal image.'
     else:
-        verdict = 'pending_review'
-        reason = 'We could not verify this photo as food. Please use a clearer food image.'
+        if top_score >= 0.7:
+            verdict = 'approved'
+            reason = f'Image verified as food (Confidence: {round(top_score * 100)}%)'
+        elif top_score >= 0.4:
+            verdict = 'pending_review'
+            reason = f'Image verification is inconclusive (Confidence: {round(top_score * 100)}%). Submitted for admin review.'
+        else:
+            verdict = 'rejected'
+            reason = f'Image does not look like food (Confidence: {round(top_score * 100)}%). Please upload a clearer meal photo.'
 
     return {
         'verdict': verdict,
@@ -135,11 +150,13 @@ class RecommendedMealsView(APIView):
 
     def get(self, request):
         now = timezone.now()
+        today = now.date()
         meals = Meal.objects.filter(
             available_portions__gt=0,
             status='approved',
             seller__isnull=False,
-            seller__is_active=True
+            seller__is_active=True,
+            meal_date__gte=today
         )
 
         def score(meal):

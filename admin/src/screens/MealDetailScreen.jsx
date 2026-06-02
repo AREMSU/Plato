@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert, Image } from 'react-native';
 import Header from '../components/Header';
 import Badge from '../components/Badge';
 import { getMealDetail, mealAction } from '../api/client';
@@ -34,7 +34,27 @@ const MealDetailScreen = ({ route, navigation }) => {
     <View style={s.container}>
       <Header title={m.title} subtitle={m.category} onBack={() => navigation.goBack()} />
       <ScrollView style={s.scroll} showsVerticalScrollIndicator={false}>
+        {/* Meal Image */}
+        {m.image ? (
+          <Image source={{ uri: m.image }} style={s.mealImage} resizeMode="cover" />
+        ) : (
+          <View style={[s.mealImage, s.mealImagePlaceholder]}>
+            <Text style={s.placeholderEmoji}>🍽️</Text>
+            <Text style={s.placeholderText}>No photo uploaded</Text>
+          </View>
+        )}
+
         <View style={s.actions}>
+          {m.status !== 'approved' && (
+            <TouchableOpacity style={[s.btn, s.approveBtn]} onPress={() => doAction('approve', 'Approve this meal?')}>
+              <Text style={s.approveText}>Approve</Text>
+            </TouchableOpacity>
+          )}
+          {m.status !== 'rejected' && (
+            <TouchableOpacity style={[s.btn, s.rejectBtn]} onPress={() => doAction('reject', 'Reject this meal?')}>
+              <Text style={s.rejectText}>Reject</Text>
+            </TouchableOpacity>
+          )}
           <TouchableOpacity style={[s.btn, m.is_featured ? s.secBtn : s.priBtn]} onPress={() => doAction('toggle_featured', `${m.is_featured ? 'Unfeature' : 'Feature'} this meal?`)}>
             <Text style={m.is_featured ? s.secText : s.priText}>{m.is_featured ? 'Unfeature' : '⭐ Feature'}</Text>
           </TouchableOpacity>
@@ -45,6 +65,8 @@ const MealDetailScreen = ({ route, navigation }) => {
 
         <View style={s.grid}>
           {[
+            { l: 'Status', v: m.status === 'approved' ? '🟢 Approved' : m.status === 'rejected' ? '🔴 Rejected' : '🟡 Pending Review' },
+            { l: 'Seller', v: m.seller_name || 'Unknown' },
             { l: 'Price', v: formatCurrency(m.price_per_portion) },
             { l: 'Portions', v: `${m.available_portions}/${m.total_portions}` },
             { l: 'Bookings', v: m.bookings },
@@ -97,14 +119,22 @@ const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.bg },
   scroll: { flex: 1, padding: 16 },
   loading: { color: COLORS.textMuted, textAlign: 'center', marginTop: 40 },
-  actions: { flexDirection: 'row', gap: 8, marginBottom: 16 },
-  btn: { flex: 1, paddingVertical: 10, borderRadius: 8, alignItems: 'center', borderWidth: 1 },
+  mealImage: { width: '100%', height: 220, borderRadius: 14, marginBottom: 16, backgroundColor: COLORS.bgCard },
+  mealImagePlaceholder: { justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: COLORS.border },
+  placeholderEmoji: { fontSize: 36, marginBottom: 6 },
+  placeholderText: { fontSize: 13, color: COLORS.textMuted },
+  actions: { flexDirection: 'row', gap: 8, marginBottom: 16, flexWrap: 'wrap' },
+  btn: { minWidth: '22%', flexGrow: 1, paddingVertical: 10, borderRadius: 8, alignItems: 'center', borderWidth: 1 },
   priBtn: { backgroundColor: COLORS.accentGlow, borderColor: 'rgba(255,107,53,0.3)' },
   secBtn: { backgroundColor: COLORS.bgCard, borderColor: COLORS.border },
   danBtn: { backgroundColor: COLORS.dangerBg, borderColor: 'rgba(239,68,68,0.2)' },
+  approveBtn: { backgroundColor: COLORS.successBg, borderColor: 'rgba(16,185,129,0.2)' },
+  rejectBtn: { backgroundColor: COLORS.warningBg, borderColor: 'rgba(245,158,11,0.2)' },
   priText: { fontSize: 13, fontWeight: '600', color: COLORS.accent },
   secText: { fontSize: 13, fontWeight: '600', color: COLORS.text },
   danText: { fontSize: 13, fontWeight: '600', color: COLORS.danger },
+  approveText: { fontSize: 13, fontWeight: '600', color: COLORS.success },
+  rejectText: { fontSize: 13, fontWeight: '600', color: COLORS.warning },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 16 },
   infoItem: { backgroundColor: COLORS.bgCard, borderRadius: 10, padding: 14, width: '48%', borderWidth: 1, borderColor: COLORS.border },
   infoLabel: { fontSize: 11, color: COLORS.textMuted, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 },

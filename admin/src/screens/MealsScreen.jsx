@@ -5,7 +5,7 @@ import Badge from '../components/Badge';
 import { getMeals } from '../api/client';
 import { COLORS, formatCurrency } from '../utils/helpers';
 
-const FILTERS = ['all', 'available', 'sold_out', 'featured', 'vegetarian'];
+const FILTERS = ['all', 'pending_review', 'available', 'sold_out', 'featured', 'vegetarian'];
 const CATEGORIES = ['', 'Nepali', 'Continental', 'Chinese', 'Snacks', 'Breakfast'];
 
 const MealsScreen = ({ navigation }) => {
@@ -58,7 +58,7 @@ const MealsScreen = ({ navigation }) => {
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.pills} style={styles.pillsWrapper}>
           {FILTERS.map((f) => (
             <TouchableOpacity key={f} style={[styles.pill, filter === f && styles.pillActive]} onPress={() => setFilter(f)}>
-              <Text style={[styles.pillText, filter === f && styles.pillTextActive]}>{f.replace('_', ' ').replace(/^\w/, c => c.toUpperCase())}</Text>
+              <Text style={[styles.pillText, filter === f && styles.pillTextActive]}>{f.replace('_', ' ').replace(/\b\w/g, c => c.toUpperCase())}</Text>
             </TouchableOpacity>
           ))}
         </ScrollView>
