@@ -18,7 +18,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
 import { useApp } from '../context/AppContext';
 import { categories } from '../data/mockData';
-import { uploadImageToCloudinary } from '../api/uploadImage';
+import { uploadImageToCloudinary, verifyImageWithBackend } from '../api/uploadImage';
 
 const { width } = Dimensions.get('window');
 
@@ -74,6 +74,7 @@ export default function AddMealScreen({ navigation }) {
   const [selectedImage, setSelectedImage] = useState(null);
   const [imageLoading, setImageLoading] = useState(false);
   const [uploadedImageUrl, setUploadedImageUrl] = useState('');
+  const [imageVerified, setImageVerified] = useState(false);
 
   const [form, setForm] = useState({
     title: '',
@@ -137,18 +138,33 @@ export default function AddMealScreen({ navigation }) {
         if (!result.canceled && result.assets && result.assets.length > 0) {
             const uri = result.assets[0].uri;
             setSelectedImage(uri);
+            setImageVerified(false);
             setErrors(prev => ({ ...prev, image: null }));
 
-            // Upload to Cloudinary
             setImageLoading(true);
+          try {
+            const verification = await verifyImageWithBackend(uri);
+            console.log('VERIFY RESPONSE:', verification);
+            if (verification.verdict !== 'approved') {
+              setUploadedImageUrl('');
+              setImageVerified(false);
+              Alert.alert('Image Not Verified', verification.reason || 'Please use a clearer food image.');
+              return;
+            }
+
             const url = await uploadImageToCloudinary(uri);
             if (url) {
-                setUploadedImageUrl(url);
-                console.log('Image uploaded:', url);
+              setUploadedImageUrl(url);
+              setImageVerified(true);
+              console.log('Image uploaded:', url);
             } else {
-                Alert.alert('Upload Failed', 'Could not upload image. The meal will be listed without a photo.');
+              Alert.alert('Upload Failed', 'Could not upload image. The meal will be listed without a photo.');
             }
+          } catch (error) {
+            Alert.alert('Verification Failed', error.message || 'Please try again.');
+          } finally {
             setImageLoading(false);
+          }
         }
     } catch (error) {
         Alert.alert('Error', 'Failed to pick image. Please try again.');
@@ -171,23 +187,36 @@ const takePhoto = async () => {
         if (!result.canceled && result.assets && result.assets.length > 0) {
             const uri = result.assets[0].uri;
             setSelectedImage(uri);
+            setImageVerified(false);
             setErrors(prev => ({ ...prev, image: null }));
 
-            // Upload to Cloudinary
             setImageLoading(true);
-            const url = await uploadImageToCloudinary(uri);
-
-            if (url) {
-                setUploadedImageUrl(url);
-                console.log('Image uploaded:', url);
-            } else {
-                Alert.alert(
-                    'Upload Failed',
-                    'Could not upload image. The meal will be listed without a photo.'
-                );
+          try {
+            const verification = await verifyImageWithBackend(uri);
+            console.log('VERIFY RESPONSE:', verification);
+            if (verification.verdict !== 'approved') {
+              setUploadedImageUrl('');
+              setImageVerified(false);
+              Alert.alert('Image Not Verified', verification.reason || 'Please use a clearer food image.');
+              return;
             }
 
+            const url = await uploadImageToCloudinary(uri);
+            if (url) {
+              setUploadedImageUrl(url);
+              setImageVerified(true);
+              console.log('Image uploaded:', url);
+            } else {
+              Alert.alert(
+                'Upload Failed',
+                'Could not upload image. The meal will be listed without a photo.'
+              );
+            }
+          } catch (error) {
+            Alert.alert('Verification Failed', error.message || 'Please try again.');
+          } finally {
             setImageLoading(false);
+          }
         }
     } catch (error) {
         Alert.alert('Error', 'Failed to take photo. Please try again.');
@@ -211,7 +240,7 @@ const takePhoto = async () => {
   // ── Validate ──
   const validate = () => {
     const newErrors = {};
-    // Remove image validation for now
+    if (!uploadedImageUrl || !imageVerified) newErrors.image = 'Verified meal photo is required';
     if (!form.title.trim()) newErrors.title = 'Title is required';
     if (!form.description.trim()) newErrors.description = 'Description is required';
     if (!form.pricePerPortion || isNaN(Number(form.pricePerPortion)) || Number(form.pricePerPortion) <= 0)
@@ -227,7 +256,7 @@ const takePhoto = async () => {
   // ── Submit ──
  const handleAddMeal = async () => {
     if (!validate()) {
-        Alert.alert('⚠️ Missing Info', 'Please fill all required fields including a meal photo.');
+    Alert.alert('⚠️ Missing Info', 'Please fill all required fields including a verified meal photo.');
         return;
     }
     setLoading(true);
@@ -270,6 +299,7 @@ const takePhoto = async () => {
                         });
                         setSelectedImage(null);
                         setUploadedImageUrl('');
+                        setImageVerified(false);
                         setErrors({});
                     },
                 }]
@@ -335,7 +365,11 @@ const takePhoto = async () => {
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[styles.imageOverlayBtn, styles.imageOverlayBtnRed]}
-                  onPress={() => setSelectedImage(null)}
+                  onPress={() => {
+                    setSelectedImage(null);
+                    setUploadedImageUrl('');
+                    setImageVerified(false);
+                  }}
                 >
                   <Text style={styles.imageOverlayBtnText}>
                     🗑️ Remove

@@ -68,6 +68,7 @@ export default function ProfileScreen({ navigation }) {
   const [subscription, setSubscription] = useState(null);
   const [subscriptionLoading, setSubscriptionLoading] = useState(false);
   const [subscriptionActionLoading, setSubscriptionActionLoading] = useState(false);
+  const [renewalCancelled, setRenewalCancelled] = useState(false);
 
   const [editForm, setEditForm] = useState({
     name: user?.name || '',
@@ -155,6 +156,7 @@ export default function ProfileScreen({ navigation }) {
       const data = await apiCall('/subscription/upgrade/', 'POST', null, true);
       const next = data?.subscription ?? data;
       setSubscription(next);
+      setRenewalCancelled(false);
       Alert.alert('✅ Pro Activated', 'Your meals will be featured immediately.');
     } catch (error) {
       Alert.alert('Upgrade Failed', error.message || 'Please try again.');
@@ -176,7 +178,7 @@ export default function ProfileScreen({ navigation }) {
             setSubscriptionActionLoading(true);
             try {
               await apiCall('/subscription/cancel/', 'POST', null, true);
-              await loadSubscription();
+              setRenewalCancelled(true);
               Alert.alert('Cancelled', 'Auto-renew is turned off.');
             } catch (error) {
               Alert.alert('Cancel Failed', error.message || 'Please try again.');
@@ -195,6 +197,7 @@ export default function ProfileScreen({ navigation }) {
       const data = await apiCall('/subscription/renew/', 'POST', null, true);
       const next = data?.subscription ?? data;
       setSubscription(next);
+      setRenewalCancelled(false);
       Alert.alert('✅ Renewed', 'Subscription extended by 30 days.');
     } catch (error) {
       Alert.alert('Renew Failed', error.message || 'Please try again.');
@@ -1360,7 +1363,9 @@ export default function ProfileScreen({ navigation }) {
           ) : (
             <Text style={styles.premiumStatus}>
               {isPro
-                ? `Pro active • ${daysRemaining} days left`
+                ? (renewalCancelled
+                  ? 'Pro active • renewal cancelled'
+                  : `Pro active • ${daysRemaining} days left`)
                 : 'You are on the Free plan'}
             </Text>
           )}

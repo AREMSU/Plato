@@ -1,11 +1,106 @@
 import os
 import httpx
+from django.conf import settings
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.parsers import FormParser, MultiPartParser
 from django.utils import timezone
 from .models import Meal
 from .serializers import MealSerializer
+
+
+def classify_food_bytes(image_bytes):
+    if not image_bytes or len(image_bytes) < 1000:
+        return {
+            'verdict': 'pending_review',
+            'confidence': 0.0,
+            'reason': 'Please add a clear photo of the meal.',
+            'labels_detected': [],
+        }
+
+    api_key = os.getenv('HUGGINGFACE_API_KEY')
+    if not api_key:
+        return {
+            'verdict': 'pending_review',
+            'confidence': 0.0,
+            'reason': 'We could not verify your photo right now. Please try again in a minute.',
+            'labels_detected': [],
+        }
+
+    hf_response = httpx.post(
+        'https://router.huggingface.co/hf-inference/models/google/vit-base-patch16-224',
+        headers={
+            'Authorization': f'Bearer {api_key}',
+            'Content-Type': 'image/jpeg'
+        },
+        content=image_bytes,
+        timeout=30
+    )
+
+    if not hf_response.text.strip():
+        return {
+            'verdict': 'pending_review',
+            'confidence': 0.0,
+            'reason': 'We could not verify your photo right now. Please try again in a minute.',
+            'labels_detected': [],
+        }
+
+    results = hf_response.json()
+    if isinstance(results, dict) and 'error' in results:
+        debug_detail = None
+        if settings.DEBUG:
+            debug_detail = {
+                'hf_status': hf_response.status_code,
+                'hf_error': results.get('error'),
+            }
+        return {
+            'verdict': 'pending_review',
+            'confidence': 0.0,
+            'reason': 'We could not verify your photo right now. Please try again in a minute.',
+            'labels_detected': [],
+            'debug': debug_detail,
+        }
+
+    if not isinstance(results, list) or not results:
+        return {
+            'verdict': 'pending_review',
+            'confidence': 0.0,
+            'reason': 'We could not verify your photo right now. Please try again in a minute.',
+            'labels_detected': [],
+        }
+
+    top_labels = [item.get('label') for item in results[:5] if item.get('label')]
+    top_score = results[0].get('score', 0) if results else 0
+    matched_food_label = any(
+        any(food_word in (label or '').lower() for food_word in ImageFilterView.FOOD_LABELS)
+        for label in top_labels
+    )
+    cookware_only = all(
+        any(tool_word in (label or '').lower() for tool_word in ImageFilterView.COOKWARE_LABELS)
+        for label in top_labels
+    )
+
+    # Require a food-related label for approval when using a general vision model.
+    if matched_food_label and top_score >= 0.20:
+        verdict = 'approved'
+        reason = 'Image confirmed as food'
+    elif cookware_only:
+        verdict = 'pending_review'
+        reason = 'We could not verify this photo as food. Please use a clearer food image.'
+    elif not matched_food_label:
+        verdict = 'rejected'
+        reason = 'This does not look like food. Please upload a real meal image.'
+    else:
+        verdict = 'pending_review'
+        reason = 'We could not verify this photo as food. Please use a clearer food image.'
+
+    return {
+        'verdict': verdict,
+        'confidence': round(top_score, 2),
+        'reason': reason,
+        'labels_detected': top_labels,
+    }
 
 
 def classify_food_image(image_url):
@@ -32,70 +127,7 @@ def classify_food_image(image_url):
             'labels_detected': [],
         }
 
-    api_key = os.getenv('HUGGINGFACE_API_KEY')
-    if not api_key:
-        return {
-            'verdict': 'pending_review',
-            'confidence': 0.0,
-            'reason': 'We could not verify your photo right now. Please try again in a minute.',
-            'labels_detected': [],
-        }
-
-    hf_response = httpx.post(
-        'https://router.huggingface.co/hf-inference/models/google/vit-base-patch16-224',
-        headers={
-            'Authorization': f'Bearer {api_key}',
-            'Content-Type': 'image/jpeg'
-        },
-        content=img_response.content,
-        timeout=30
-    )
-
-    if not hf_response.text.strip():
-        return {
-            'verdict': 'pending_review',
-            'confidence': 0.0,
-            'reason': 'We could not verify your photo right now. Please try again in a minute.',
-            'labels_detected': [],
-        }
-
-    results = hf_response.json()
-    if isinstance(results, dict) and 'error' in results:
-        return {
-            'verdict': 'pending_review',
-            'confidence': 0.0,
-            'reason': 'We could not verify your photo right now. Please try again in a minute.',
-            'labels_detected': [],
-        }
-
-    food_score = 0.0
-    top_labels = []
-
-    for item in results[:5]:
-        label = item.get('label', '').lower()
-        score = item.get('score', 0)
-        top_labels.append(item.get('label'))
-        for food_word in ImageFilterView.FOOD_LABELS:
-            if food_word in label:
-                food_score = max(food_score, score)
-                break
-
-    if food_score >= 0.40:
-        verdict = 'approved'
-        reason = 'Image confirmed as food'
-    elif food_score < 0.10:
-        verdict = 'rejected'
-        reason = 'This does not look like food. Please upload a real meal image.'
-    else:
-        verdict = 'pending_review'
-        reason = 'We could not verify this photo as food. Please use a clearer food image.'
-
-    return {
-        'verdict': verdict,
-        'confidence': round(food_score, 2),
-        'reason': reason,
-        'labels_detected': top_labels,
-    }
+    return classify_food_bytes(img_response.content)
 
 
 class RecommendedMealsView(APIView):
@@ -149,6 +181,12 @@ class ImageFilterView(APIView):
         'hot pot', 'hotpot', 'wok', 'plate', 'bowl', 'frying pan',
     }
 
+    COOKWARE_LABELS = {
+        'wok', 'plate', 'bowl', 'frying pan', 'frypan', 'skillet',
+        'pan', 'pot', 'spatula', 'ladle', 'tongs', 'kitchen utensil',
+        'cookware', 'dutch oven', 'saucepan', 'stockpot',
+    }
+
     def post(self, request):
         image_url = request.data.get('image_url')
         meal_id = request.data.get('meal_id')
@@ -181,6 +219,23 @@ class ImageFilterView(APIView):
                 'labels_detected': result['labels_detected']
             })
 
+        except Exception as e:
+            return Response({'error': str(e)}, status=500)
+
+
+class VerifyImageView(APIView):
+    permission_classes = [IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser]
+
+    def post(self, request):
+        image = request.FILES.get('image')
+        if not image:
+            return Response({'error': 'image required'}, status=400)
+
+        try:
+            image_bytes = image.read()
+            result = classify_food_bytes(image_bytes)
+            return Response(result)
         except Exception as e:
             return Response({'error': str(e)}, status=500)
 
