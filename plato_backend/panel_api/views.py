@@ -203,16 +203,21 @@ class AdminSubscriptionActionView(APIView):
         if action == 'approve':
             now = timezone.now()
             sub.status = 'approved'
+            # If currently active Pro, extend from current expiry date (stacking)
+            base = sub.expires_at if (sub.plan == 'pro' and sub.is_active and sub.expires_at and sub.expires_at > now) else now
+            sub.plan = 'pro'
             sub.is_active = True
             sub.started_at = now
-            sub.expires_at = now + timezone.timedelta(days=30)
+            sub.expires_at = base + timezone.timedelta(days=30)
             sub.save()
             # Feature all existing meals by this user
             Meal.objects.filter(seller=sub.user).update(is_featured=True)
             return Response({'message': 'Approved successfully'})
         elif action == 'reject':
             sub.status = 'rejected'
-            sub.is_active = False
+            # Only set inactive if they are not currently an active Pro user
+            if not sub.is_pro():
+                sub.is_active = False
             sub.save()
             return Response({'message': 'Rejected successfully'})
         return Response({'error': 'Invalid action'}, status=400)

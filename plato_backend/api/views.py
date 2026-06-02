@@ -676,11 +676,19 @@ class SubscriptionUpgradeView(APIView):
         )
 
         if subscription.is_pro():
+            if subscription.status == 'pending':
+                return Response({'error': 'You already have a pending renewal request.'}, status=400)
+            
+            # Submitting renewal request. Keep current Pro status active.
+            subscription.status = 'pending'
+            subscription.payment_reference = payment_reference
+            subscription.save()
+            
+            serializer = SubscriptionSerializer(subscription)
             return Response({
-                'error': 'Already on Pro plan',
-                'expires_at': subscription.expires_at,
-                'days_remaining': subscription.days_remaining(),
-            }, status=400)
+                'message': 'Renewal request submitted successfully! Waiting for admin approval.',
+                'subscription': serializer.data,
+            })
 
         if subscription.status == 'pending':
             return Response({'error': 'You already have a pending upgrade request.'}, status=400)

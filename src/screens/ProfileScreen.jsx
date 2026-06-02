@@ -72,8 +72,7 @@ export default function ProfileScreen({ navigation }) {
   const [subscriptionLoading, setSubscriptionLoading] = useState(false);
   const [subscriptionActionLoading, setSubscriptionActionLoading] = useState(false);
   const [renewalCancelled, setRenewalCancelled] = useState(false);
-  const [proUpgradeModalVisible, setProUpgradeModalVisible] = useState(false);
-  const [paymentRef, setPaymentRef] = useState('');
+
 
   const [editForm, setEditForm] = useState({
     name: user?.name || '',
@@ -194,47 +193,32 @@ export default function ProfileScreen({ navigation }) {
   }, [user]);
 
   const handleUpgrade = () => {
-    setProUpgradeModalVisible(true);
-  };
-
-  const submitUpgradeRequest = async () => {
-    if (!paymentRef.trim()) {
-      Alert.alert('Error', 'Please enter your payment Transaction ID / Reference.');
-      return;
-    }
-    setSubscriptionActionLoading(true);
-    try {
-      const data = await apiCall('/subscription/upgrade/', 'POST', { payment_reference: paymentRef.trim() }, true);
-      const next = data?.subscription ?? data;
-      setSubscription(next);
-      setRenewalCancelled(false);
-      setProUpgradeModalVisible(false);
-      setPremiumModalVisible(false);
-      setPaymentRef('');
-      Alert.alert('✅ Request Submitted', 'Your payment reference has been sent to the admin. Verification will take up to 24 hours.');
-    } catch (error) {
-      Alert.alert('Upgrade Request Failed', error.message || 'Please try again.');
-    } finally {
-      setSubscriptionActionLoading(false);
-    }
-  };
-
-  const handleEsewaUpgrade = async () => {
-    setSubscriptionActionLoading(true);
-    try {
-      const data = await apiCall('/subscription/esewa/initiate/', 'POST', null, true);
-      if (data.checkoutUrl) {
-        setProUpgradeModalVisible(false);
-        setPremiumModalVisible(false);
-        Linking.openURL(data.checkoutUrl);
-      } else {
-        Alert.alert('Error', 'Failed to retrieve payment redirect from server.');
-      }
-    } catch (error) {
-      Alert.alert('Payment Error', error.message || 'Could not initiate eSewa payment.');
-    } finally {
-      setSubscriptionActionLoading(false);
-    }
+    Alert.alert(
+      'Upgrade to Pro',
+      'You will be redirected to eSewa to complete your payment of NPR 199.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Proceed',
+          onPress: async () => {
+            setSubscriptionActionLoading(true);
+            try {
+              const data = await apiCall('/subscription/esewa/initiate/', 'POST', null, true);
+              if (data.checkoutUrl) {
+                setPremiumModalVisible(false);
+                Linking.openURL(data.checkoutUrl);
+              } else {
+                Alert.alert('Error', 'Failed to retrieve payment redirect from server.');
+              }
+            } catch (error) {
+              Alert.alert('Payment Error', error.message || 'Could not initiate eSewa payment.');
+            } finally {
+              setSubscriptionActionLoading(false);
+            }
+          }
+        }
+      ]
+    );
   };
 
   const handleCancelSubscription = async () => {
@@ -263,20 +247,33 @@ export default function ProfileScreen({ navigation }) {
     );
   };
 
-  const handleRenewSubscription = async () => {
-    setSubscriptionActionLoading(true);
-    try {
-      const data = await apiCall('/subscription/esewa/renew/', 'POST', null, true);
-      if (data.checkoutUrl) {
-        Linking.openURL(data.checkoutUrl);
-      } else {
-        Alert.alert('Error', 'Failed to initiate renewal payment.');
-      }
-    } catch (error) {
-      Alert.alert('Renewal Failed', error.message || 'Could not initiate eSewa payment.');
-    } finally {
-      setSubscriptionActionLoading(false);
-    }
+  const handleRenewSubscription = () => {
+    Alert.alert(
+      'Renew Pro Subscription',
+      'You will be redirected to eSewa to complete your renewal payment of NPR 199.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Proceed',
+          onPress: async () => {
+            setSubscriptionActionLoading(true);
+            try {
+              const data = await apiCall('/subscription/esewa/renew/', 'POST', null, true);
+              if (data.checkoutUrl) {
+                setPremiumModalVisible(false);
+                Linking.openURL(data.checkoutUrl);
+              } else {
+                Alert.alert('Error', 'Failed to initiate renewal payment.');
+              }
+            } catch (error) {
+              Alert.alert('Renewal Failed', error.message || 'Could not initiate eSewa payment.');
+            } finally {
+              setSubscriptionActionLoading(false);
+            }
+          }
+        }
+      ]
+    );
   };
 
   // ─────────────────────────────────────
@@ -1485,83 +1482,7 @@ export default function ProfileScreen({ navigation }) {
       </View>
       </Modal >
 
-  {/* ══════════════════════════════════════
-          PRO UPGRADE / PAYMENT REFERENCE MODAL
-      ══════════════════════════════════════ */}
-      <Modal
-        visible={proUpgradeModalVisible}
-        animationType="slide"
-        transparent
-        onRequestClose={() => setProUpgradeModalVisible(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContainer}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>💳 Pro Payment Verify</Text>
-              <TouchableOpacity onPress={() => setProUpgradeModalVisible(false)}>
-                <Ionicons name="close-circle" size={22} color="#9E9E9E" />
-              </TouchableOpacity>
-            </View>
 
-            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 16 }}>
-              <Text style={styles.paymentInstructionsTitle}>Instructions:</Text>
-              <Text style={styles.paymentInstructionsText}>
-                Please transfer <Text style={{ fontWeight: 'bold' }}>NPR 199</Text> to our official eSewa or Khalti account:
-              </Text>
-              
-              <View style={styles.paymentMethodBox}>
-                <View style={styles.paymentDetailsRow}>
-                  <Text style={styles.paymentMethodLabel}>🟢 eSewa ID:</Text>
-                  <Text style={styles.paymentMethodValue}>9812345678</Text>
-                </View>
-                <View style={styles.paymentDetailsRow}>
-                  <Text style={styles.paymentMethodLabel}>🟣 Khalti ID:</Text>
-                  <Text style={styles.paymentMethodValue}>9812345678</Text>
-                </View>
-              </View>
-
-              <Text style={styles.paymentInstructionsText}>
-                After payment completion, enter your transaction reference ID below to submit for manual approval:
-              </Text>
-
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Transaction ID / Ref Code</Text>
-                <TextInput
-                  style={styles.textInput}
-                  value={paymentRef}
-                  onChangeText={setPaymentRef}
-                  placeholder="e.g. 8X3Y9Z2W"
-                  autoCapitalize="characters"
-                />
-              </View>
-
-              <TouchableOpacity
-                style={styles.submitRequestButton}
-                onPress={submitUpgradeRequest}
-                disabled={subscriptionActionLoading}
-              >
-                {subscriptionActionLoading ? (
-                  <Text style={styles.submitRequestButtonText}>Submitting...</Text>
-                ) : (
-                  <Text style={styles.submitRequestButtonText}>Submit Reference ID</Text>
-                )}
-              </TouchableOpacity>
-
-              <View style={{ marginVertical: 12, alignItems: 'center' }}>
-                <Text style={{ color: '#64748B', fontWeight: 'bold', fontSize: 13 }}>— OR —</Text>
-              </View>
-
-              <TouchableOpacity
-                style={[styles.submitRequestButton, { backgroundColor: '#60bb46', borderSide: 'none' }]}
-                onPress={handleEsewaUpgrade}
-                disabled={subscriptionActionLoading}
-              >
-                <Text style={styles.submitRequestButtonText}>🟢 Pay Instantly with eSewa (UAT)</Text>
-              </TouchableOpacity>
-            </ScrollView>
-          </View>
-        </View>
-      </Modal>
 
   {/* ══════════════════════════════════════
           PRIVACY MODAL
