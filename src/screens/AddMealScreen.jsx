@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -13,6 +13,7 @@ import {
   ActivityIndicator,
   Image,
   Dimensions,
+  FlatList,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -98,12 +99,26 @@ export default function AddMealScreen({ navigation }) {
     category: 'Nepali',
     pricePerPortion: '',
     totalPortions: '',
-    pickupTime: '',
     pickupLocation: '',
     isVegetarian: false,
     tags: '',
   });
   const [errors, setErrors] = useState({});
+
+  // ── Time Picker State ──
+  const HOURS   = Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, '0'));
+  const MINUTES = ['00', '05', '10', '15', '20', '25', '30', '35', '40', '45', '50', '55'];
+  const now = new Date();
+  const initH = now.getHours() % 12 || 12;
+  const initM = MINUTES.reduce((prev, cur) =>
+    Math.abs(Number(cur) - now.getMinutes()) < Math.abs(Number(prev) - now.getMinutes()) ? cur : prev
+  );
+  const initAP = now.getHours() >= 12 ? 'PM' : 'AM';
+  const [selHour,   setSelHour]   = useState(String(initH).padStart(2, '0'));
+  const [selMinute, setSelMinute] = useState(initM);
+  const [selAmPm,   setSelAmPm]   = useState(initAP);
+
+  const getPickupTimeString = () => `${selHour}:${selMinute} ${selAmPm}`;
 
   const updateForm = useCallback((key, value) => {
     setForm(prev => ({ ...prev, [key]: value }));
@@ -252,7 +267,18 @@ export default function AddMealScreen({ navigation }) {
       newErrors.pricePerPortion = 'Enter a valid price';
     if (!form.totalPortions || isNaN(Number(form.totalPortions)) || Number(form.totalPortions) <= 0)
       newErrors.totalPortions = 'Enter valid portions';
-    if (!form.pickupTime.trim()) newErrors.pickupTime = 'Pickup time required';
+
+    // ── Validate pickup time is not in the past ──
+    const now = new Date();
+    let hr = Number(selHour);
+    if (selAmPm === 'PM' && hr !== 12) hr += 12;
+    if (selAmPm === 'AM' && hr === 12) hr = 0;
+    const pickupDate = new Date();
+    pickupDate.setHours(hr, Number(selMinute), 0, 0);
+    if (pickupDate <= now) {
+      newErrors.pickupTime = 'Pickup time must be in the future';
+    }
+
     if (!form.pickupLocation.trim()) newErrors.pickupLocation = 'Location required';
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -276,7 +302,7 @@ export default function AddMealScreen({ navigation }) {
         category: form.category,
         pricePerPortion: Number(form.pricePerPortion),
         totalPortions: Number(form.totalPortions),
-        pickupTime: form.pickupTime.trim(),
+        pickupTime: getPickupTimeString(),
         pickupLocation: form.pickupLocation.trim(),
         isVegetarian: form.isVegetarian,
         tags: tagsArray,
@@ -297,9 +323,12 @@ export default function AddMealScreen({ navigation }) {
               setForm({
                 title: '', description: '', category: 'Nepali',
                 pricePerPortion: '', totalPortions: '',
-                pickupTime: '', pickupLocation: '',
+                pickupLocation: '',
                 isVegetarian: false, tags: '',
               });
+              setSelHour(String(new Date().getHours() % 12 || 12).padStart(2,'0'));
+              setSelMinute('00');
+              setSelAmPm(new Date().getHours() >= 12 ? 'PM' : 'AM');
               setSelectedImage(null);
               setUploadedImageUrl('');
               setImageVerified(false);
@@ -582,14 +611,90 @@ export default function AddMealScreen({ navigation }) {
           </View>
         </View>
 
-        <InputField
-          label="Pickup Time"
-          placeholder="e.g. 12:30 PM, 6:00 PM"
-          required
-          value={form.pickupTime}
-          onChangeText={(t) => updateForm('pickupTime', t)}
-          error={errors.pickupTime}
-        />
+        {/* ── Pickup Time Picker ── */}
+        <View style={styles.inputGroup}>
+          <Text style={styles.inputLabel}>
+            Pickup Time <Text style={styles.required}>*</Text>
+          </Text>
+
+          <View style={[styles.timePickerCard, errors.pickupTime && styles.inputError]}>
+            {/* Hour drum */}
+            <View style={styles.timeDrumWrap}>
+              <Text style={styles.timeDrumLabel}>Hour</Text>
+              <ScrollView
+                style={styles.timeDrum}
+                showsVerticalScrollIndicator={false}
+                snapToInterval={44}
+                decelerationRate="fast"
+              >
+                {HOURS.map((h) => (
+                  <TouchableOpacity
+                    key={h}
+                    onPress={() => { setSelHour(h); setErrors(p => ({...p, pickupTime: null})); }}
+                    style={[styles.timeDrumItem, selHour === h && styles.timeDrumItemActive]}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[styles.timeDrumText, selHour === h && styles.timeDrumTextActive]}>{h}</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+
+            <Text style={styles.timeColon}>:</Text>
+
+            {/* Minute drum */}
+            <View style={styles.timeDrumWrap}>
+              <Text style={styles.timeDrumLabel}>Min</Text>
+              <ScrollView
+                style={styles.timeDrum}
+                showsVerticalScrollIndicator={false}
+                snapToInterval={44}
+                decelerationRate="fast"
+              >
+                {MINUTES.map((m) => (
+                  <TouchableOpacity
+                    key={m}
+                    onPress={() => { setSelMinute(m); setErrors(p => ({...p, pickupTime: null})); }}
+                    style={[styles.timeDrumItem, selMinute === m && styles.timeDrumItemActive]}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[styles.timeDrumText, selMinute === m && styles.timeDrumTextActive]}>{m}</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+
+            {/* AM / PM */}
+            <View style={styles.amPmWrap}>
+              <Text style={styles.timeDrumLabel}>  </Text>
+              <View style={styles.amPmButtons}>
+                {['AM', 'PM'].map((ap) => (
+                  <TouchableOpacity
+                    key={ap}
+                    onPress={() => { setSelAmPm(ap); setErrors(p => ({...p, pickupTime: null})); }}
+                    style={[styles.amPmBtn, selAmPm === ap && styles.amPmBtnActive]}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[styles.amPmText, selAmPm === ap && styles.amPmTextActive]}>{ap}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+          </View>
+
+          {/* Live preview of selected time */}
+          <View style={styles.timePreviewRow}>
+            <Ionicons name="time-outline" size={14} color="#FF6B35" />
+            <Text style={styles.timePreviewText}>Selected: {getPickupTimeString()}</Text>
+          </View>
+
+          {errors.pickupTime && (
+            <View style={styles.errorContainer}>
+              <Ionicons name="alert-circle-outline" size={14} color="#FF5252" style={{ marginRight: 4 }} />
+              <Text style={styles.errorText}>{errors.pickupTime}</Text>
+            </View>
+          )}
+        </View>
 
         <InputField
           label="Pickup Location"
@@ -661,7 +766,7 @@ export default function AddMealScreen({ navigation }) {
               <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 3 }}>
                 <Ionicons name="time-outline" size={12} color="#64748B" style={{ marginRight: 4 }} />
                 <Text style={styles.previewMeta} numberOfLines={1}>
-                  {form.pickupTime || 'Pickup time'}
+                  {getPickupTimeString()}
                 </Text>
               </View>
               <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 3 }}>
@@ -1133,5 +1238,106 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     paddingHorizontal: 20,
     fontFamily: Platform.OS === 'ios' ? 'Avenir Next' : 'sans-serif',
+  },
+
+  // ── Time Picker ──
+  timePickerCard: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    gap: 8,
+  },
+  timeDrumWrap: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  timeDrumLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#94A3B8',
+    marginBottom: 6,
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+    fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Bold' : 'sans-serif-medium',
+  },
+  timeDrum: {
+    height: 176,  // shows ~4 items
+    width: '100%',
+  },
+  timeDrumItem: {
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 10,
+    marginBottom: 2,
+  },
+  timeDrumItemActive: {
+    backgroundColor: '#FF6B35',
+  },
+  timeDrumText: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#64748B',
+    fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Bold' : 'sans-serif-medium',
+  },
+  timeDrumTextActive: {
+    color: '#fff',
+  },
+  timeColon: {
+    fontSize: 28,
+    fontWeight: '800',
+    color: '#CBD5E1',
+    marginTop: 40,
+    paddingHorizontal: 2,
+  },
+  amPmWrap: {
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+    marginTop: 0,
+  },
+  amPmButtons: {
+    gap: 8,
+    marginTop: 0,
+  },
+  amPmBtn: {
+    width: 58,
+    height: 44,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F1F5F9',
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
+  },
+  amPmBtnActive: {
+    backgroundColor: '#FF6B35',
+    borderColor: '#FF6B35',
+  },
+  amPmText: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#64748B',
+    fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Bold' : 'sans-serif-medium',
+  },
+  amPmTextActive: {
+    color: '#fff',
+  },
+  timePreviewRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 8,
+    paddingHorizontal: 2,
+  },
+  timePreviewText: {
+    fontSize: 13,
+    color: '#FF6B35',
+    fontWeight: '600',
+    fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Medium' : 'sans-serif-medium',
   },
 });
