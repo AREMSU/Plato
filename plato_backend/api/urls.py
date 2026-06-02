@@ -21,6 +21,7 @@ urlpatterns = [
 
     # Bookings
     path('bookings/', views.BookingListCreateView.as_view(), name='bookings'),
+    path('bookings/received/', views.BookingReceivedView.as_view(), name='bookings-received'),
     path('bookings/<int:pk>/cancel/', views.CancelBookingView.as_view(), name='cancel-booking'),
 
     # Reviews

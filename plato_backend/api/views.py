@@ -473,6 +473,14 @@ class CancelBookingView(APIView):
 
         return Response(BookingSerializer(booking).data)
 
+class BookingReceivedView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        bookings = Booking.objects.filter(meal__seller=request.user).order_by('-booked_at')
+        serializer = BookingSerializer(bookings, many=True)
+        return Response(serializer.data)
+
 
 class MyMealsView(APIView):
     permission_classes = [IsAuthenticated]

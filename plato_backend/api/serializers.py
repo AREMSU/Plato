@@ -114,13 +114,16 @@ class BookingSerializer(serializers.ModelSerializer):
     cancellation_fee = serializers.SerializerMethodField()
     refund_amount = serializers.SerializerMethodField()
     has_reviewed = serializers.SerializerMethodField()
+    buyer_name = serializers.SerializerMethodField()
+    buyer_avatar = serializers.SerializerMethodField()
 
     class Meta:
         model = Booking
         fields = [
             'id', 'meal', 'meal_id', 'portions',
             'total_cost', 'status', 'booked_at',
-            'cancellation_fee', 'refund_amount', 'has_reviewed'
+            'cancellation_fee', 'refund_amount', 'has_reviewed',
+            'buyer_name', 'buyer_avatar'
         ]
         read_only_fields = ['total_cost', 'status', 'booked_at']
 
@@ -133,6 +136,12 @@ class BookingSerializer(serializers.ModelSerializer):
 
     def get_has_reviewed(self, obj):
         return hasattr(obj, 'review')
+
+    def get_buyer_name(self, obj):
+        return obj.user.first_name or obj.user.email
+
+    def get_buyer_avatar(self, obj):
+        return obj.user.avatar
     
 class SubscriptionSerializer(serializers.ModelSerializer):
     is_pro = serializers.SerializerMethodField()

@@ -55,11 +55,7 @@ export default function HomeScreen({ navigation }) {
           {/* Top row */}
           <View style={styles.headerTop}>
             <View style={styles.headerLeft}>
-              <View style={styles.locationPill}>
-                <Ionicons name="location" size={14} color="#FF6B35" />
-                <Text style={styles.locationText}>KU</Text>
-                <Ionicons name="chevron-down" size={13} color="#FF6B35" />
-              </View>
+
               <Text style={styles.greeting}>{greeting} 👋</Text>
               <Text style={styles.userName}>{firstName}</Text>
             </View>

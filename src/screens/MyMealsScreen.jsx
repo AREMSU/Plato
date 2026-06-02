@@ -26,7 +26,7 @@ import {
 } from '../utils/helpers';
 
 export default function MyMealsScreen({ navigation, route }) {
-  const { bookings, cancelBooking, user, meals, createReview } = useApp();
+  const { bookings, bookingsReceived, cancelBooking, user, meals, createReview } = useApp();
   const [activeTab, setActiveTab] = useState('bookings');
     useEffect(() => {
       const nextTab = route?.params?.initialTab;
@@ -218,6 +218,33 @@ export default function MyMealsScreen({ navigation, route }) {
     </TouchableOpacity>
   );
 
+  const ReceivedBookingCard = ({ booking }) => {
+    const buyerName = booking.buyerName || booking.buyer_name || 'Someone';
+    const buyerAvatar = booking.buyerAvatar || booking.buyer_avatar;
+    const mealTitle = booking.meal?.title || 'a meal';
+
+    return (
+      <View style={[styles.bookingCard, { padding: 12, alignItems: 'center' }]}>
+        {buyerAvatar ? (
+          <Image source={{ uri: buyerAvatar }} style={{ width: 44, height: 44, borderRadius: 22 }} />
+        ) : (
+          <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: '#E0E0E0', justifyContent: 'center', alignItems: 'center' }}>
+            <Ionicons name="person" size={20} color="#757575" />
+          </View>
+        )}
+        <View style={{ flex: 1, marginLeft: 12 }}>
+          <Text style={{ fontSize: 14, color: '#424242', fontWeight: '500' }}>
+            <Text style={{ fontWeight: '800', color: '#1A1A1A' }}>{buyerName}</Text> booked <Text style={{ fontWeight: '700' }}>{booking.portions}</Text> portion{booking.portions > 1 ? 's' : ''} of {mealTitle}
+          </Text>
+          <Text style={{ fontSize: 12, color: '#9E9E9E', marginTop: 4 }}>
+            {new Date(booking.bookedAt || booking.booked_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
+          </Text>
+        </View>
+        <Text style={{ fontSize: 15, fontWeight: '800', color: '#4CAF50' }}>+{formatCurrency(booking.totalCost)}</Text>
+      </View>
+    );
+  };
+
   return (
     <View style={styles.container}>
       <LinearGradient
@@ -359,6 +386,17 @@ export default function MyMealsScreen({ navigation, route }) {
                 {myMeals.map((meal) => (
                   <MyMealCard key={meal.id} meal={meal} />
                 ))}
+
+                {bookingsReceived && bookingsReceived.length > 0 && (
+                  <>
+                    <Text style={[styles.sectionTitle, { marginTop: 20 }]}>
+                      Orders Received
+                    </Text>
+                    {bookingsReceived.map((b) => (
+                      <ReceivedBookingCard key={b.id} booking={b} />
+                    ))}
+                  </>
+                )}
               </>
             )}
           </>

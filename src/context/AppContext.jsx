@@ -10,6 +10,7 @@ export const AppProvider = ({ children }) => {
     const [user, setUser] = useState(null);
     const [meals, setMeals] = useState([]);
     const [bookings, setBookings] = useState([]);
+    const [bookingsReceived, setBookingsReceived] = useState([]);
     const [notifications, setNotifications] = useState([]);
     const [reviewsReceived, setReviewsReceived] = useState([]);
     const [aiRecommendations, setAiRecommendations] = useState([]);
@@ -32,6 +33,7 @@ export const AppProvider = ({ children }) => {
             setIsLoggedIn(true);
             await loadMeals();
             await loadBookings();
+            await loadBookingsReceived();
             await loadReviewsReceived();
             await loadNotifications();
             await loadAIRecommendations();
@@ -52,6 +54,7 @@ export const AppProvider = ({ children }) => {
         setIsLoggedIn(true);
         await loadMeals();
         await loadBookings();
+        await loadBookingsReceived();
         await loadReviewsReceived();
         await loadNotifications();
         await loadAIRecommendations();
@@ -84,6 +87,7 @@ export const AppProvider = ({ children }) => {
             setIsLoggedIn(false);
             setMeals([]);
             setBookings([]);
+            setBookingsReceived([]);
             setLoggingOut(false);
         }
     };
@@ -193,6 +197,15 @@ export const AppProvider = ({ children }) => {
             setBookings(Array.isArray(data) ? data : []);
         } catch (error) {
             console.log('Load bookings error:', error.message);
+        }
+    };
+
+    const loadBookingsReceived = async () => {
+        try {
+            const data = await apiCall('/bookings/received/', 'GET', null, true);
+            setBookingsReceived(Array.isArray(data) ? data : []);
+        } catch (error) {
+            console.log('Load bookings received error:', error.message);
         }
     };
 
@@ -319,6 +332,8 @@ export const AppProvider = ({ children }) => {
             cancelBookingAction,
             loadMeals,
             loadBookings,
+            bookingsReceived,
+            loadBookingsReceived,
             reviewsReceived,
             loadReviewsReceived,
             createReview,
