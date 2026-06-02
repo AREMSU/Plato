@@ -77,7 +77,7 @@ export default function HomeScreen({ navigation }) {
           {/* Search bar */}
           <TouchableOpacity style={styles.searchBar} onPress={() => navigation.navigate('Explore')} activeOpacity={0.85}>
             <Ionicons name="search-outline" size={18} color="#9E9E9E" />
-            <Text style={styles.searchPlaceholder}>Search meals near campus...</Text>
+            <Text style={styles.searchPlaceholder}>Search meals, cuisines...</Text>
             <View style={styles.filterBtn}>
               <Ionicons name="options-outline" size={17} color="#FF6B35" />
             </View>

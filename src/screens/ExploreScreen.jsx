@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   Platform,
   StatusBar,
+  Animated,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -33,6 +34,8 @@ export default function ExploreScreen({ navigation }) {
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [selectedDiet, setSelectedDiet] = useState('all');
   const [sortBy, setSortBy] = useState('rating');
+  const [isFocused, setIsFocused] = useState(false);
+  const inputRef = useRef(null);
 
   const filtered = meals.filter((meal) => {
     if (isMealOwner(user, meal)) return false;
@@ -72,26 +75,43 @@ export default function ExploreScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" />
-      <View style={styles.header}>
+      <StatusBar barStyle="light-content" backgroundColor="#E8500A" />
+      <LinearGradient
+        colors={['#E8500A', '#FF6B35', '#FF8C42']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.header}
+      >
+        {/* Title row */}
+        <View style={styles.headerTitleRow}>
+          <Text style={styles.headerTitle}>Explore</Text>
+          <Text style={styles.resultsBadge}>{sorted?.length ?? 0} meals</Text>
+        </View>
 
-        <View style={styles.searchBar}>
-          <Ionicons name="search-outline" size={18} color="#9E9E9E" />
+        {/* Search bar */}
+        <View style={[styles.searchBar, isFocused && styles.searchBarFocused]}>
+          <Ionicons name="search-outline" size={18} color={isFocused ? '#FF6B35' : '#94A3B8'} />
           <TextInput
+            ref={inputRef}
             style={styles.searchInput}
             placeholder="Search meals, cuisines, tags..."
             placeholderTextColor="#BDBDBD"
             value={searchQuery}
             onChangeText={setSearchQuery}
+            onFocus={() => setIsFocused(true)}
+            onBlur={() => setIsFocused(false)}
             autoCorrect={false}
+            returnKeyType="search"
           />
-          {searchQuery.length > 0 && (
-            <TouchableOpacity onPress={() => setSearchQuery('')}>
-              <Ionicons name="close-circle" size={18} color="#BDBDBD" />
+          {searchQuery.length > 0 ? (
+            <TouchableOpacity onPress={() => setSearchQuery('')} activeOpacity={0.7}>
+              <Ionicons name="close-circle" size={18} color="#94A3B8" />
             </TouchableOpacity>
+          ) : (
+            <View style={styles.searchDivider} />
           )}
         </View>
-      </View>
+      </LinearGradient>
 
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Filters Row */}
@@ -228,34 +248,59 @@ export default function ExploreScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F5F5F5' },
+  container: { flex: 1, backgroundColor: '#F8FAFC' },
   header: {
-    backgroundColor: '#fff',
-    paddingTop: Platform.OS === 'android' ? 48 : 58,
+    paddingTop: Platform.OS === 'android' ? 44 : 54,
     paddingHorizontal: 20,
-    paddingBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F0F0F0',
-    shadowColor: '#1E293B',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 10,
-    elevation: 4,
+    paddingBottom: 16,
   },
-
+  headerTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  headerTitle: {
+    fontSize: 26,
+    fontWeight: '800',
+    color: '#fff',
+    letterSpacing: -0.5,
+    fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Bold' : 'sans-serif-black',
+  },
+  resultsBadge: {
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.85)',
+    fontWeight: '600',
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F1F5F9',
-    borderRadius: 24,
-    paddingHorizontal: 16,
-    paddingVertical: 11,
+    backgroundColor: '#fff',
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
     gap: 10,
-    shadowColor: '#1E293B',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 6,
+    borderWidth: 1.5,
+    borderColor: 'transparent',
+  },
+  searchBarFocused: {
+    borderColor: '#FF6B35',
+    shadowOpacity: 0.15,
+  },
+  searchDivider: {
+    width: 1,
+    height: 16,
+    backgroundColor: '#E2E8F0',
   },
   searchInput: {
     flex: 1,
