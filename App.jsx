@@ -1,10 +1,27 @@
 import 'react-native-gesture-handler';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { StatusBar } from 'expo-status-bar';
+import { AppState } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { AppProvider } from './src/context/AppContext';
 import AppNavigator from './src/navigation/AppNavigator';
 import SplashScreen from './src/screens/SplashScreen';
+
+// Deep link configuration — maps plato:// URLs to navigator routes
+const linking = {
+  prefixes: ['plato://'],
+  config: {
+    screens: {
+      Main: {
+        screens: {
+          MyMeals: 'mymeals',
+          Profile: 'profile',
+          Home: 'home',
+        },
+      },
+    },
+  },
+};
 
 export default function App() {
   const [isLoading, setIsLoading] = useState(true);
@@ -22,7 +39,7 @@ export default function App() {
 
   return (
     <AppProvider>
-      <NavigationContainer>
+      <NavigationContainer linking={linking}>
         <StatusBar style="light" backgroundColor="#FF6B35" />
         <AppNavigator />
       </NavigationContainer>

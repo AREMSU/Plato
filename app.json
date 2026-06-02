@@ -2,6 +2,7 @@
   "expo": {
     "name": "Plato",
     "slug": "plato",
+    "scheme": "plato",
     "icon": "./assets/branding/icon.png",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -17,7 +18,17 @@
       "adaptiveIcon": {
         "foregroundImage": "./assets/branding/icon-foreground.png",
         "backgroundColor": "#FF6B35"
-      }
+      },
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            { "scheme": "plato" }
+          ],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ]
     },
     
     "plugins": [

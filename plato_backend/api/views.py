@@ -993,22 +993,44 @@ class EsewaSuccessView(APIView):
             <title>Payment Successful</title>
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <style>
-                body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; text-align: center; margin-top: 80px; background-color: #FAF9F6; color: #0F172A; }}
-                .card {{ background: white; padding: 40px 30px; border-radius: 24px; box-shadow: 0 10px 25px rgba(0,0,0,0.03); display: inline-block; max-width: 400px; margin: 15px; border: 1px solid #F0EFEA; }}
-                .success-icon {{ font-size: 56px; color: #60bb46; margin-bottom: 24px; }}
-                h2 {{ margin-bottom: 12px; font-weight: 800; }}
-                p {{ color: #475569; font-size: 15px; line-height: 1.6; margin-bottom: 24px; }}
-                .btn {{ background: #FF6B35; color: white; padding: 14px 28px; text-decoration: none; border-radius: 14px; font-weight: 700; display: inline-block; box-shadow: 0 4px 12px rgba(255, 107, 53, 0.2); }}
+                * {{ box-sizing: border-box; margin: 0; padding: 0; }}
+                body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: linear-gradient(135deg, #FFF8F5 0%, #FAF9F6 100%); min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; }}
+                .card {{ background: white; padding: 40px 30px; border-radius: 28px; box-shadow: 0 20px 60px rgba(0,0,0,0.08); max-width: 380px; width: 100%; text-align: center; border: 1px solid #F0EFEA; }}
+                .icon {{ font-size: 64px; margin-bottom: 20px; }}
+                h2 {{ font-size: 22px; font-weight: 800; color: #0F172A; margin-bottom: 10px; }}
+                .subtitle {{ color: #475569; font-size: 15px; line-height: 1.6; margin-bottom: 8px; }}
+                .hint {{ color: #94A3B8; font-size: 13px; line-height: 1.5; margin-bottom: 28px; }}
+                .btn-primary {{ background: linear-gradient(135deg, #FF6B35, #FF8C42); color: white; padding: 15px 32px; text-decoration: none; border-radius: 16px; font-weight: 700; font-size: 15px; display: inline-block; box-shadow: 0 6px 20px rgba(255,107,53,0.3); margin-bottom: 12px; width: 100%; }}
+                .countdown {{ color: #94A3B8; font-size: 13px; margin-top: 16px; }}
+                #timer {{ font-weight: 700; color: #FF6B35; }}
             </style>
         </head>
         <body>
             <div class="card">
-                <div class="success-icon">✓</div>
+                <div class="icon">✅</div>
                 <h2>{payment_title}</h2>
-                <p>{payment_msg}</p>
-                <p style="font-size: 13px; color: #94A3B8;">You can now close this browser and return to the Plato app. Your status will update automatically.</p>
-                <a href="plato://profile" class="btn">Return to Plato</a>
+                <p class="subtitle">{payment_msg}</p>
+                <p class="hint">Tap the button below to return to Plato. If it doesn't open, close this browser tab manually.</p>
+                <a href="plato://mymeals" class="btn-primary" id="returnBtn">↩ Return to Plato</a>
+                <div class="countdown">Auto-redirecting in <span id="timer">5</span>s...</div>
             </div>
+            <script>
+                // Auto-redirect via deep link after 3s
+                var count = 5;
+                var interval = setInterval(function() {{
+                    count--;
+                    var el = document.getElementById('timer');
+                    if (el) el.textContent = count;
+                    if (count <= 0) {{
+                        clearInterval(interval);
+                        window.location.href = 'plato://mymeals';
+                    }}
+                }}, 1000);
+                // Also trigger immediately on button click
+                document.getElementById('returnBtn').addEventListener('click', function(e) {{
+                    clearInterval(interval);
+                }});
+            </script>
         </body>
         </html>
         """
@@ -1052,22 +1074,42 @@ class EsewaFailureView(APIView):
             <title>Payment Cancelled</title>
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <style>
-                body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; text-align: center; margin-top: 80px; background-color: #FAF9F6; color: #0F172A; }
-                .card { background: white; padding: 40px 30px; border-radius: 24px; box-shadow: 0 10px 25px rgba(0,0,0,0.03); display: inline-block; max-width: 400px; margin: 15px; border: 1px solid #F0EFEA; }
-                .fail-icon { font-size: 56px; color: #EF4444; margin-bottom: 24px; }
-                h2 { margin-bottom: 12px; font-weight: 800; }
-                p { color: #475569; font-size: 15px; line-height: 1.6; margin-bottom: 24px; }
-                .btn { background: #64748B; color: white; padding: 14px 28px; text-decoration: none; border-radius: 14px; font-weight: 700; display: inline-block; }
+                * { box-sizing: border-box; margin: 0; padding: 0; }
+                body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: linear-gradient(135deg, #FFF8F5 0%, #FAF9F6 100%); min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; }
+                .card { background: white; padding: 40px 30px; border-radius: 28px; box-shadow: 0 20px 60px rgba(0,0,0,0.08); max-width: 380px; width: 100%; text-align: center; border: 1px solid #F0EFEA; }
+                .icon { font-size: 64px; margin-bottom: 20px; }
+                h2 { font-size: 22px; font-weight: 800; color: #0F172A; margin-bottom: 10px; }
+                .subtitle { color: #475569; font-size: 15px; line-height: 1.6; margin-bottom: 8px; }
+                .hint { color: #94A3B8; font-size: 13px; line-height: 1.5; margin-bottom: 28px; }
+                .btn-primary { background: #64748B; color: white; padding: 15px 32px; text-decoration: none; border-radius: 16px; font-weight: 700; font-size: 15px; display: inline-block; width: 100%; margin-bottom: 12px; }
+                .countdown { color: #94A3B8; font-size: 13px; margin-top: 16px; }
+                #timer { font-weight: 700; color: #64748B; }
             </style>
         </head>
         <body>
             <div class="card">
-                <div class="fail-icon">✕</div>
+                <div class="icon">❌</div>
                 <h2>Payment Cancelled</h2>
-                <p>The transaction was cancelled or could not be completed. You have not been charged.</p>
-                <p style="font-size: 13px; color: #94A3B8;">Please return to the Plato app to retry or select another payment method.</p>
-                <a href="plato://profile" class="btn">Return to Plato</a>
+                <p class="subtitle">The transaction was cancelled or could not be completed.</p>
+                <p class="hint">You have not been charged. Tap below to return to Plato and try again.</p>
+                <a href="plato://mymeals" class="btn-primary" id="returnBtn">↩ Return to Plato</a>
+                <div class="countdown">Auto-redirecting in <span id="timer">5</span>s...</div>
             </div>
+            <script>
+                var count = 5;
+                var interval = setInterval(function() {
+                    count--;
+                    var el = document.getElementById('timer');
+                    if (el) el.textContent = count;
+                    if (count <= 0) {
+                        clearInterval(interval);
+                        window.location.href = 'plato://mymeals';
+                    }
+                }, 1000);
+                document.getElementById('returnBtn').addEventListener('click', function() {
+                    clearInterval(interval);
+                });
+            </script>
         </body>
         </html>
         """
