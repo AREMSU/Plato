@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,7 @@ import {
   Switch,
   Linking,
   Platform,
+  AppState,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -133,9 +134,47 @@ export default function ProfileScreen({ navigation }) {
     }
   };
 
+  // Re-fetch subscription on mount, on foreground return, and every 30s while pending
+  const appStateRef = useRef(AppState.currentState);
+  const pollIntervalRef = useRef(null);
+
   useEffect(() => {
+    if (!user?.id) return;
+
     loadSubscription();
+
+    // AppState listener: re-fetch when app comes back to foreground
+    const appStateSub = AppState.addEventListener('change', (nextState) => {
+      if (appStateRef.current.match(/inactive|background/) && nextState === 'active') {
+        loadSubscription();
+      }
+      appStateRef.current = nextState;
+    });
+
+    return () => {
+      appStateSub.remove();
+    };
   }, [user?.id]);
+
+  // 30-second polling while subscription is pending
+  useEffect(() => {
+    if (subscription?.status === 'pending') {
+      pollIntervalRef.current = setInterval(() => {
+        loadSubscription();
+      }, 30000);
+    } else {
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current);
+        pollIntervalRef.current = null;
+      }
+    }
+    return () => {
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current);
+        pollIntervalRef.current = null;
+      }
+    };
+  }, [subscription?.status]);
 
   useEffect(() => {
     if (!notifModalVisible) return;
