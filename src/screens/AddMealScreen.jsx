@@ -617,76 +617,65 @@ export default function AddMealScreen({ navigation }) {
             Pickup Time <Text style={styles.required}>*</Text>
           </Text>
 
-          <View style={[styles.timePickerCard, errors.pickupTime && styles.inputError]}>
-            {/* Hour drum */}
-            <View style={styles.timeDrumWrap}>
-              <Text style={styles.timeDrumLabel}>Hour</Text>
-              <ScrollView
-                style={styles.timeDrum}
-                showsVerticalScrollIndicator={false}
-                snapToInterval={44}
-                decelerationRate="fast"
-              >
-                {HOURS.map((h) => (
-                  <TouchableOpacity
-                    key={h}
-                    onPress={() => { setSelHour(h); setErrors(p => ({...p, pickupTime: null})); }}
-                    style={[styles.timeDrumItem, selHour === h && styles.timeDrumItemActive]}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={[styles.timeDrumText, selHour === h && styles.timeDrumTextActive]}>{h}</Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-            </View>
-
-            <Text style={styles.timeColon}>:</Text>
-
-            {/* Minute drum */}
-            <View style={styles.timeDrumWrap}>
-              <Text style={styles.timeDrumLabel}>Min</Text>
-              <ScrollView
-                style={styles.timeDrum}
-                showsVerticalScrollIndicator={false}
-                snapToInterval={44}
-                decelerationRate="fast"
-              >
-                {MINUTES.map((m) => (
-                  <TouchableOpacity
-                    key={m}
-                    onPress={() => { setSelMinute(m); setErrors(p => ({...p, pickupTime: null})); }}
-                    style={[styles.timeDrumItem, selMinute === m && styles.timeDrumItemActive]}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={[styles.timeDrumText, selMinute === m && styles.timeDrumTextActive]}>{m}</Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-            </View>
-
-            {/* AM / PM */}
-            <View style={styles.amPmWrap}>
-              <Text style={styles.timeDrumLabel}>  </Text>
-              <View style={styles.amPmButtons}>
-                {['AM', 'PM'].map((ap) => (
-                  <TouchableOpacity
-                    key={ap}
-                    onPress={() => { setSelAmPm(ap); setErrors(p => ({...p, pickupTime: null})); }}
-                    style={[styles.amPmBtn, selAmPm === ap && styles.amPmBtnActive]}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={[styles.amPmText, selAmPm === ap && styles.amPmTextActive]}>{ap}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
+          {/* Big time display */}
+          <View style={[styles.timeDisplayBox, errors.pickupTime && styles.inputError]}>
+            <Ionicons name="time-outline" size={22} color="#FF6B35" />
+            <Text style={styles.timeDisplayText}>{getPickupTimeString()}</Text>
+            <View style={styles.amPmInlineButtons}>
+              {['AM', 'PM'].map((ap) => (
+                <TouchableOpacity
+                  key={ap}
+                  onPress={() => { setSelAmPm(ap); setErrors(p => ({...p, pickupTime: null})); }}
+                  style={[styles.amPmInlineBtn, selAmPm === ap && styles.amPmInlineBtnActive]}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[styles.amPmInlineText, selAmPm === ap && styles.amPmInlineTextActive]}>{ap}</Text>
+                </TouchableOpacity>
+              ))}
             </View>
           </View>
 
-          {/* Live preview of selected time */}
-          <View style={styles.timePreviewRow}>
-            <Ionicons name="time-outline" size={14} color="#FF6B35" />
-            <Text style={styles.timePreviewText}>Selected: {getPickupTimeString()}</Text>
-          </View>
+          {/* Hour row — horizontal scroll, works inside vertical parent */}
+          <Text style={styles.timeRowLabel}>Hour</Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.timeChipRow}
+            keyboardShouldPersistTaps="handled"
+            nestedScrollEnabled
+          >
+            {HOURS.map((h) => (
+              <TouchableOpacity
+                key={h}
+                onPress={() => { setSelHour(h); setErrors(p => ({...p, pickupTime: null})); }}
+                style={[styles.timeChip, selHour === h && styles.timeChipActive]}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.timeChipText, selHour === h && styles.timeChipTextActive]}>{h}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+
+          {/* Minute row — horizontal scroll */}
+          <Text style={[styles.timeRowLabel, { marginTop: 12 }]}>Minute</Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.timeChipRow}
+            keyboardShouldPersistTaps="handled"
+            nestedScrollEnabled
+          >
+            {MINUTES.map((m) => (
+              <TouchableOpacity
+                key={m}
+                onPress={() => { setSelMinute(m); setErrors(p => ({...p, pickupTime: null})); }}
+                style={[styles.timeChip, selMinute === m && styles.timeChipActive]}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.timeChipText, selMinute === m && styles.timeChipTextActive]}>{m}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
 
           {errors.pickupTime && (
             <View style={styles.errorContainer}>
@@ -1241,103 +1230,92 @@ const styles = StyleSheet.create({
   },
 
   // ── Time Picker ──
-  timePickerCard: {
+  timeDisplayBox: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     backgroundColor: '#fff',
     borderRadius: 16,
     borderWidth: 1.5,
     borderColor: '#E2E8F0',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    gap: 8,
+    paddingHorizontal: 18,
+    paddingVertical: 14,
+    gap: 10,
+    marginBottom: 14,
   },
-  timeDrumWrap: {
-    alignItems: 'center',
+  timeDisplayText: {
     flex: 1,
-  },
-  timeDrumLabel: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#94A3B8',
-    marginBottom: 6,
-    letterSpacing: 0.5,
-    textTransform: 'uppercase',
-    fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Bold' : 'sans-serif-medium',
-  },
-  timeDrum: {
-    height: 176,  // shows ~4 items
-    width: '100%',
-  },
-  timeDrumItem: {
-    height: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 10,
-    marginBottom: 2,
-  },
-  timeDrumItemActive: {
-    backgroundColor: '#FF6B35',
-  },
-  timeDrumText: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#64748B',
-    fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Bold' : 'sans-serif-medium',
-  },
-  timeDrumTextActive: {
-    color: '#fff',
-  },
-  timeColon: {
     fontSize: 28,
     fontWeight: '800',
-    color: '#CBD5E1',
-    marginTop: 40,
-    paddingHorizontal: 2,
+    color: '#0F172A',
+    letterSpacing: 1,
+    fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Bold' : 'sans-serif-black',
   },
-  amPmWrap: {
-    alignItems: 'center',
-    justifyContent: 'flex-start',
-    marginTop: 0,
+  amPmInlineButtons: {
+    flexDirection: 'row',
+    gap: 6,
   },
-  amPmButtons: {
-    gap: 8,
-    marginTop: 0,
-  },
-  amPmBtn: {
-    width: 58,
-    height: 44,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
+  amPmInlineBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 10,
     backgroundColor: '#F1F5F9',
     borderWidth: 1.5,
     borderColor: '#E2E8F0',
   },
-  amPmBtnActive: {
+  amPmInlineBtnActive: {
     backgroundColor: '#FF6B35',
     borderColor: '#FF6B35',
   },
-  amPmText: {
-    fontSize: 15,
+  amPmInlineText: {
+    fontSize: 13,
     fontWeight: '800',
     color: '#64748B',
     fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Bold' : 'sans-serif-medium',
   },
-  amPmTextActive: {
+  amPmInlineTextActive: {
     color: '#fff',
   },
-  timePreviewRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginTop: 8,
-    paddingHorizontal: 2,
+  timeRowLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#94A3B8',
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+    marginBottom: 8,
+    fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Bold' : 'sans-serif-medium',
   },
-  timePreviewText: {
-    fontSize: 13,
-    color: '#FF6B35',
-    fontWeight: '600',
-    fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Medium' : 'sans-serif-medium',
+  timeChipRow: {
+    flexDirection: 'row',
+    gap: 8,
+    paddingBottom: 4,
+    paddingRight: 8,
+  },
+  timeChip: {
+    width: 52,
+    height: 48,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#fff',
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
+  },
+  timeChipActive: {
+    backgroundColor: '#FF6B35',
+    borderColor: '#FF6B35',
+    shadowColor: '#FF6B35',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  timeChipText: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#475569',
+    fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Bold' : 'sans-serif-medium',
+  },
+  timeChipTextActive: {
+    color: '#fff',
   },
 });
