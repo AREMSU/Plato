@@ -8,8 +8,10 @@ import {
   Alert,
   ActivityIndicator,
   Image,
+  Platform,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../context/AppContext';
 import {
   formatCurrency,
@@ -74,14 +76,15 @@ export default function BookingScreen({ navigation, route }) {
         paymentMethod === id && styles.paymentOptionActive,
       ]}
       onPress={() => setPaymentMethod(id)}
+      activeOpacity={0.7}
     >
       <View
         style={[
           styles.paymentIconBox,
-          { backgroundColor: color + '20' },
+          { backgroundColor: color + '15' },
         ]}
       >
-        <Text style={styles.paymentIcon}>{icon}</Text>
+        <Ionicons name={icon} size={20} color={color} />
       </View>
       <Text
         style={[
@@ -91,7 +94,7 @@ export default function BookingScreen({ navigation, route }) {
       >
         {name}
       </Text>
-      <View style={styles.radioOuter}>
+      <View style={[styles.radioOuter, paymentMethod === id && styles.radioOuterActive]}>
         {paymentMethod === id && (
           <View style={styles.radioInner} />
         )}
@@ -108,8 +111,12 @@ export default function BookingScreen({ navigation, route }) {
         <TouchableOpacity
           onPress={() => navigation.goBack()}
           style={styles.backButton}
+          activeOpacity={0.8}
         >
-          <Text style={styles.backButtonText}>← Back</Text>
+          <View style={styles.backButtonContent}>
+            <Ionicons name="chevron-back" size={20} color="#fff" />
+            <Text style={styles.backButtonText}>Back</Text>
+          </View>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Confirm Booking</Text>
       </LinearGradient>
@@ -124,7 +131,7 @@ export default function BookingScreen({ navigation, route }) {
             <Image source={{ uri: mealImage }} style={styles.mealImage} />
           ) : (
             <View style={[styles.mealImage, styles.mealImagePlaceholder]}>
-              <Text style={styles.mealImagePlaceholderText}>🍽️</Text>
+              <Ionicons name="restaurant-outline" size={34} color="#FF6B35" />
             </View>
           )}
           <View style={styles.mealInfo}>
@@ -134,12 +141,18 @@ export default function BookingScreen({ navigation, route }) {
             <Text style={styles.mealSeller}>
               by {meal.sellerName}
             </Text>
-            <Text style={styles.mealMeta}>
-              ⏰ {meal.pickupTime}
-            </Text>
-            <Text style={styles.mealMeta} numberOfLines={1}>
-              📍 {meal.pickupLocation}
-            </Text>
+            <View style={styles.metaRow}>
+              <Ionicons name="time-outline" size={13} color="#64748B" style={{ marginRight: 4 }} />
+              <Text style={styles.mealMeta}>
+                {meal.pickupTime}
+              </Text>
+            </View>
+            <View style={styles.metaRow}>
+              <Ionicons name="location-outline" size={13} color="#64748B" style={{ marginRight: 4 }} />
+              <Text style={styles.mealMeta} numberOfLines={1}>
+                {meal.pickupLocation}
+              </Text>
+            </View>
           </View>
         </View>
 
@@ -175,19 +188,19 @@ export default function BookingScreen({ navigation, route }) {
           <PaymentOption
             id="esewa"
             name="eSewa"
-            icon="💚"
+            icon="wallet-outline"
             color="#4CAF50"
           />
           <PaymentOption
             id="khalti"
             name="Khalti"
-            icon="💜"
+            icon="card-outline"
             color="#9C27B0"
           />
           <PaymentOption
             id="cash"
             name="Cash on Pickup"
-            icon="💵"
+            icon="cash-outline"
             color="#FF6B35"
           />
         </View>
@@ -198,9 +211,12 @@ export default function BookingScreen({ navigation, route }) {
             Cancellation Policy
           </Text>
           <View style={styles.policyCard}>
-            <Text style={styles.policyTitle}>
-              ⚠️ 30% Cancellation Fee
-            </Text>
+            <View style={styles.policyHeader}>
+              <Ionicons name="warning-outline" size={16} color="#FF6B35" style={{ marginRight: 6 }} />
+              <Text style={styles.policyTitle}>
+                30% Cancellation Fee
+              </Text>
+            </View>
             <Text style={styles.policyText}>
               If you cancel this booking, you will be charged a
               cancellation fee of{' '}
@@ -214,7 +230,7 @@ export default function BookingScreen({ navigation, route }) {
                 <Text
                   style={[
                     styles.policyRowValue,
-                    { color: '#FF5252' },
+                    { color: '#EF4444' },
                   ]}
                 >
                   -{formatCurrency(cancellationFee)}
@@ -227,7 +243,7 @@ export default function BookingScreen({ navigation, route }) {
                 <Text
                   style={[
                     styles.policyRowValue,
-                    { color: '#4CAF50' },
+                    { color: '#10B981' },
                   ]}
                 >
                   {formatCurrency(refundAmount)}
@@ -252,6 +268,7 @@ export default function BookingScreen({ navigation, route }) {
           style={styles.confirmButton}
           onPress={handleConfirmBooking}
           disabled={loading}
+          activeOpacity={0.85}
         >
           <LinearGradient
             colors={['#FF6B35', '#FF8C42']}
@@ -272,22 +289,29 @@ export default function BookingScreen({ navigation, route }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F5F5F5' },
+  container: { flex: 1, backgroundColor: '#FAF9F6' },
   header: {
     paddingTop: 55,
     paddingBottom: 18,
     paddingHorizontal: 20,
   },
   backButton: { marginBottom: 8 },
+  backButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginLeft: -4,
+  },
   backButtonText: {
     fontSize: 16,
     color: 'rgba(255,255,255,0.9)',
     fontWeight: '600',
+    fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Medium' : 'sans-serif-medium',
   },
   headerTitle: {
     fontSize: 22,
     fontWeight: '800',
     color: '#fff',
+    fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Bold' : 'sans-serif-medium',
   },
   scrollView: { flex: 1 },
   mealCard: {
@@ -296,7 +320,13 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     flexDirection: 'row',
     overflow: 'hidden',
-    elevation: 3,
+    borderWidth: 1,
+    borderColor: '#F0EFEA',
+    shadowColor: '#1E293B',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.04,
+    shadowRadius: 12,
+    elevation: 2,
   },
   mealImage: { width: 110, height: 110, resizeMode: 'cover' },
   mealImagePlaceholder: {
@@ -304,36 +334,49 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  mealImagePlaceholderText: { fontSize: 34 },
   mealInfo: { flex: 1, padding: 14, justifyContent: 'center' },
   mealTitle: {
     fontSize: 16,
-    fontWeight: '700',
-    color: '#1A1A1A',
+    fontWeight: '800',
+    color: '#0F172A',
     marginBottom: 4,
+    fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Bold' : 'sans-serif-medium',
   },
   mealSeller: {
     fontSize: 13,
-    color: '#9E9E9E',
+    color: '#64748B',
     marginBottom: 8,
+    fontFamily: Platform.OS === 'ios' ? 'Avenir Next' : 'sans-serif',
+  },
+  metaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
   },
   mealMeta: {
     fontSize: 12,
-    color: '#757575',
+    color: '#334155',
     fontWeight: '500',
-    marginBottom: 4,
+    fontFamily: Platform.OS === 'ios' ? 'Avenir Next' : 'sans-serif',
   },
   section: { paddingHorizontal: 16, marginBottom: 16 },
   sectionTitle: {
     fontSize: 17,
     fontWeight: '800',
-    color: '#1A1A1A',
+    color: '#0F172A',
     marginBottom: 12,
+    fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Bold' : 'sans-serif-medium',
   },
   summaryCard: {
     backgroundColor: '#fff',
     borderRadius: 16,
     padding: 16,
+    borderWidth: 1,
+    borderColor: '#F0EFEA',
+    shadowColor: '#1E293B',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.04,
+    shadowRadius: 12,
     elevation: 2,
   },
   summaryRow: {
@@ -343,28 +386,32 @@ const styles = StyleSheet.create({
   },
   summaryLabel: {
     fontSize: 15,
-    color: '#616161',
+    color: '#475569',
     fontWeight: '500',
+    fontFamily: Platform.OS === 'ios' ? 'Avenir Next' : 'sans-serif',
   },
   summaryValue: {
     fontSize: 15,
-    color: '#212121',
+    color: '#0F172A',
     fontWeight: '600',
+    fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Medium' : 'sans-serif-medium',
   },
   divider: {
     height: 1,
-    backgroundColor: '#F0F0F0',
+    backgroundColor: '#F1F5F9',
     marginVertical: 8,
   },
   totalLabel: {
     fontSize: 16,
     fontWeight: '800',
-    color: '#1A1A1A',
+    color: '#0F172A',
+    fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Bold' : 'sans-serif-medium',
   },
   totalValue: {
     fontSize: 20,
     fontWeight: '800',
     color: '#FF6B35',
+    fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Bold' : 'sans-serif-medium',
   },
   paymentOption: {
     backgroundColor: '#fff',
@@ -373,8 +420,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 10,
-    borderWidth: 2,
-    borderColor: '#F0F0F0',
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
+    shadowColor: '#1E293B',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.02,
+    shadowRadius: 6,
     elevation: 1,
   },
   paymentOptionActive: {
@@ -389,22 +440,28 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginRight: 14,
   },
-  paymentIcon: { fontSize: 22 },
   paymentName: {
     flex: 1,
     fontSize: 15,
     fontWeight: '600',
-    color: '#424242',
+    color: '#334155',
+    fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Medium' : 'sans-serif-medium',
   },
-  paymentNameActive: { color: '#FF6B35' },
+  paymentNameActive: {
+    color: '#FF6B35',
+    fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Bold' : 'sans-serif-medium',
+  },
   radioOuter: {
     width: 22,
     height: 22,
     borderRadius: 11,
     borderWidth: 2,
-    borderColor: '#FF6B35',
+    borderColor: '#CBD5E1',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  radioOuterActive: {
+    borderColor: '#FF6B35',
   },
   radioInner: {
     width: 12,
@@ -419,23 +476,31 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#FFD5C2',
   },
+  policyHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
   policyTitle: {
     fontSize: 15,
     fontWeight: '700',
     color: '#FF6B35',
-    marginBottom: 10,
+    fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Bold' : 'sans-serif-medium',
   },
   policyText: {
     fontSize: 13,
-    color: '#616161',
+    color: '#475569',
     lineHeight: 20,
     marginBottom: 14,
+    fontFamily: Platform.OS === 'ios' ? 'Avenir Next' : 'sans-serif',
   },
   policyBreakdown: {
     backgroundColor: '#fff',
     borderRadius: 12,
     padding: 12,
     gap: 8,
+    borderWidth: 1,
+    borderColor: '#FFD5C2',
   },
   policyRow: {
     flexDirection: 'row',
@@ -444,10 +509,15 @@ const styles = StyleSheet.create({
   },
   policyRowLabel: {
     fontSize: 13,
-    color: '#757575',
+    color: '#64748B',
     fontWeight: '500',
+    fontFamily: Platform.OS === 'ios' ? 'Avenir Next' : 'sans-serif',
   },
-  policyRowValue: { fontSize: 14, fontWeight: '700' },
+  policyRowValue: {
+    fontSize: 14,
+    fontWeight: '700',
+    fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Bold' : 'sans-serif-medium',
+  },
   bottomBar: {
     position: 'absolute',
     bottom: 0,
@@ -458,21 +528,27 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 20,
     paddingVertical: 14,
-    paddingBottom: 28,
+    paddingBottom: Platform.OS === 'ios' ? 34 : 18,
     borderTopWidth: 1,
-    borderTopColor: '#F0F0F0',
-    elevation: 10,
+    borderTopColor: '#F0EFEA',
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: -8 },
+    shadowOpacity: 0.05,
+    shadowRadius: 16,
+    elevation: 12,
   },
   bottomInfo: { flex: 1 },
   bottomLabel: {
     fontSize: 13,
-    color: '#9E9E9E',
+    color: '#64748B',
     fontWeight: '500',
+    fontFamily: Platform.OS === 'ios' ? 'Avenir Next' : 'sans-serif',
   },
   bottomPrice: {
     fontSize: 22,
     fontWeight: '800',
-    color: '#1A1A1A',
+    color: '#FF6B35',
+    fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Bold' : 'sans-serif-medium',
   },
   confirmButton: { borderRadius: 16, overflow: 'hidden' },
   confirmGradient: {
@@ -484,5 +560,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     color: '#fff',
+    fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Bold' : 'sans-serif-medium',
   },
 });

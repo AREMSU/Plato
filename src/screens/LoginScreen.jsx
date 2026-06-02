@@ -4,6 +4,7 @@ import {
   ScrollView, Alert, KeyboardAvoidingView, Platform, ActivityIndicator,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../context/AppContext';
 
 export default function LoginScreen({ navigation }) {
@@ -53,7 +54,7 @@ const handleLogin = async () => {
       >
         <LinearGradient colors={['#FF6B35', '#FF8C42']} style={styles.header}>
           <View style={styles.logoRow}>
-            <Text style={styles.logoEmoji}>🍽️</Text>
+            <Ionicons name="restaurant" size={36} color="#fff" style={{ marginRight: 8 }} />
             <Text style={styles.logoText}>Plato</Text>
           </View>
           <Text style={styles.headerSubtitle}>Welcome back, student!</Text>
@@ -66,7 +67,7 @@ const handleLogin = async () => {
           <View style={styles.inputGroup}>
             <Text style={styles.inputLabel}>Email Address</Text>
             <View style={[styles.inputWrapper, errors.email && styles.inputError]}>
-              <Text style={styles.inputIcon}>✉️</Text>
+              <Ionicons name="mail-outline" size={20} color="#757575" style={{ marginRight: 10 }} />
               <TextInput
                 style={styles.input}
                 placeholder="your@student.edu"
@@ -84,7 +85,7 @@ const handleLogin = async () => {
           <View style={styles.inputGroup}>
             <Text style={styles.inputLabel}>Password</Text>
             <View style={[styles.inputWrapper, errors.password && styles.inputError]}>
-              <Text style={styles.inputIcon}>🔒</Text>
+              <Ionicons name="lock-closed-outline" size={20} color="#757575" style={{ marginRight: 10 }} />
               <TextInput
                 style={styles.input}
                 placeholder="Enter your password"
@@ -94,7 +95,7 @@ const handleLogin = async () => {
                 secureTextEntry={!showPassword}
               />
               <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-                <Text style={styles.eyeIcon}>{showPassword ? '🙈' : '👁️'}</Text>
+                <Ionicons name={showPassword ? "eye-off-outline" : "eye-outline"} size={20} color="#757575" />
               </TouchableOpacity>
             </View>
             {errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
@@ -126,28 +127,80 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 40, borderBottomRightRadius: 40, alignItems: 'center',
   },
   logoRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
-  logoEmoji: { fontSize: 36, marginRight: 10 },
-  logoText: { fontSize: 36, fontWeight: '800', color: '#fff', letterSpacing: 1 },
-  headerSubtitle: { fontSize: 16, color: 'rgba(255,255,255,0.85)', fontWeight: '500' },
+  logoText: {
+    fontSize: 36,
+    fontWeight: '800',
+    color: '#fff',
+    letterSpacing: 1,
+    fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Bold' : 'sans-serif-medium',
+  },
+  headerSubtitle: {
+    fontSize: 16,
+    color: 'rgba(255,255,255,0.85)',
+    fontWeight: '500',
+    fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Medium' : 'sans-serif',
+  },
   formContainer: { flex: 1, paddingHorizontal: 28, paddingTop: 36, paddingBottom: 30 },
-  formTitle: { fontSize: 26, fontWeight: '800', color: '#1A1A1A', marginBottom: 6 },
-  formSubtitle: { fontSize: 14, color: '#9E9E9E', marginBottom: 28 },
+  formTitle: {
+    fontSize: 26,
+    fontWeight: '800',
+    color: '#1A1A1A',
+    marginBottom: 6,
+    fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Bold' : 'sans-serif-medium',
+  },
+  formSubtitle: {
+    fontSize: 14,
+    color: '#9E9E9E',
+    marginBottom: 28,
+    fontFamily: Platform.OS === 'ios' ? 'Avenir Next' : 'sans-serif',
+  },
   inputGroup: { marginBottom: 18 },
-  inputLabel: { fontSize: 14, fontWeight: '600', color: '#424242', marginBottom: 8 },
+  inputLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#424242',
+    marginBottom: 8,
+    fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Medium' : 'sans-serif-medium',
+  },
   inputWrapper: {
     flexDirection: 'row', alignItems: 'center', borderWidth: 1.5,
     borderColor: '#E0E0E0', borderRadius: 14, paddingHorizontal: 14,
     paddingVertical: 12, backgroundColor: '#FAFAFA',
   },
   inputError: { borderColor: '#FF5252' },
-  inputIcon: { fontSize: 18, marginRight: 10 },
-  eyeIcon: { fontSize: 18 },
-  input: { flex: 1, fontSize: 15, color: '#212121', fontWeight: '500' },
-  errorText: { fontSize: 12, color: '#FF5252', marginTop: 5, marginLeft: 4 },
+  input: {
+    flex: 1,
+    fontSize: 15,
+    color: '#212121',
+    fontWeight: '500',
+    fontFamily: Platform.OS === 'ios' ? 'Avenir Next' : 'sans-serif',
+  },
+  errorText: {
+    fontSize: 12,
+    color: '#FF5252',
+    marginTop: 5,
+    marginLeft: 4,
+    fontFamily: Platform.OS === 'ios' ? 'Avenir Next' : 'sans-serif',
+  },
   loginButton: { borderRadius: 16, overflow: 'hidden', marginTop: 8, elevation: 4 },
   loginGradient: { paddingVertical: 16, alignItems: 'center', borderRadius: 16 },
-  loginText: { fontSize: 17, fontWeight: '700', color: '#fff', letterSpacing: 0.5 },
+  loginText: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#fff',
+    letterSpacing: 0.5,
+    fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Bold' : 'sans-serif-medium',
+  },
   registerRow: { flexDirection: 'row', justifyContent: 'center' },
-  registerText: { fontSize: 15, color: '#757575' },
-  registerLink: { fontSize: 15, color: '#FF6B35', fontWeight: '700' },
+  registerText: {
+    fontSize: 15,
+    color: '#757575',
+    fontFamily: Platform.OS === 'ios' ? 'Avenir Next' : 'sans-serif',
+  },
+  registerLink: {
+    fontSize: 15,
+    color: '#FF6B35',
+    fontWeight: '700',
+    fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Bold' : 'sans-serif-medium',
+  },
 });

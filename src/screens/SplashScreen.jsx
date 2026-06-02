@@ -5,8 +5,10 @@ import {
   StyleSheet,
   Animated,
   Dimensions,
+  Platform,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
 
 const { width, height } = Dimensions.get('window');
 
@@ -51,7 +53,7 @@ export default function SplashScreen() {
         ]}
       >
         <View style={styles.logoCircle}>
-          <Text style={styles.logoEmoji}>🍽️</Text>
+          <Ionicons name="restaurant" size={54} color="#fff" />
         </View>
         <Animated.View style={{ transform: [{ translateY: slideAnim }] }}>
           <Text style={styles.appName}>Plato</Text>
@@ -96,6 +98,7 @@ const styles = StyleSheet.create({
     color: '#fff',
     textAlign: 'center',
     letterSpacing: 2,
+    fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Bold' : 'sans-serif-medium',
   },
   tagline: {
     fontSize: 16,
@@ -104,6 +107,7 @@ const styles = StyleSheet.create({
     marginTop: 6,
     fontWeight: '500',
     letterSpacing: 0.5,
+    fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Medium' : 'sans-serif',
   },
   footer: {
     position: 'absolute',
@@ -114,10 +118,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: 'rgba(255,255,255,0.85)',
     fontWeight: '600',
+    fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Medium' : 'sans-serif-medium',
   },
   footerSubText: {
     fontSize: 13,
     color: 'rgba(255,255,255,0.7)',
     marginTop: 2,
+    fontFamily: Platform.OS === 'ios' ? 'Avenir Next' : 'sans-serif',
   },
 });

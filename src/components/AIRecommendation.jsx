@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../context/AppContext';
 import { formatCurrency } from '../utils/helpers';
 
@@ -12,7 +13,8 @@ export default function AIRecommendation({ navigation }) {
     <View style={styles.container}>
       <View style={styles.header}>
         <LinearGradient colors={['#9C27B0', '#673AB7']} style={styles.aiBadge}>
-          <Text style={styles.aiBadgeText}>⚡ AI Picks</Text>
+          <Ionicons name="flash" size={12} color="#fff" style={{ marginRight: 4 }} />
+          <Text style={styles.aiBadgeText}>AI Picks</Text>
         </LinearGradient>
         <Text style={styles.title}>Recommended for You</Text>
       </View>
@@ -33,7 +35,7 @@ export default function AIRecommendation({ navigation }) {
               <Image source={{ uri: meal.image }} style={styles.cardImage} resizeMode="cover" />
             ) : (
               <View style={[styles.cardImage, styles.cardImagePlaceholder]}>
-                <Text style={styles.cardImagePlaceholderText}>🍽️</Text>
+                <Ionicons name="restaurant-outline" size={36} color="#E1BEE7" />
               </View>
             )}
             <LinearGradient
@@ -42,14 +44,17 @@ export default function AIRecommendation({ navigation }) {
             />
             {meal.isVegetarian && (
               <View style={styles.vegBadge}>
-                <Text style={styles.vegText}>🌱</Text>
+                <Ionicons name="leaf" size={14} color="#fff" />
               </View>
             )}
             <View style={styles.cardContent}>
               <Text style={styles.cardTitle} numberOfLines={1}>{meal.title}</Text>
               <View style={styles.cardMeta}>
                 <Text style={styles.cardPrice}>{formatCurrency(meal.pricePerPortion)}</Text>
-                <Text style={styles.cardRating}>★ {meal.rating}</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <Ionicons name="star" size={12} color="#FFD700" style={{ marginRight: 2 }} />
+                  <Text style={styles.cardRating}>{meal.rating}</Text>
+                </View>
               </View>
             </View>
           </TouchableOpacity>
@@ -57,7 +62,7 @@ export default function AIRecommendation({ navigation }) {
       </ScrollView>
 
       <View style={styles.nudgeBox}>
-        <Text style={styles.nudgeEmoji}>💡</Text>
+        <Ionicons name="bulb-outline" size={20} color="#6A1B9A" />
         <Text style={styles.nudgeText}>
           Based on your campus location and preferences, these meals are perfect for you today!
         </Text>
@@ -69,7 +74,7 @@ export default function AIRecommendation({ navigation }) {
 const styles = StyleSheet.create({
   container: { paddingTop: 16 },
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, marginBottom: 12, gap: 10 },
-  aiBadge: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20 },
+  aiBadge: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20 },
   aiBadgeText: { fontSize: 12, fontWeight: '700', color: '#fff' },
   title: { fontSize: 18, fontWeight: '800', color: '#1A1A1A' },
   scrollContent: { paddingHorizontal: 16, gap: 12 },
@@ -89,7 +94,6 @@ const styles = StyleSheet.create({
     position: 'absolute', top: 10, right: 10, backgroundColor: '#4CAF50',
     width: 28, height: 28, borderRadius: 14, justifyContent: 'center', alignItems: 'center',
   },
-  vegText: { fontSize: 14 },
   cardContent: { position: 'absolute', bottom: 0, left: 0, right: 0, padding: 12 },
   cardTitle: { fontSize: 14, fontWeight: '700', color: '#fff', marginBottom: 6 },
   cardMeta: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
@@ -100,6 +104,5 @@ const styles = StyleSheet.create({
     marginHorizontal: 16, marginTop: 14, borderRadius: 14, padding: 14,
     gap: 10, borderWidth: 1, borderColor: '#E1BEE7',
   },
-  nudgeEmoji: { fontSize: 20 },
   nudgeText: { flex: 1, fontSize: 13, color: '#6A1B9A', lineHeight: 20, fontWeight: '500' },
 });

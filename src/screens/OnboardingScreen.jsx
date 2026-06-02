@@ -7,7 +7,9 @@ import {
   FlatList,
   TouchableOpacity,
   Animated,
+  Platform,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 
 const { width, height } = Dimensions.get('window');
@@ -15,7 +17,7 @@ const { width, height } = Dimensions.get('window');
 const slides = [
   {
     id: '1',
-    emoji: '🍛',
+    icon: 'fast-food-outline',
     title: 'Share Your Meals',
     description:
       'Cook once, share with fellow students. Upload your home-cooked meals and let your campus community enjoy them.',
@@ -23,7 +25,7 @@ const slides = [
   },
   {
     id: '2',
-    emoji: '💰',
+    icon: 'cash-outline',
     title: 'Split the Cost',
     description:
       'Affordable meals for everyone. Split cooking costs fairly and save money on nutritious home-cooked food.',
@@ -31,7 +33,7 @@ const slides = [
   },
   {
     id: '3',
-    emoji: '🤖',
+    icon: 'hardware-chip-outline',
     title: 'AI-Powered Recommendations',
     description:
       'Get personalised meal suggestions based on your preferences, schedule, and dietary needs.',
@@ -39,7 +41,7 @@ const slides = [
   },
   {
     id: '4',
-    emoji: '🌟',
+    icon: 'people-outline',
     title: 'Build Community',
     description:
       'Connect with fellow students through food. Share meals, earn trust, and make campus life better.',
@@ -69,7 +71,7 @@ export default function OnboardingScreen({ navigation }) {
     <LinearGradient colors={item.gradient} style={styles.slide}>
       <View style={styles.slideContent}>
         <View style={styles.emojiContainer}>
-          <Text style={styles.emoji}>{item.emoji}</Text>
+          <Ionicons name={item.icon} size={64} color="#fff" />
         </View>
         <Text style={styles.title}>{item.title}</Text>
         <Text style={styles.description}>{item.description}</Text>
@@ -176,15 +178,13 @@ const styles = StyleSheet.create({
     borderWidth: 3,
     borderColor: 'rgba(255,255,255,0.4)',
   },
-  emoji: {
-    fontSize: 70,
-  },
   title: {
     fontSize: 28,
     fontWeight: '800',
     color: '#fff',
     textAlign: 'center',
     marginBottom: 16,
+    fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Bold' : 'sans-serif-medium',
   },
   description: {
     fontSize: 16,
@@ -192,6 +192,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 24,
     fontWeight: '400',
+    fontFamily: Platform.OS === 'ios' ? 'Avenir Next' : 'sans-serif',
   },
   bottomContainer: {
     flex: 1,
@@ -225,6 +226,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#9E9E9E',
     fontWeight: '600',
+    fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Medium' : 'sans-serif-medium',
   },
   nextButton: {
     borderRadius: 30,
@@ -239,5 +241,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#fff',
     fontWeight: '700',
+    fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Bold' : 'sans-serif-medium',
   },
 });

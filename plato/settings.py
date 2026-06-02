@@ -159,7 +159,7 @@ SIMPLE_JWT = {
 }
 
 CSRF_TRUSTED_ORIGINS = [
-    'https://acquire-ultra-thigh.ngrok-free.dev',
+    'https://lather-moonlit-plasma.ngrok-free.dev',
 ]
 
 # Email configuration for development (using Resend)

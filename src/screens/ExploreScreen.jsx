@@ -6,11 +6,26 @@ import {
   TextInput,
   ScrollView,
   TouchableOpacity,
+  Platform,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../context/AppContext';
 import MealCard from '../components/MealCard';
 import { categories, dietaryFilters } from '../data/mockData';
 import { isMealOwner } from '../utils/helpers';
+
+// Category icons mapping helper
+const getCategoryIcon = (categoryId) => {
+  switch (categoryId) {
+    case 'all': return 'restaurant-outline';
+    case 'Nepali': return 'fast-food-outline';
+    case 'Continental': return 'pizza-outline';
+    case 'Chinese': return 'restaurant-outline';
+    case 'Snacks': return 'cafe-outline';
+    case 'Breakfast': return 'egg-outline';
+    default: return 'restaurant-outline';
+  }
+};
 
 export default function ExploreScreen({ navigation }) {
   const { meals, user } = useApp();
@@ -60,11 +75,11 @@ export default function ExploreScreen({ navigation }) {
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Explore Meals</Text>
         <View style={styles.searchBar}>
-          <Text style={styles.searchIcon}>🔍</Text>
+          <Ionicons name="search" size={18} color="#94A3B8" />
           <TextInput
             style={styles.searchInput}
             placeholder="Search meals, cuisines, tags..."
-            placeholderTextColor="#BDBDBD"
+            placeholderTextColor="#94A3B8"
             value={searchQuery}
             onChangeText={setSearchQuery}
             autoCorrect={false}
@@ -73,7 +88,7 @@ export default function ExploreScreen({ navigation }) {
             <TouchableOpacity
               onPress={() => setSearchQuery('')}
             >
-              <Text style={styles.clearIcon}>✕</Text>
+              <Ionicons name="close-circle" size={18} color="#94A3B8" />
             </TouchableOpacity>
           )}
         </View>
@@ -111,28 +126,33 @@ export default function ExploreScreen({ navigation }) {
           <View style={styles.dividerV} />
 
           {[
-            { id: 'rating', label: '⭐ Rating' },
-            { id: 'price', label: '💰 Price' },
-            { id: 'newest', label: '🕐 Newest' },
-          ].map((s) => (
-            <TouchableOpacity
-              key={s.id}
-              onPress={() => setSortBy(s.id)}
-              style={[
-                styles.filterChip,
-                sortBy === s.id && styles.sortChipActive,
-              ]}
-            >
-              <Text
+            { id: 'rating', label: 'Rating', icon: 'star' },
+            { id: 'price', label: 'Price', icon: 'cash' },
+            { id: 'newest', label: 'Newest', icon: 'time' },
+          ].map((s) => {
+            const isActive = sortBy === s.id;
+            return (
+              <TouchableOpacity
+                key={s.id}
+                onPress={() => setSortBy(s.id)}
                 style={[
-                  styles.filterChipText,
-                  sortBy === s.id && styles.sortChipTextActive,
+                  styles.filterChip,
+                  isActive && styles.sortChipActive,
+                  { flexDirection: 'row', alignItems: 'center', gap: 6 }
                 ]}
               >
-                {s.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
+                <Ionicons name={isActive ? s.icon : `${s.icon}-outline`} size={13} color={isActive ? '#fff' : '#64748B'} />
+                <Text
+                  style={[
+                    styles.filterChipText,
+                    isActive && styles.sortChipTextActive,
+                  ]}
+                >
+                  {s.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
         </ScrollView>
 
         {/* Categories */}
@@ -150,10 +170,13 @@ export default function ExploreScreen({ navigation }) {
                 selectedCategory === cat.id &&
                   styles.categoryChipActive,
               ]}
+              activeOpacity={0.7}
             >
-              <Text style={styles.categoryEmoji}>
-                {cat.icon}
-              </Text>
+              <Ionicons
+                name={getCategoryIcon(cat.id)}
+                size={16}
+                color={selectedCategory === cat.id ? '#fff' : '#64748B'}
+              />
               <Text
                 style={[
                   styles.categoryText,
@@ -178,7 +201,7 @@ export default function ExploreScreen({ navigation }) {
         <View style={styles.mealsList}>
           {sorted.length === 0 ? (
             <View style={styles.emptyState}>
-              <Text style={styles.emptyEmoji}>🔍</Text>
+              <Ionicons name="search-outline" size={50} color="#CBD5E1" style={{ marginBottom: 14 }} />
               <Text style={styles.emptyTitle}>
                 No meals found
               </Text>
@@ -206,42 +229,44 @@ export default function ExploreScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F5F5F5' },
+  container: { flex: 1, backgroundColor: '#FAF9F6' },
   header: {
     backgroundColor: '#fff',
     paddingTop: 55,
     paddingHorizontal: 20,
     paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0EFEA',
+    shadowColor: '#1E293B',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.02,
+    shadowRadius: 8,
     elevation: 2,
   },
   headerTitle: {
     fontSize: 26,
     fontWeight: '800',
-    color: '#1A1A1A',
+    color: '#0F172A',
     marginBottom: 14,
+    fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Bold' : 'sans-serif-medium',
   },
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F5F5F5',
+    backgroundColor: '#F8FAFC',
     borderRadius: 14,
     paddingHorizontal: 14,
     paddingVertical: 12,
     gap: 10,
     borderWidth: 1.5,
-    borderColor: '#E0E0E0',
+    borderColor: '#E2E8F0',
   },
-  searchIcon: { fontSize: 18 },
   searchInput: {
     flex: 1,
     fontSize: 14,
-    color: '#212121',
+    color: '#0F172A',
     fontWeight: '500',
-  },
-  clearIcon: {
-    fontSize: 16,
-    color: '#9E9E9E',
-    fontWeight: '700',
+    fontFamily: Platform.OS === 'ios' ? 'Avenir Next' : 'sans-serif',
   },
   filtersRow: {
     paddingHorizontal: 16,
@@ -255,27 +280,28 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     backgroundColor: '#fff',
     borderWidth: 1.5,
-    borderColor: '#E0E0E0',
+    borderColor: '#E2E8F0',
   },
   filterChipActive: {
     backgroundColor: '#FF6B35',
     borderColor: '#FF6B35',
   },
   sortChipActive: {
-    backgroundColor: '#2196F3',
-    borderColor: '#2196F3',
+    backgroundColor: '#FF6B35',
+    borderColor: '#FF6B35',
   },
   filterChipText: {
     fontSize: 13,
-    color: '#757575',
+    color: '#64748B',
     fontWeight: '600',
+    fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Medium' : 'sans-serif-medium',
   },
   filterChipTextActive: { color: '#fff' },
   sortChipTextActive: { color: '#fff' },
   dividerV: {
     width: 1.5,
     height: 24,
-    backgroundColor: '#E0E0E0',
+    backgroundColor: '#E2E8F0',
     marginHorizontal: 4,
   },
   categoriesContainer: {
@@ -291,37 +317,42 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     backgroundColor: '#fff',
     borderWidth: 1.5,
-    borderColor: '#E0E0E0',
+    borderColor: '#E2E8F0',
     gap: 6,
   },
   categoryChipActive: {
     backgroundColor: '#FF6B35',
     borderColor: '#FF6B35',
   },
-  categoryEmoji: { fontSize: 16 },
   categoryText: {
     fontSize: 13,
-    color: '#757575',
+    color: '#64748B',
     fontWeight: '600',
+    fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Medium' : 'sans-serif-medium',
   },
   categoryTextActive: { color: '#fff' },
   resultsRow: { paddingHorizontal: 20, paddingBottom: 8 },
   resultsText: {
     fontSize: 14,
-    color: '#9E9E9E',
+    color: '#94A3B8',
     fontWeight: '600',
+    fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Medium' : 'sans-serif-medium',
   },
   mealsList: { paddingHorizontal: 16 },
   emptyState: {
     alignItems: 'center',
     paddingVertical: 60,
   },
-  emptyEmoji: { fontSize: 50, marginBottom: 14 },
   emptyTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#424242',
+    color: '#0F172A',
     marginBottom: 6,
+    fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Bold' : 'sans-serif-medium',
   },
-  emptySubtitle: { fontSize: 14, color: '#9E9E9E' },
+  emptySubtitle: {
+    fontSize: 14,
+    color: '#64748B',
+    fontFamily: Platform.OS === 'ios' ? 'Avenir Next' : 'sans-serif',
+  },
 });

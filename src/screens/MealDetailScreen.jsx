@@ -8,8 +8,10 @@ import {
   Image,
   Dimensions,
   Alert,
+  Platform,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../context/AppContext';
 import {
   formatCurrency,
@@ -17,12 +19,13 @@ import {
   formatDate,
 } from '../utils/helpers';
 import RatingStars from '../components/RatingStars';
+import UserAvatar from '../components/UserAvatar';
 
 const { width } = Dimensions.get('window');
 
 export default function MealDetailScreen({ navigation, route }) {
   const { meal } = route.params;
-  const { user, bookMeal } = useApp();
+  const { user } = useApp();
   const [portions, setPortions] = useState(1);
 
   const badge = getReliabilityBadge(meal.sellerRating);
@@ -61,24 +64,26 @@ export default function MealDetailScreen({ navigation, route }) {
             <Image source={{ uri: mealImage }} style={styles.mealImage} />
           ) : (
             <View style={[styles.mealImage, styles.mealImagePlaceholder]}>
-              <Text style={styles.mealImagePlaceholderText}>🍽️</Text>
+              <Ionicons name="restaurant-outline" size={48} color="#FF6B35" />
             </View>
           )}
           <LinearGradient
-            colors={['transparent', 'rgba(0,0,0,0.6)']}
+            colors={['transparent', 'rgba(15,23,42,0.85)']}
             style={styles.imageOverlay}
           />
           <TouchableOpacity
             style={styles.backButton}
             onPress={() => navigation.goBack()}
+            activeOpacity={0.8}
           >
-            <Text style={styles.backButtonText}>←</Text>
+            <Ionicons name="chevron-back" size={24} color="#fff" />
           </TouchableOpacity>
 
           <View style={styles.imageBadges}>
             {meal.isVegetarian && (
               <View style={styles.vegBadge}>
-                <Text style={styles.vegBadgeText}>🌱 Veg</Text>
+                <Ionicons name="leaf" size={12} color="#fff" style={{ marginRight: 4 }} />
+                <Text style={styles.vegBadgeText}>Veg</Text>
               </View>
             )}
             <View style={styles.categoryBadge}>
@@ -113,7 +118,7 @@ export default function MealDetailScreen({ navigation, route }) {
           {/* Nutrition */}
           <View style={styles.nutritionRow}>
             <View style={styles.nutritionItem}>
-              <Text style={styles.nutritionEmoji}>🔥</Text>
+              <Ionicons name="flame-outline" size={20} color="#FF6B35" style={{ marginBottom: 4 }} />
               <Text style={styles.nutritionValue}>
                 {meal.calories}
               </Text>
@@ -121,7 +126,7 @@ export default function MealDetailScreen({ navigation, route }) {
             </View>
             <View style={styles.nutritionDivider} />
             <View style={styles.nutritionItem}>
-              <Text style={styles.nutritionEmoji}>💪</Text>
+              <Ionicons name="barbell-outline" size={20} color="#FF6B35" style={{ marginBottom: 4 }} />
               <Text style={styles.nutritionValue}>
                 {meal.protein}g
               </Text>
@@ -129,7 +134,7 @@ export default function MealDetailScreen({ navigation, route }) {
             </View>
             <View style={styles.nutritionDivider} />
             <View style={styles.nutritionItem}>
-              <Text style={styles.nutritionEmoji}>🍽️</Text>
+              <Ionicons name="restaurant-outline" size={20} color="#FF6B35" style={{ marginBottom: 4 }} />
               <Text style={styles.nutritionValue}>
                 {meal.availablePortions}
               </Text>
@@ -154,8 +159,8 @@ export default function MealDetailScreen({ navigation, route }) {
           <Text style={styles.sectionTitle}>Meal Details</Text>
           <View style={styles.infoCard}>
             <View style={styles.infoRow}>
-              <View style={[styles.infoIconBox, { backgroundColor: '#FF6B3520' }]}>
-                <Text style={styles.infoIcon}>⏰</Text>
+              <View style={[styles.infoIconBox, { backgroundColor: '#FF6B3515' }]}>
+                <Ionicons name="time-outline" size={18} color="#FF6B35" />
               </View>
               <View>
                 <Text style={styles.infoLabel}>Pickup Time</Text>
@@ -165,8 +170,8 @@ export default function MealDetailScreen({ navigation, route }) {
               </View>
             </View>
             <View style={styles.infoRow}>
-              <View style={[styles.infoIconBox, { backgroundColor: '#2196F320' }]}>
-                <Text style={styles.infoIcon}>📍</Text>
+              <View style={[styles.infoIconBox, { backgroundColor: '#2196F315' }]}>
+                <Ionicons name="location-outline" size={18} color="#2196F3" />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.infoLabel}>
@@ -178,8 +183,8 @@ export default function MealDetailScreen({ navigation, route }) {
               </View>
             </View>
             <View style={styles.infoRow}>
-              <View style={[styles.infoIconBox, { backgroundColor: '#9C27B020' }]}>
-                <Text style={styles.infoIcon}>📅</Text>
+              <View style={[styles.infoIconBox, { backgroundColor: '#9C27B015' }]}>
+                <Ionicons name="calendar-outline" size={18} color="#9C27B0" />
               </View>
               <View>
                 <Text style={styles.infoLabel}>Meal Date</Text>
@@ -193,13 +198,7 @@ export default function MealDetailScreen({ navigation, route }) {
           {/* Seller Info */}
           <Text style={styles.sectionTitle}>About the Cook</Text>
           <View style={styles.sellerCard}>
-            {sellerAvatar ? (
-              <Image source={{ uri: sellerAvatar }} style={styles.sellerAvatar} />
-            ) : (
-              <View style={[styles.sellerAvatar, styles.sellerAvatarPlaceholder]}>
-                <Text style={styles.sellerAvatarPlaceholderText}>👤</Text>
-              </View>
-            )}
+            <UserAvatar uri={sellerAvatar} name={meal.sellerName} size={52} borderWidth={0} />
             <View style={styles.sellerInfo}>
               <Text style={styles.sellerName}>
                 {meal.sellerName}
@@ -208,7 +207,7 @@ export default function MealDetailScreen({ navigation, route }) {
                 <View
                   style={[
                     styles.badge,
-                    { backgroundColor: badge.color + '20' },
+                    { backgroundColor: badge.color + '15' },
                   ]}
                 >
                   <Text
@@ -220,9 +219,12 @@ export default function MealDetailScreen({ navigation, route }) {
                     {badge.label}
                   </Text>
                 </View>
-                <Text style={styles.sellerRatingText}>
-                  ★ {meal.sellerRating}
-                </Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <Ionicons name="star" size={14} color="#FFB300" style={{ marginRight: 4 }} />
+                  <Text style={styles.sellerRatingText}>
+                    {meal.sellerRating}
+                  </Text>
+                </View>
               </View>
             </View>
           </View>
@@ -240,15 +242,13 @@ export default function MealDetailScreen({ navigation, route }) {
                     styles.portionBtn,
                     portions === 1 && styles.portionBtnDisabled,
                   ]}
+                  activeOpacity={0.7}
                 >
-                  <Text
-                    style={[
-                      styles.portionBtnText,
-                      portions === 1 && styles.portionBtnTextDisabled,
-                    ]}
-                  >
-                    −
-                  </Text>
+                  <Ionicons
+                    name="remove-outline"
+                    size={22}
+                    color={portions === 1 ? '#BDBDBD' : '#FF6B35'}
+                  />
                 </TouchableOpacity>
                 <View style={styles.portionCount}>
                   <Text style={styles.portionNumber}>
@@ -265,16 +265,13 @@ export default function MealDetailScreen({ navigation, route }) {
                     portions >= meal.availablePortions &&
                       styles.portionBtnDisabled,
                   ]}
+                  activeOpacity={0.7}
                 >
-                  <Text
-                    style={[
-                      styles.portionBtnText,
-                      portions >= meal.availablePortions &&
-                        styles.portionBtnTextDisabled,
-                    ]}
-                  >
-                    ＋
-                  </Text>
+                  <Ionicons
+                    name="add-outline"
+                    size={22}
+                    color={portions >= meal.availablePortions ? '#BDBDBD' : '#FF6B35'}
+                  />
                 </TouchableOpacity>
                 <View style={styles.portionTotal}>
                   <Text style={styles.portionTotalLabel}>
@@ -309,6 +306,7 @@ export default function MealDetailScreen({ navigation, route }) {
             ]}
             onPress={handleBook}
             disabled={meal.availablePortions === 0}
+            activeOpacity={0.85}
           >
             <LinearGradient
               colors={
@@ -329,8 +327,9 @@ export default function MealDetailScreen({ navigation, route }) {
       ) : (
         <View style={styles.bottomBar}>
           <View style={styles.ownerNote}>
+            <Ionicons name="information-circle-outline" size={20} color="#FF6B35" style={{ marginRight: 6 }} />
             <Text style={styles.ownerNoteText}>
-              ℹ️ This is your meal listing
+              This is your meal listing
             </Text>
           </View>
         </View>
@@ -340,7 +339,7 @@ export default function MealDetailScreen({ navigation, route }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F5F5F5' },
+  container: { flex: 1, backgroundColor: '#FAF9F6' },
   imageContainer: { position: 'relative' },
   mealImage: { width, height: 280, resizeMode: 'cover' },
   mealImagePlaceholder: {
@@ -348,7 +347,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  mealImagePlaceholderText: { fontSize: 48 },
   imageOverlay: {
     position: 'absolute',
     bottom: 0,
@@ -363,14 +361,9 @@ const styles = StyleSheet.create({
     width: 42,
     height: 42,
     borderRadius: 21,
-    backgroundColor: 'rgba(0,0,0,0.4)',
+    backgroundColor: 'rgba(15,23,42,0.45)',
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  backButtonText: {
-    fontSize: 22,
-    color: '#fff',
-    fontWeight: '700',
   },
   imageBadges: {
     position: 'absolute',
@@ -382,27 +375,31 @@ const styles = StyleSheet.create({
   vegBadge: {
     backgroundColor: '#4CAF50',
     paddingHorizontal: 12,
-    paddingVertical: 5,
+    paddingVertical: 6,
     borderRadius: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   vegBadgeText: {
     color: '#fff',
     fontSize: 12,
     fontWeight: '700',
+    fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Bold' : 'sans-serif-medium',
   },
   categoryBadge: {
-    backgroundColor: 'rgba(255,255,255,0.9)',
+    backgroundColor: 'rgba(255,255,255,0.95)',
     paddingHorizontal: 12,
-    paddingVertical: 5,
+    paddingVertical: 6,
     borderRadius: 20,
   },
   categoryBadgeText: {
     color: '#FF6B35',
     fontSize: 12,
     fontWeight: '700',
+    fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Bold' : 'sans-serif-medium',
   },
   content: {
-    backgroundColor: '#fff',
+    backgroundColor: '#FAF9F6',
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
     marginTop: -24,
@@ -419,8 +416,9 @@ const styles = StyleSheet.create({
   mealTitle: {
     fontSize: 22,
     fontWeight: '800',
-    color: '#1A1A1A',
+    color: '#0F172A',
     marginBottom: 6,
+    fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Bold' : 'sans-serif-medium',
   },
   ratingRow: {
     flexDirection: 'row',
@@ -429,8 +427,9 @@ const styles = StyleSheet.create({
   },
   ratingText: {
     fontSize: 13,
-    color: '#757575',
+    color: '#64748B',
     fontWeight: '500',
+    fontFamily: Platform.OS === 'ios' ? 'Avenir Next' : 'sans-serif',
   },
   priceBox: {
     backgroundColor: '#FF6B35',
@@ -443,11 +442,13 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: 'rgba(255,255,255,0.8)',
     fontWeight: '500',
+    fontFamily: Platform.OS === 'ios' ? 'Avenir Next' : 'sans-serif',
   },
   priceValue: {
     fontSize: 18,
     color: '#fff',
     fontWeight: '800',
+    fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Bold' : 'sans-serif-medium',
   },
   nutritionRow: {
     flexDirection: 'row',
@@ -457,19 +458,27 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     borderWidth: 1,
     borderColor: '#FFE8DC',
+    shadowColor: '#1E293B',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.02,
+    shadowRadius: 8,
+    elevation: 1,
   },
   nutritionItem: { flex: 1, alignItems: 'center' },
-  nutritionEmoji: { fontSize: 20, marginBottom: 4 },
   nutritionValue: {
     fontSize: 18,
     fontWeight: '800',
-    color: '#1A1A1A',
+    color: '#0F172A',
+    fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Bold' : 'sans-serif-medium',
   },
   nutritionLabel: {
     fontSize: 11,
-    color: '#9E9E9E',
+    color: '#64748B',
     marginTop: 2,
-    fontWeight: '500',
+    fontWeight: '600',
+    fontFamily: Platform.OS === 'ios' ? 'Avenir Next' : 'sans-serif',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   nutritionDivider: {
     width: 1,
@@ -479,15 +488,17 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 17,
     fontWeight: '800',
-    color: '#1A1A1A',
+    color: '#0F172A',
     marginBottom: 12,
     marginTop: 4,
+    fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Bold' : 'sans-serif-medium',
   },
   description: {
     fontSize: 15,
-    color: '#616161',
+    color: '#334155',
     lineHeight: 23,
     marginBottom: 14,
+    fontFamily: Platform.OS === 'ios' ? 'Avenir Next' : 'sans-serif',
   },
   tagsRow: {
     flexDirection: 'row',
@@ -507,15 +518,21 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#FF6B35',
     fontWeight: '600',
+    fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Medium' : 'sans-serif-medium',
   },
   infoCard: {
-    backgroundColor: '#FAFAFA',
+    backgroundColor: '#FFFFFF',
     borderRadius: 16,
     padding: 16,
     marginBottom: 20,
     gap: 14,
     borderWidth: 1,
-    borderColor: '#F0F0F0',
+    borderColor: '#F0EFEA',
+    shadowColor: '#1E293B',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.04,
+    shadowRadius: 12,
+    elevation: 2,
   },
   infoRow: {
     flexDirection: 'row',
@@ -529,42 +546,42 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  infoIcon: { fontSize: 18 },
   infoLabel: {
     fontSize: 12,
-    color: '#9E9E9E',
+    color: '#64748B',
     fontWeight: '500',
+    fontFamily: Platform.OS === 'ios' ? 'Avenir Next' : 'sans-serif',
   },
   infoValue: {
     fontSize: 14,
-    color: '#212121',
+    color: '#0F172A',
     fontWeight: '700',
     marginTop: 1,
+    fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Bold' : 'sans-serif-medium',
   },
   sellerCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FAFAFA',
+    backgroundColor: '#FFFFFF',
     borderRadius: 16,
     padding: 16,
     marginBottom: 22,
     gap: 14,
     borderWidth: 1,
-    borderColor: '#F0F0F0',
+    borderColor: '#F0EFEA',
+    shadowColor: '#1E293B',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.04,
+    shadowRadius: 12,
+    elevation: 2,
   },
-  sellerAvatar: { width: 52, height: 52, borderRadius: 26 },
-  sellerAvatarPlaceholder: {
-    backgroundColor: '#F0F0F0',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  sellerAvatarPlaceholderText: { fontSize: 18 },
   sellerInfo: { flex: 1 },
   sellerName: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#1A1A1A',
-    marginBottom: 6,
+    color: '#0F172A',
+    marginBottom: 4,
+    fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Bold' : 'sans-serif-medium',
   },
   sellerMeta: {
     flexDirection: 'row',
@@ -576,21 +593,31 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: 12,
   },
-  badgeText: { fontSize: 12, fontWeight: '700' },
+  badgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Bold' : 'sans-serif-medium',
+  },
   sellerRatingText: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#FFC107',
+    color: '#0F172A',
+    fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Bold' : 'sans-serif-medium',
   },
   portionSelector: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FAFAFA',
+    backgroundColor: '#FFFFFF',
     borderRadius: 16,
     padding: 16,
     gap: 16,
     borderWidth: 1,
-    borderColor: '#F0F0F0',
+    borderColor: '#F0EFEA',
+    shadowColor: '#1E293B',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.04,
+    shadowRadius: 12,
+    elevation: 2,
     marginBottom: 22,
   },
   portionBtn: {
@@ -600,39 +627,43 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 2,
+    borderWidth: 1.5,
     borderColor: '#FF6B35',
+    shadowColor: '#FF6B35',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
     elevation: 2,
   },
-  portionBtnDisabled: { borderColor: '#E0E0E0' },
-  portionBtnText: {
-    fontSize: 24,
-    color: '#FF6B35',
-    fontWeight: '700',
-    lineHeight: 28,
+  portionBtnDisabled: {
+    borderColor: '#E2E8F0',
+    elevation: 0,
   },
-  portionBtnTextDisabled: { color: '#BDBDBD' },
   portionCount: { alignItems: 'center', flex: 1 },
   portionNumber: {
     fontSize: 28,
     fontWeight: '800',
     color: '#FF6B35',
+    fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Bold' : 'sans-serif-medium',
   },
   portionLabel: {
     fontSize: 12,
-    color: '#9E9E9E',
+    color: '#64748B',
     fontWeight: '500',
+    fontFamily: Platform.OS === 'ios' ? 'Avenir Next' : 'sans-serif',
   },
   portionTotal: { alignItems: 'flex-end' },
   portionTotalLabel: {
     fontSize: 12,
-    color: '#9E9E9E',
+    color: '#64748B',
     fontWeight: '500',
+    fontFamily: Platform.OS === 'ios' ? 'Avenir Next' : 'sans-serif',
   },
   portionTotalValue: {
     fontSize: 18,
     fontWeight: '800',
-    color: '#1A1A1A',
+    color: '#0F172A',
+    fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Bold' : 'sans-serif-medium',
   },
   bottomBar: {
     position: 'absolute',
@@ -644,21 +675,27 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 20,
     paddingVertical: 14,
-    paddingBottom: 28,
+    paddingBottom: Platform.OS === 'ios' ? 34 : 18,
     borderTopWidth: 1,
-    borderTopColor: '#F0F0F0',
-    elevation: 10,
+    borderTopColor: '#F0EFEA',
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: -8 },
+    shadowOpacity: 0.05,
+    shadowRadius: 16,
+    elevation: 12,
   },
   bottomInfo: { flex: 1 },
   bottomLabel: {
     fontSize: 13,
-    color: '#9E9E9E',
+    color: '#64748B',
     fontWeight: '500',
+    fontFamily: Platform.OS === 'ios' ? 'Avenir Next' : 'sans-serif',
   },
   bottomPrice: {
     fontSize: 22,
     fontWeight: '800',
-    color: '#1A1A1A',
+    color: '#FF6B35',
+    fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Bold' : 'sans-serif-medium',
   },
   bookButton: { borderRadius: 16, overflow: 'hidden' },
   bookButtonDisabled: { opacity: 0.7 },
@@ -671,9 +708,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     color: '#fff',
+    fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Bold' : 'sans-serif-medium',
   },
   ownerNote: {
     flex: 1,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -681,5 +720,6 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: '#FF6B35',
     fontWeight: '600',
+    fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Bold' : 'sans-serif-medium',
   },
 });

@@ -2,6 +2,7 @@ import React from 'react';
 import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { View, Text, StyleSheet } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../context/AppContext';
 import OnboardingScreen from '../screens/OnboardingScreen';
 import LoginScreen from '../screens/LoginScreen';
@@ -22,20 +23,19 @@ const GRAY = '#9E9E9E';
 
 function TabIcon({ name, focused }) {
   const icons = {
-    Home: focused ? '🏠' : '🏡',
-    Explore: focused ? '🔍' : '🔎',
-    Add: '➕',
-    MyMeals: focused ? '📋' : '📄',
-    Profile: focused ? '👤' : '👥',
+    Home: focused ? 'home' : 'home-outline',
+    Explore: focused ? 'search' : 'search-outline',
+    MyMeals: focused ? 'receipt' : 'receipt-outline',
+    Profile: focused ? 'person' : 'person-outline',
   };
   if (name === 'Add') {
     return (
       <View style={styles.addButton}>
-        <Text style={styles.addButtonText}>＋</Text>
+        <Ionicons name="add" size={28} color="#fff" />
       </View>
     );
   }
-  return <Text style={{ fontSize: 22 }}>{icons[name]}</Text>;
+  return <Ionicons name={icons[name]} size={24} color={focused ? ORANGE : GRAY} />;
 }
 
 function MainTabs() {

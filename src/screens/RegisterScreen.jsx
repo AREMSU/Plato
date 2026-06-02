@@ -4,6 +4,7 @@ import {
   ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator, Alert,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../context/AppContext';
 import apiCall from '../api/client';
 
@@ -57,11 +58,11 @@ export default function RegisterScreen({ navigation }) {
 };
 
   const fields = [
-    { key: 'name', label: 'Full Name', icon: '👤', placeholder: 'Your full name' },
-    { key: 'email', label: 'Email Address', icon: '✉️', placeholder: 'your@student.edu', keyboardType: 'email-address' },
-    { key: 'university', label: 'University / College', icon: '🎓', placeholder: 'e.g. Kathmandu University' },
-    { key: 'password', label: 'Password', icon: '🔒', placeholder: 'Create a password', secure: true },
-    { key: 'confirmPassword', label: 'Confirm Password', icon: '🔒', placeholder: 'Repeat your password', secure: true },
+    { key: 'name', label: 'Full Name', icon: 'person-outline', placeholder: 'Your full name' },
+    { key: 'email', label: 'Email Address', icon: 'mail-outline', placeholder: 'your@student.edu', keyboardType: 'email-address' },
+    { key: 'university', label: 'University / College', icon: 'school-outline', placeholder: 'e.g. Kathmandu University' },
+    { key: 'password', label: 'Password', icon: 'lock-closed-outline', placeholder: 'Create a password', secure: true },
+    { key: 'confirmPassword', label: 'Confirm Password', icon: 'lock-closed-outline', placeholder: 'Repeat your password', secure: true },
   ];
 
   return (
@@ -80,7 +81,7 @@ export default function RegisterScreen({ navigation }) {
             <View key={field.key} style={styles.inputGroup}>
               <Text style={styles.inputLabel}>{field.label}</Text>
               <View style={[styles.inputWrapper, errors[field.key] && styles.inputError]}>
-                <Text style={styles.inputIcon}>{field.icon}</Text>
+                <Ionicons name={field.icon} size={20} color="#757575" style={{ marginRight: 10 }} />
                 <TextInput
                   style={styles.input}
                   placeholder={field.placeholder}
@@ -94,7 +95,7 @@ export default function RegisterScreen({ navigation }) {
                 />
                 {field.secure && (
                   <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-                    <Text style={styles.eyeIcon}>{showPassword ? '🙈' : '👁️'}</Text>
+                    <Ionicons name={showPassword ? "eye-off-outline" : "eye-outline"} size={20} color="#757575" />
                   </TouchableOpacity>
                 )}
               </View>
@@ -125,26 +126,73 @@ const styles = StyleSheet.create({
   scrollContent: { flexGrow: 1 },
   header: { paddingTop: 60, paddingBottom: 40, paddingHorizontal: 28, borderBottomLeftRadius: 40, borderBottomRightRadius: 40 },
   backButton: { marginBottom: 16 },
-  backButtonText: { fontSize: 16, color: 'rgba(255,255,255,0.9)', fontWeight: '600' },
-  headerTitle: { fontSize: 28, fontWeight: '800', color: '#fff', marginBottom: 6 },
-  headerSubtitle: { fontSize: 15, color: 'rgba(255,255,255,0.85)', fontWeight: '500' },
+  backButtonText: {
+    fontSize: 16,
+    color: 'rgba(255,255,255,0.9)',
+    fontWeight: '600',
+    fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Medium' : 'sans-serif-medium',
+  },
+  headerTitle: {
+    fontSize: 28,
+    fontWeight: '800',
+    color: '#fff',
+    marginBottom: 6,
+    fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Bold' : 'sans-serif-medium',
+  },
+  headerSubtitle: {
+    fontSize: 15,
+    color: 'rgba(255,255,255,0.85)',
+    fontWeight: '500',
+    fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Medium' : 'sans-serif',
+  },
   formContainer: { paddingHorizontal: 28, paddingTop: 28, paddingBottom: 40 },
   inputGroup: { marginBottom: 16 },
-  inputLabel: { fontSize: 14, fontWeight: '600', color: '#424242', marginBottom: 8 },
+  inputLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#424242',
+    marginBottom: 8,
+    fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Medium' : 'sans-serif-medium',
+  },
   inputWrapper: {
     flexDirection: 'row', alignItems: 'center', borderWidth: 1.5,
     borderColor: '#E0E0E0', borderRadius: 14, paddingHorizontal: 14,
     paddingVertical: 12, backgroundColor: '#FAFAFA',
   },
   inputError: { borderColor: '#FF5252' },
-  inputIcon: { fontSize: 18, marginRight: 10 },
-  eyeIcon: { fontSize: 18 },
-  input: { flex: 1, fontSize: 15, color: '#212121', fontWeight: '500' },
-  errorText: { fontSize: 12, color: '#FF5252', marginTop: 5, marginLeft: 4 },
+  input: {
+    flex: 1,
+    fontSize: 15,
+    color: '#212121',
+    fontWeight: '500',
+    fontFamily: Platform.OS === 'ios' ? 'Avenir Next' : 'sans-serif',
+  },
+  errorText: {
+    fontSize: 12,
+    color: '#FF5252',
+    marginTop: 5,
+    marginLeft: 4,
+    fontFamily: Platform.OS === 'ios' ? 'Avenir Next' : 'sans-serif',
+  },
   registerButton: { borderRadius: 16, overflow: 'hidden', elevation: 4, marginTop: 8 },
   registerGradient: { paddingVertical: 16, alignItems: 'center', borderRadius: 16 },
-  registerText: { fontSize: 17, fontWeight: '700', color: '#fff', letterSpacing: 0.5 },
+  registerText: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#fff',
+    letterSpacing: 0.5,
+    fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Bold' : 'sans-serif-medium',
+  },
   loginRow: { flexDirection: 'row', justifyContent: 'center', marginTop: 22 },
-  loginText: { fontSize: 15, color: '#757575' },
-  loginLink: { fontSize: 15, color: '#FF6B35', fontWeight: '700' },
+  loginText: {
+    fontSize: 15,
+    color: '#757575',
+    fontFamily: Platform.OS === 'ios' ? 'Avenir Next' : 'sans-serif',
+  },
+  loginLink: {
+    fontSize: 15,
+    color: '#FF6B35',
+    fontWeight: '700',
+    fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Bold' : 'sans-serif-medium',
+  },
 });

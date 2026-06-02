@@ -15,6 +15,7 @@ import {
   Keyboard,
   Platform,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useApp } from '../context/AppContext';
 import {
@@ -110,7 +111,7 @@ export default function MyMealsScreen({ navigation, route }) {
         <Image source={{ uri: booking.meal.image }} style={styles.bookingImage} />
       ) : (
         <View style={[styles.bookingImage, styles.bookingImagePlaceholder]}>
-          <Text style={styles.bookingImagePlaceholderText}>🍽️</Text>
+          <Ionicons name="restaurant-outline" size={32} color="#FF6B35" />
         </View>
       )}
       <View style={styles.bookingInfo}>
@@ -126,9 +127,17 @@ export default function MyMealsScreen({ navigation, route }) {
                   booking.status === 'confirmed'
                     ? '#4CAF5020'
                     : '#FF525220',
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 4,
               },
             ]}
           >
+            <Ionicons
+              name={booking.status === 'confirmed' ? "checkmark-circle" : "close-circle"}
+              size={12}
+              color={booking.status === 'confirmed' ? '#4CAF50' : '#FF5252'}
+            />
             <Text
               style={[
                 styles.statusText,
@@ -140,9 +149,7 @@ export default function MyMealsScreen({ navigation, route }) {
                 },
               ]}
             >
-              {booking.status === 'confirmed'
-                ? '✓ Confirmed'
-                : '✗ Cancelled'}
+              {booking.status === 'confirmed' ? 'Confirmed' : 'Cancelled'}
             </Text>
           </View>
         </View>
@@ -152,10 +159,10 @@ export default function MyMealsScreen({ navigation, route }) {
           {formatCurrency(booking.totalCost)}
         </Text>
         <Text style={styles.bookingDetail}>
-          ⏰ {booking.meal.pickupTime}
+          <Ionicons name="time-outline" size={13} color="#757575" /> {booking.meal.pickupTime}
         </Text>
         <Text style={styles.bookingDetail} numberOfLines={1}>
-          📍 {booking.meal.pickupLocation}
+          <Ionicons name="location-outline" size={13} color="#757575" /> {booking.meal.pickupLocation}
         </Text>
         {booking.status === 'confirmed' && (
           <TouchableOpacity
@@ -188,7 +195,7 @@ export default function MyMealsScreen({ navigation, route }) {
         <Image source={{ uri: meal.image }} style={styles.myMealImage} />
       ) : (
         <View style={[styles.myMealImage, styles.myMealImagePlaceholder]}>
-          <Text style={styles.myMealImagePlaceholderText}>🍽️</Text>
+          <Ionicons name="restaurant-outline" size={26} color="#FF6B35" />
         </View>
       )}
       <View style={styles.myMealInfo}>
@@ -200,10 +207,10 @@ export default function MyMealsScreen({ navigation, route }) {
         </Text>
         <View style={styles.myMealStats}>
           <Text style={styles.myMealStat}>
-            👥 {meal.bookings} booked
+            <Ionicons name="people-outline" size={13} color="#757575" /> {meal.bookings} booked
           </Text>
           <Text style={styles.myMealStat}>
-            🍽️ {meal.availablePortions} left
+            <Ionicons name="restaurant-outline" size={12} color="#757575" /> {meal.availablePortions} left
           </Text>
         </View>
       </View>
@@ -266,7 +273,7 @@ export default function MyMealsScreen({ navigation, route }) {
           <>
             {bookings.length === 0 ? (
               <View style={styles.emptyState}>
-                <Text style={styles.emptyEmoji}>📋</Text>
+                <Ionicons name="receipt-outline" size={52} color="#BDBDBD" style={{ marginBottom: 14 }} />
                 <Text style={styles.emptyTitle}>
                   No bookings yet
                 </Text>
@@ -321,7 +328,7 @@ export default function MyMealsScreen({ navigation, route }) {
           <>
             {myMeals.length === 0 ? (
               <View style={styles.emptyState}>
-                <Text style={styles.emptyEmoji}>🍳</Text>
+                <Ionicons name="restaurant-outline" size={52} color="#BDBDBD" style={{ marginBottom: 14 }} />
                 <Text style={styles.emptyTitle}>
                   No meals listed yet
                 </Text>
@@ -358,7 +365,12 @@ export default function MyMealsScreen({ navigation, route }) {
         <View style={{ height: 100 }} />
       </ScrollView>
 
-      <Modal visible={reviewModalVisible} animationType="slide" transparent>
+      <Modal
+        visible={reviewModalVisible}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setReviewModalVisible(false)}
+      >
         <KeyboardAvoidingView
           style={styles.modalOverlay}
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -367,9 +379,9 @@ export default function MyMealsScreen({ navigation, route }) {
             <View style={styles.modalOverlayInner}>
               <View style={styles.modalContainer}>
                 <View style={styles.modalHeader}>
-                  <Text style={styles.modalTitle}>⭐ Leave a Review</Text>
+                  <Text style={styles.modalTitle}>Leave a Review</Text>
                   <TouchableOpacity onPress={() => setReviewModalVisible(false)}>
-                    <Text style={styles.modalClose}>✕</Text>
+                    <Ionicons name="close-circle" size={22} color="#9E9E9E" />
                   </TouchableOpacity>
                 </View>
 
@@ -427,7 +439,7 @@ export default function MyMealsScreen({ navigation, route }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F5F5F5' },
+  container: { flex: 1, backgroundColor: '#FAF9F6' },
   header: {
     paddingTop: 55,
     paddingBottom: 20,
@@ -438,17 +450,23 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: '#fff',
     marginBottom: 4,
+    fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Bold' : 'sans-serif-medium',
   },
   headerSubtitle: {
     fontSize: 14,
     color: 'rgba(255,255,255,0.85)',
     fontWeight: '500',
+    fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Medium' : 'sans-serif',
   },
   tabsContainer: {
     flexDirection: 'row',
     backgroundColor: '#fff',
     borderBottomWidth: 1,
     borderBottomColor: '#F0F0F0',
+    shadowColor: '#1E293B',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
     elevation: 2,
   },
   tab: {
@@ -463,6 +481,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: '#9E9E9E',
+    fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Medium' : 'sans-serif-medium',
   },
   tabTextActive: { color: '#FF6B35' },
   scrollContent: { paddingHorizontal: 16, paddingTop: 16 },
@@ -471,6 +490,7 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: '#1A1A1A',
     marginBottom: 12,
+    fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Bold' : 'sans-serif-medium',
   },
   bookingCard: {
     backgroundColor: '#fff',
@@ -478,6 +498,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     overflow: 'hidden',
     marginBottom: 14,
+    shadowColor: '#1E293B',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
     elevation: 3,
   },
   cancelledCard: { opacity: 0.7 },
@@ -491,7 +515,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  bookingImagePlaceholderText: { fontSize: 26 },
   bookingInfo: { flex: 1, padding: 14 },
   bookingHeader: {
     flexDirection: 'row',
@@ -505,23 +528,30 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '700',
     color: '#1A1A1A',
+    fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Bold' : 'sans-serif-medium',
   },
   statusBadge: {
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 10,
   },
-  statusText: { fontSize: 11, fontWeight: '700' },
+  statusText: {
+    fontSize: 11,
+    fontWeight: '700',
+    fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Bold' : 'sans-serif-medium',
+  },
   bookingMeta: {
     fontSize: 14,
     color: '#FF6B35',
     fontWeight: '600',
     marginBottom: 8,
+    fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Bold' : 'sans-serif-medium',
   },
   bookingDetail: {
     fontSize: 12,
     color: '#757575',
     marginBottom: 4,
+    fontFamily: Platform.OS === 'ios' ? 'Avenir Next' : 'sans-serif',
   },
   cancelButton: {
     borderWidth: 1.5,
@@ -535,6 +565,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#FF5252',
     fontWeight: '700',
+    fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Bold' : 'sans-serif-medium',
   },
   reviewButton: {
     borderWidth: 1.5,
@@ -548,6 +579,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#FF6B35',
     fontWeight: '700',
+    fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Bold' : 'sans-serif-medium',
   },
   myMealCard: {
     backgroundColor: '#fff',
@@ -556,6 +588,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 12,
     marginBottom: 12,
+    shadowColor: '#1E293B',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
     elevation: 2,
     gap: 12,
   },
@@ -570,25 +606,27 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  myMealImagePlaceholderText: { fontSize: 26 },
   myMealInfo: { flex: 1 },
   myMealTitle: {
     fontSize: 15,
     fontWeight: '700',
     color: '#1A1A1A',
     marginBottom: 3,
+    fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Bold' : 'sans-serif-medium',
   },
   myMealPrice: {
     fontSize: 13,
     color: '#FF6B35',
     fontWeight: '600',
     marginBottom: 6,
+    fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Bold' : 'sans-serif-medium',
   },
   myMealStats: { flexDirection: 'row', gap: 14 },
   myMealStat: {
     fontSize: 12,
     color: '#757575',
     fontWeight: '500',
+    fontFamily: Platform.OS === 'ios' ? 'Avenir Next' : 'sans-serif',
   },
   modalOverlay: {
     flex: 1,
@@ -616,17 +654,13 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '800',
     color: '#1A1A1A',
-  },
-  modalClose: {
-    fontSize: 20,
-    color: '#9E9E9E',
-    fontWeight: '700',
-    padding: 4,
+    fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Bold' : 'sans-serif-medium',
   },
   modalSubtitle: {
     fontSize: 13,
     color: '#9E9E9E',
     marginBottom: 14,
+    fontFamily: Platform.OS === 'ios' ? 'Avenir Next' : 'sans-serif',
   },
   starRow: { flexDirection: 'row', gap: 6, marginBottom: 12 },
   star: { fontSize: 28, color: '#E0E0E0' },
@@ -641,6 +675,7 @@ const styles = StyleSheet.create({
     color: '#212121',
     backgroundColor: '#FAFAFA',
     fontWeight: '500',
+    fontFamily: Platform.OS === 'ios' ? 'Avenir Next' : 'sans-serif',
   },
   submitReviewButton: {
     backgroundColor: '#FF6B35',
@@ -653,15 +688,16 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: '700',
     fontSize: 15,
+    fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Bold' : 'sans-serif-medium',
   },
   arrowText: { fontSize: 22, color: '#BDBDBD' },
   emptyState: { alignItems: 'center', paddingVertical: 60 },
-  emptyEmoji: { fontSize: 52, marginBottom: 14 },
   emptyTitle: {
     fontSize: 18,
     fontWeight: '700',
     color: '#424242',
     marginBottom: 6,
+    fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Bold' : 'sans-serif-medium',
   },
   emptySubtitle: {
     fontSize: 14,
@@ -669,6 +705,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 24,
     lineHeight: 22,
+    fontFamily: Platform.OS === 'ios' ? 'Avenir Next' : 'sans-serif',
   },
   actionButton: { borderRadius: 14, overflow: 'hidden' },
   actionGradient: {
@@ -680,5 +717,6 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '700',
     color: '#fff',
+    fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Bold' : 'sans-serif-medium',
   },
 });

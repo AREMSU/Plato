@@ -15,6 +15,7 @@ import {
   Dimensions,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useApp } from '../context/AppContext';
 import { categories } from '../data/mockData';
@@ -22,10 +23,22 @@ import { uploadImageToCloudinary, verifyImageWithBackend } from '../api/uploadIm
 
 const { width } = Dimensions.get('window');
 
-// ✅ FIX: Move InputField OUTSIDE the main component
+// Category icons mapping helper
+const getCategoryIcon = (categoryId) => {
+  switch (categoryId) {
+    case 'all': return 'restaurant-outline';
+    case 'Nepali': return 'fast-food-outline';
+    case 'Continental': return 'pizza-outline';
+    case 'Chinese': return 'restaurant-outline';
+    case 'Snacks': return 'cafe-outline';
+    case 'Breakfast': return 'egg-outline';
+    default: return 'restaurant-outline';
+  }
+};
+
+// InputField Component
 const InputField = ({
   label,
-  field,
   placeholder,
   keyboardType,
   multiline,
@@ -51,7 +64,7 @@ const InputField = ({
       <TextInput
         style={[styles.input, multiline && styles.inputMulti]}
         placeholder={placeholder}
-        placeholderTextColor="#BDBDBD"
+        placeholderTextColor="#94A3B8"
         value={value}
         onChangeText={onChangeText}
         keyboardType={keyboardType || 'default'}
@@ -63,7 +76,10 @@ const InputField = ({
       />
     </View>
     {error && (
-      <Text style={styles.errorText}>⚠️ {error}</Text>
+      <View style={styles.errorContainer}>
+        <Ionicons name="alert-circle-outline" size={14} color="#FF5252" style={{ marginRight: 4 }} />
+        <Text style={styles.errorText}>{error}</Text>
+      </View>
     )}
   </View>
 );
@@ -86,24 +102,21 @@ export default function AddMealScreen({ navigation }) {
     pickupLocation: '',
     isVegetarian: false,
     tags: '',
-    
   });
   const [errors, setErrors] = useState({});
 
-  // ✅ FIX: Use functional state update to prevent stale closures
   const updateForm = useCallback((key, value) => {
     setForm(prev => ({ ...prev, [key]: value }));
     setErrors(prev => ({ ...prev, [key]: null }));
   }, []);
 
-  // ── Request Permission ──
   const requestPermission = async (type) => {
     if (type === 'camera') {
       const { status } = await ImagePicker.requestCameraPermissionsAsync();
       if (status !== 'granted') {
         Alert.alert(
-          '📷 Permission Required',
-          'Camera permission is needed to take photos. Please enable it in your phone settings.',
+          'Permission Required',
+          'Enable camera permission in your phone Settings.',
           [{ text: 'OK' }]
         );
         return false;
@@ -112,8 +125,8 @@ export default function AddMealScreen({ navigation }) {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
         Alert.alert(
-          '🖼️ Permission Required',
-          'Gallery permission is needed to pick photos. Please enable it in your phone settings.',
+          'Permission Required',
+          'Enable gallery permission in your phone Settings.',
           [{ text: 'OK' }]
         );
         return false;
@@ -122,197 +135,187 @@ export default function AddMealScreen({ navigation }) {
     return true;
   };
 
-  // ── Pick from Gallery ──
   const pickFromGallery = async () => {
     const hasPermission = await requestPermission('gallery');
     if (!hasPermission) return;
 
     try {
-        const result = await ImagePicker.launchImageLibraryAsync({
-            mediaTypes: ImagePicker.MediaTypeOptions.Images,
-            allowsEditing: true,
-            aspect: [4, 3],
-            quality: 0.8,
-        });
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 0.8,
+      });
 
-        if (!result.canceled && result.assets && result.assets.length > 0) {
-            const uri = result.assets[0].uri;
-            setSelectedImage(uri);
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const uri = result.assets[0].uri;
+        setSelectedImage(uri);
+        setImageVerified(false);
+        setErrors(prev => ({ ...prev, image: null }));
+
+        setImageLoading(true);
+        try {
+          const verification = await verifyImageWithBackend(uri);
+          console.log('VERIFY RESPONSE:', verification);
+          if (verification.verdict !== 'approved') {
+            setUploadedImageUrl('');
             setImageVerified(false);
-            setErrors(prev => ({ ...prev, image: null }));
-
-            setImageLoading(true);
-          try {
-            const verification = await verifyImageWithBackend(uri);
-            console.log('VERIFY RESPONSE:', verification);
-            if (verification.verdict !== 'approved') {
-              setUploadedImageUrl('');
-              setImageVerified(false);
-              Alert.alert('Image Not Verified', verification.reason || 'Please use a clearer food image.');
-              return;
-            }
-
-            const url = await uploadImageToCloudinary(uri);
-            if (url) {
-              setUploadedImageUrl(url);
-              setImageVerified(true);
-              console.log('Image uploaded:', url);
-            } else {
-              Alert.alert('Upload Failed', 'Could not upload image. The meal will be listed without a photo.');
-            }
-          } catch (error) {
-            Alert.alert('Verification Failed', error.message || 'Please try again.');
-          } finally {
-            setImageLoading(false);
+            Alert.alert('Image Not Verified', verification.reason || 'Please use a clearer food image.');
+            return;
           }
-        }
-    } catch (error) {
-        Alert.alert('Error', 'Failed to pick image. Please try again.');
-        setImageLoading(false);
-    }
-};
 
-  // ── Take Photo with Camera ──
-const takePhoto = async () => {
+          const url = await uploadImageToCloudinary(uri);
+          if (url) {
+            setUploadedImageUrl(url);
+            setImageVerified(true);
+            console.log('Image uploaded:', url);
+          } else {
+            Alert.alert('Upload Failed', 'Could not upload image. The meal will be listed without a photo.');
+          }
+        } catch (error) {
+          Alert.alert('Verification Failed', error.message || 'Please try again.');
+        } finally {
+          setImageLoading(false);
+        }
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Failed to pick image. Please try again.');
+      setImageLoading(false);
+    }
+  };
+
+  const takePhoto = async () => {
     const hasPermission = await requestPermission('camera');
     if (!hasPermission) return;
 
     try {
-        const result = await ImagePicker.launchCameraAsync({
-            allowsEditing: true,
-            aspect: [4, 3],
-            quality: 0.8,
-        });
+      const result = await ImagePicker.launchCameraAsync({
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 0.8,
+      });
 
-        if (!result.canceled && result.assets && result.assets.length > 0) {
-            const uri = result.assets[0].uri;
-            setSelectedImage(uri);
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const uri = result.assets[0].uri;
+        setSelectedImage(uri);
+        setImageVerified(false);
+        setErrors(prev => ({ ...prev, image: null }));
+
+        setImageLoading(true);
+        try {
+          const verification = await verifyImageWithBackend(uri);
+          console.log('VERIFY RESPONSE:', verification);
+          if (verification.verdict !== 'approved') {
+            setUploadedImageUrl('');
             setImageVerified(false);
-            setErrors(prev => ({ ...prev, image: null }));
-
-            setImageLoading(true);
-          try {
-            const verification = await verifyImageWithBackend(uri);
-            console.log('VERIFY RESPONSE:', verification);
-            if (verification.verdict !== 'approved') {
-              setUploadedImageUrl('');
-              setImageVerified(false);
-              Alert.alert('Image Not Verified', verification.reason || 'Please use a clearer food image.');
-              return;
-            }
-
-            const url = await uploadImageToCloudinary(uri);
-            if (url) {
-              setUploadedImageUrl(url);
-              setImageVerified(true);
-              console.log('Image uploaded:', url);
-            } else {
-              Alert.alert(
-                'Upload Failed',
-                'Could not upload image. The meal will be listed without a photo.'
-              );
-            }
-          } catch (error) {
-            Alert.alert('Verification Failed', error.message || 'Please try again.');
-          } finally {
-            setImageLoading(false);
+            Alert.alert('Image Not Verified', verification.reason || 'Please use a clearer food image.');
+            return;
           }
-        }
-    } catch (error) {
-        Alert.alert('Error', 'Failed to take photo. Please try again.');
-        setImageLoading(false);
-    }
-};
 
-  // ── Show Image Options ──
-  const showImageOptions = () => {
-    Alert.alert(
-      '📸 Add Meal Photo',
-      'Choose how you want to add a photo',
-      [
-        { text: '📷 Take Photo', onPress: takePhoto },
-        { text: '🖼️ Choose from Gallery', onPress: pickFromGallery },
-        { text: 'Cancel', style: 'cancel' },
-      ]
-    );
+          const url = await uploadImageToCloudinary(uri);
+          if (url) {
+            setUploadedImageUrl(url);
+            setImageVerified(true);
+            console.log('Image uploaded:', url);
+          } else {
+            Alert.alert(
+              'Upload Failed',
+              'Could not upload image. The meal will be listed without a photo.'
+            );
+          }
+        } catch (error) {
+          Alert.alert('Verification Failed', error.message || 'Please try again.');
+        } finally {
+          setImageLoading(false);
+        }
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Failed to take photo. Please try again.');
+      setImageLoading(false);
+    }
   };
 
-  // ── Validate ──
+  const showImageOptions = () => {
+    Alert.alert('Meal Photo', 'Choose an option', [
+      { text: 'Take Photo', onPress: takePhoto },
+      { text: 'Choose from Gallery', onPress: pickFromGallery },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
+  };
+
   const validate = () => {
     const newErrors = {};
     if (!uploadedImageUrl || !imageVerified) newErrors.image = 'Verified meal photo is required';
     if (!form.title.trim()) newErrors.title = 'Title is required';
     if (!form.description.trim()) newErrors.description = 'Description is required';
     if (!form.pricePerPortion || isNaN(Number(form.pricePerPortion)) || Number(form.pricePerPortion) <= 0)
-        newErrors.pricePerPortion = 'Enter a valid price';
+      newErrors.pricePerPortion = 'Enter a valid price';
     if (!form.totalPortions || isNaN(Number(form.totalPortions)) || Number(form.totalPortions) <= 0)
-        newErrors.totalPortions = 'Enter valid portions';
+      newErrors.totalPortions = 'Enter valid portions';
     if (!form.pickupTime.trim()) newErrors.pickupTime = 'Pickup time required';
     if (!form.pickupLocation.trim()) newErrors.pickupLocation = 'Location required';
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
-};
+  };
 
-  // ── Submit ──
- const handleAddMeal = async () => {
+  const handleAddMeal = async () => {
     if (!validate()) {
-    Alert.alert('⚠️ Missing Info', 'Please fill all required fields including a verified meal photo.');
-        return;
+      Alert.alert('Missing Info', 'Please fill all required fields including a verified meal photo.');
+      return;
     }
     setLoading(true);
     try {
-        const tagsArray = form.tags
-            .split(',')
-            .map((t) => t.trim().toLowerCase())
-            .filter((t) => t.length > 0);
+      const tagsArray = form.tags
+        .split(',')
+        .map((t) => t.trim().toLowerCase())
+        .filter((t) => t.length > 0);
 
-        const result = await addMeal({
-            title: form.title.trim(),
-            description: form.description.trim(),
-            category: form.category,
-            pricePerPortion: Number(form.pricePerPortion),
-            totalPortions: Number(form.totalPortions),
-            pickupTime: form.pickupTime.trim(),
-            pickupLocation: form.pickupLocation.trim(),
-            isVegetarian: form.isVegetarian,
-            tags: tagsArray,
-            image: uploadedImageUrl,
-            calories: 400,
-            protein: 15,
-            mealDate: new Date().toISOString().split('T')[0],
+      const result = await addMeal({
+        title: form.title.trim(),
+        description: form.description.trim(),
+        category: form.category,
+        pricePerPortion: Number(form.pricePerPortion),
+        totalPortions: Number(form.totalPortions),
+        pickupTime: form.pickupTime.trim(),
+        pickupLocation: form.pickupLocation.trim(),
+        isVegetarian: form.isVegetarian,
+        tags: tagsArray,
+        image: uploadedImageUrl,
+        calories: 400,
+        protein: 15,
+        mealDate: new Date().toISOString().split('T')[0],
+      });
 
-        });
-
-        if (result && !result.error) {
-            Alert.alert(
-                '🎉 Meal Listed!',
-                'Your meal has been successfully added to the platform.',
-                [{
-                    text: 'View Home',
-                    onPress: () => {
-                        navigation.navigate('Home');
-                        setForm({
-                            title: '', description: '', category: 'Nepali',
-                            pricePerPortion: '', totalPortions: '',
-                            pickupTime: '', pickupLocation: '',
-                            isVegetarian: false, tags: '',
-                        });
-                        setSelectedImage(null);
-                        setUploadedImageUrl('');
-                        setImageVerified(false);
-                        setErrors({});
-                    },
-                }]
-            );
-        } else {
-            Alert.alert('Error', result.error || 'Failed to add meal');
-        }
+      if (result && !result.error) {
+        Alert.alert(
+          '🎉 Meal Listed!',
+          'Your meal has been successfully added to the platform.',
+          [{
+            text: 'View Home',
+            onPress: () => {
+              navigation.navigate('Home');
+              setForm({
+                title: '', description: '', category: 'Nepali',
+                pricePerPortion: '', totalPortions: '',
+                pickupTime: '', pickupLocation: '',
+                isVegetarian: false, tags: '',
+              });
+              setSelectedImage(null);
+              setUploadedImageUrl('');
+              setImageVerified(false);
+              setErrors({});
+            },
+          }]
+        );
+      } else {
+        Alert.alert('Error', result.error || 'Failed to add meal');
+      }
     } catch (error) {
-        Alert.alert('Error', 'Something went wrong. Please try again.');
+      Alert.alert('Error', 'Something went wrong. Please try again.');
     } finally {
-        setLoading(false);
+      setLoading(false);
     }
-};
+  };
 
   return (
     <KeyboardAvoidingView
@@ -325,10 +328,15 @@ const takePhoto = async () => {
         colors={['#FF6B35', '#FF8C42']}
         style={styles.header}
       >
-        <Text style={styles.headerTitle}>Share a Meal 🍽️</Text>
-        <Text style={styles.headerSubtitle}>
-          Let your campus community enjoy your cooking
-        </Text>
+        <View style={styles.headerContentRow}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.headerTitle}>Share a Meal</Text>
+            <Text style={styles.headerSubtitle}>
+              Let your campus community enjoy your cooking
+            </Text>
+          </View>
+          <Ionicons name="restaurant-outline" size={32} color="rgba(255,255,255,0.9)" />
+        </View>
       </LinearGradient>
 
       <ScrollView
@@ -338,7 +346,6 @@ const takePhoto = async () => {
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="none"
       >
-
         {/* ══════════════════════════════
             MEAL PHOTO — REQUIRED
         ══════════════════════════════ */}
@@ -358,10 +365,12 @@ const takePhoto = async () => {
                 <TouchableOpacity
                   style={styles.imageOverlayBtn}
                   onPress={showImageOptions}
+                  activeOpacity={0.7}
                 >
-                  <Text style={styles.imageOverlayBtnText}>
-                    🔄 Change Photo
-                  </Text>
+                  <View style={styles.overlayBtnIconWrap}>
+                    <Ionicons name="sync-outline" size={15} color="#fff" />
+                  </View>
+                  <Text style={styles.imageOverlayBtnText}>Change</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[styles.imageOverlayBtn, styles.imageOverlayBtnRed]}
@@ -370,14 +379,17 @@ const takePhoto = async () => {
                     setUploadedImageUrl('');
                     setImageVerified(false);
                   }}
+                  activeOpacity={0.7}
                 >
-                  <Text style={styles.imageOverlayBtnText}>
-                    🗑️ Remove
-                  </Text>
+                  <View style={styles.overlayBtnIconWrap}>
+                    <Ionicons name="close" size={15} color="#fff" />
+                  </View>
+                  <Text style={styles.imageOverlayBtnText}>Remove</Text>
                 </TouchableOpacity>
               </View>
               <View style={styles.imageSuccessBadge}>
-                <Text style={styles.imageSuccessText}>✅ Photo Added</Text>
+                <Ionicons name="checkmark-circle" size={14} color="#fff" style={{ marginRight: 4 }} />
+                <Text style={styles.imageSuccessText}>Photo Added</Text>
               </View>
             </View>
           ) : (
@@ -392,31 +404,42 @@ const takePhoto = async () => {
               {imageLoading ? (
                 <View style={styles.imageLoadingBox}>
                   <ActivityIndicator color="#FF6B35" size="large" />
-                  <Text style={styles.imageLoadingText}>Loading...</Text>
+                  <Text style={styles.imageLoadingText}>Verifying & Uploading...</Text>
                 </View>
               ) : (
                 <>
                   <View style={styles.imageUploadIconBox}>
-                    <Text style={styles.imageUploadIcon}>📸</Text>
+                    <LinearGradient
+                      colors={['#FF6B35', '#FF8C42']}
+                      style={styles.imageUploadIconGradient}
+                    >
+                      <Ionicons name="add" size={28} color="#fff" />
+                    </LinearGradient>
                   </View>
                   <Text style={styles.imageUploadTitle}>Add Meal Photo</Text>
                   <Text style={styles.imageUploadSubtitle}>
-                    Take a photo or choose from gallery
+                    Snap a fresh pic or pick from your library
                   </Text>
                   <View style={styles.imageUploadButtonsRow}>
                     <TouchableOpacity
                       style={styles.imageUploadOption}
                       onPress={takePhoto}
+                      activeOpacity={0.7}
                     >
-                      <Text style={styles.imageUploadOptionIcon}>📷</Text>
+                      <View style={styles.uploadOptionIconWrap}>
+                        <Ionicons name="scan-outline" size={18} color="#FF6B35" />
+                      </View>
                       <Text style={styles.imageUploadOptionText}>Camera</Text>
                     </TouchableOpacity>
                     <View style={styles.imageUploadOptionDivider} />
                     <TouchableOpacity
                       style={styles.imageUploadOption}
                       onPress={pickFromGallery}
+                      activeOpacity={0.7}
                     >
-                      <Text style={styles.imageUploadOptionIcon}>🖼️</Text>
+                      <View style={styles.uploadOptionIconWrap}>
+                        <Ionicons name="images-outline" size={18} color="#FF6B35" />
+                      </View>
                       <Text style={styles.imageUploadOptionText}>Gallery</Text>
                     </TouchableOpacity>
                   </View>
@@ -425,18 +448,18 @@ const takePhoto = async () => {
             </TouchableOpacity>
           )}
           {errors.image && (
-            <Text style={styles.errorText}>⚠️ {errors.image}</Text>
+            <View style={styles.errorContainer}>
+              <Ionicons name="alert-circle-outline" size={14} color="#FF5252" style={{ marginRight: 4 }} />
+              <Text style={styles.errorText}>{errors.image}</Text>
+            </View>
           )}
         </View>
 
         {/* ══════════════════════════════
             MEAL DETAILS
         ══════════════════════════════ */}
-
-        {/* ✅ FIX: Pass value, onChangeText, error as props */}
         <InputField
           label="Meal Title"
-          field="title"
           placeholder="e.g. Dal Bhat Set, Momo Special..."
           required
           value={form.title}
@@ -446,7 +469,6 @@ const takePhoto = async () => {
 
         <InputField
           label="Description"
-          field="description"
           placeholder="Describe your meal, ingredients, and any special notes..."
           multiline
           required
@@ -477,8 +499,14 @@ const takePhoto = async () => {
                     styles.categoryChip,
                     form.category === cat.id && styles.categoryChipActive,
                   ]}
+                  activeOpacity={0.7}
                 >
-                  <Text style={styles.categoryEmoji}>{cat.icon}</Text>
+                  <Ionicons
+                    name={getCategoryIcon(cat.id)}
+                    size={16}
+                    color={form.category === cat.id ? '#fff' : '#64748B'}
+                    style={{ marginRight: 6 }}
+                  />
                   <Text
                     style={[
                       styles.categoryText,
@@ -508,7 +536,7 @@ const takePhoto = async () => {
               <TextInput
                 style={styles.input}
                 placeholder="120"
-                placeholderTextColor="#BDBDBD"
+                placeholderTextColor="#94A3B8"
                 value={form.pricePerPortion}
                 onChangeText={(t) => updateForm('pricePerPortion', t)}
                 keyboardType="numeric"
@@ -516,9 +544,10 @@ const takePhoto = async () => {
               />
             </View>
             {errors.pricePerPortion && (
-              <Text style={styles.errorText}>
-                ⚠️ {errors.pricePerPortion}
-              </Text>
+              <View style={styles.errorContainer}>
+                <Ionicons name="alert-circle-outline" size={14} color="#FF5252" style={{ marginRight: 4 }} />
+                <Text style={styles.errorText}>{errors.pricePerPortion}</Text>
+              </View>
             )}
           </View>
 
@@ -537,7 +566,7 @@ const takePhoto = async () => {
               <TextInput
                 style={styles.input}
                 placeholder="4"
-                placeholderTextColor="#BDBDBD"
+                placeholderTextColor="#94A3B8"
                 value={form.totalPortions}
                 onChangeText={(t) => updateForm('totalPortions', t)}
                 keyboardType="numeric"
@@ -545,16 +574,16 @@ const takePhoto = async () => {
               />
             </View>
             {errors.totalPortions && (
-              <Text style={styles.errorText}>
-                ⚠️ {errors.totalPortions}
-              </Text>
+              <View style={styles.errorContainer}>
+                <Ionicons name="alert-circle-outline" size={14} color="#FF5252" style={{ marginRight: 4 }} />
+                <Text style={styles.errorText}>{errors.totalPortions}</Text>
+              </View>
             )}
           </View>
         </View>
 
         <InputField
           label="Pickup Time"
-          field="pickupTime"
           placeholder="e.g. 12:30 PM, 6:00 PM"
           required
           value={form.pickupTime}
@@ -564,7 +593,6 @@ const takePhoto = async () => {
 
         <InputField
           label="Pickup Location"
-          field="pickupLocation"
           placeholder="e.g. Block A Room 204, Library Gate"
           required
           value={form.pickupLocation}
@@ -574,7 +602,6 @@ const takePhoto = async () => {
 
         <InputField
           label="Tags (comma-separated)"
-          field="tags"
           placeholder="e.g. vegetarian, spicy, homemade"
           value={form.tags}
           onChangeText={(t) => updateForm('tags', t)}
@@ -584,7 +611,10 @@ const takePhoto = async () => {
         {/* ── Vegetarian Toggle ── */}
         <View style={styles.toggleRow}>
           <View style={styles.toggleInfo}>
-            <Text style={styles.toggleLabel}>Vegetarian Meal 🌱</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Text style={styles.toggleLabel}>Vegetarian Meal</Text>
+              <Ionicons name="leaf" size={16} color="#4CAF50" style={{ marginLeft: 6 }} />
+            </View>
             <Text style={styles.toggleSubtitle}>
               Mark if this meal contains no meat
             </Text>
@@ -592,14 +622,17 @@ const takePhoto = async () => {
           <Switch
             value={form.isVegetarian}
             onValueChange={(v) => updateForm('isVegetarian', v)}
-            trackColor={{ false: '#E0E0E0', true: '#4CAF50' }}
+            trackColor={{ false: '#E2E8F0', true: '#4CAF50' }}
             thumbColor={form.isVegetarian ? '#fff' : '#f4f3f4'}
           />
         </View>
 
         {/* ── Live Preview ── */}
         <View style={styles.previewCard}>
-          <Text style={styles.previewLabel}>📋 Listing Preview</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+            <Ionicons name="eye-outline" size={16} color="#FF6B35" style={{ marginRight: 6 }} />
+            <Text style={styles.previewLabel}>Listing Preview</Text>
+          </View>
           <View style={styles.previewContent}>
             {selectedImage ? (
               <Image
@@ -609,8 +642,9 @@ const takePhoto = async () => {
               />
             ) : (
               <View style={styles.previewImagePlaceholder}>
+                <Ionicons name="restaurant-outline" size={22} color="#CBD5E1" style={{ marginBottom: 4 }} />
                 <Text style={styles.previewImagePlaceholderText}>
-                  📸 No photo yet
+                  No photo yet
                 </Text>
               </View>
             )}
@@ -624,15 +658,22 @@ const takePhoto = async () => {
               <Text style={styles.previewPortions}>
                 {form.totalPortions || '0'} portions available
               </Text>
-              <Text style={styles.previewMeta} numberOfLines={1}>
-                ⏰ {form.pickupTime || 'Pickup time'}
-              </Text>
-              <Text style={styles.previewMeta} numberOfLines={1}>
-                📍 {form.pickupLocation || 'Pickup location'}
-              </Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 3 }}>
+                <Ionicons name="time-outline" size={12} color="#64748B" style={{ marginRight: 4 }} />
+                <Text style={styles.previewMeta} numberOfLines={1}>
+                  {form.pickupTime || 'Pickup time'}
+                </Text>
+              </View>
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 3 }}>
+                <Ionicons name="location-outline" size={12} color="#64748B" style={{ marginRight: 4 }} />
+                <Text style={styles.previewMeta} numberOfLines={1}>
+                  {form.pickupLocation || 'Pickup location'}
+                </Text>
+              </View>
               {form.isVegetarian && (
                 <View style={styles.previewVegBadge}>
-                  <Text style={styles.previewVegText}>🌱 Vegetarian</Text>
+                  <Ionicons name="leaf" size={10} color="#4CAF50" style={{ marginRight: 4 }} />
+                  <Text style={styles.previewVegText}>Vegetarian</Text>
                 </View>
               )}
             </View>
@@ -649,7 +690,7 @@ const takePhoto = async () => {
           style={styles.submitButtonWrapper}
         >
           <LinearGradient
-            colors={loading ? ['#BDBDBD', '#9E9E9E'] : ['#FF6B35', '#FF8C42']}
+            colors={loading ? ['#94A3B8', '#64748B'] : ['#FF6B35', '#FF8C42']}
             style={styles.submitButton}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 0 }}
@@ -661,7 +702,7 @@ const takePhoto = async () => {
               </View>
             ) : (
               <View style={styles.submitButtonInner}>
-                <Text style={styles.submitEmoji}>🍽️</Text>
+                <Ionicons name="restaurant-outline" size={20} color="#fff" style={{ marginRight: 6 }} />
                 <Text style={styles.submitText}>List My Meal</Text>
               </View>
             )}
@@ -679,45 +720,50 @@ const takePhoto = async () => {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F5F5F5' },
-
+  container: { flex: 1, backgroundColor: '#FAF9F6' },
   header: {
     paddingTop: 55,
     paddingBottom: 24,
     paddingHorizontal: 20,
+  },
+  headerContentRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   headerTitle: {
     fontSize: 26,
     fontWeight: '800',
     color: '#fff',
     marginBottom: 4,
+    fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Bold' : 'sans-serif-medium',
   },
   headerSubtitle: {
     fontSize: 14,
     color: 'rgba(255,255,255,0.85)',
     fontWeight: '500',
+    fontFamily: Platform.OS === 'ios' ? 'Avenir Next' : 'sans-serif',
   },
-
   scrollView: { flex: 1 },
   scrollContent: {
     paddingHorizontal: 20,
     paddingTop: 24,
     paddingBottom: 20,
   },
-
   inputGroup: { marginBottom: 20 },
   inputLabel: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#424242',
+    color: '#0F172A',
     marginBottom: 8,
+    fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Bold' : 'sans-serif-medium',
   },
   required: { color: '#FF5252' },
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1.5,
-    borderColor: '#E0E0E0',
+    borderColor: '#E2E8F0',
     borderRadius: 14,
     paddingHorizontal: 14,
     paddingVertical: 13,
@@ -733,21 +779,27 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#FF6B35',
     marginRight: 8,
+    fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Bold' : 'sans-serif-medium',
   },
   input: {
     flex: 1,
     fontSize: 15,
-    color: '#212121',
+    color: '#0F172A',
     fontWeight: '500',
+    fontFamily: Platform.OS === 'ios' ? 'Avenir Next' : 'sans-serif',
   },
   inputMulti: { minHeight: 100 },
+  errorContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 6,
+  },
   errorText: {
     fontSize: 12,
     color: '#FF5252',
-    marginTop: 6,
     fontWeight: '500',
+    fontFamily: Platform.OS === 'ios' ? 'Avenir Next' : 'sans-serif',
   },
-
   imageUploadBox: {
     borderWidth: 2,
     borderColor: '#FF6B35',
@@ -758,6 +810,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     minHeight: 200,
     justifyContent: 'center',
+    shadowColor: '#FF6B35',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.02,
+    shadowRadius: 10,
+    elevation: 1,
   },
   imageUploadBoxError: {
     borderColor: '#FF5252',
@@ -771,6 +828,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#FF6B35',
     fontWeight: '600',
+    fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Bold' : 'sans-serif-medium',
   },
   imageUploadIconBox: {
     width: 72,
@@ -780,19 +838,37 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 14,
+    overflow: 'hidden',
   },
-  imageUploadIcon: { fontSize: 34 },
+  imageUploadIconGradient: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  uploadOptionIconWrap: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#FFF0E8',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 8,
+  },
   imageUploadTitle: {
     fontSize: 17,
     fontWeight: '800',
     color: '#FF6B35',
     marginBottom: 6,
+    fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Bold' : 'sans-serif-medium',
   },
   imageUploadSubtitle: {
     fontSize: 13,
-    color: '#9E9E9E',
+    color: '#64748B',
     marginBottom: 20,
     textAlign: 'center',
+    fontFamily: Platform.OS === 'ios' ? 'Avenir Next' : 'sans-serif',
   },
   imageUploadButtonsRow: {
     flexDirection: 'row',
@@ -806,27 +882,29 @@ const styles = StyleSheet.create({
   },
   imageUploadOption: {
     flex: 1,
+    flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 14,
-    gap: 6,
+    justifyContent: 'center',
+    paddingVertical: 12,
   },
-  imageUploadOptionIcon: { fontSize: 24 },
   imageUploadOptionText: {
     fontSize: 13,
     fontWeight: '700',
     color: '#FF6B35',
+    fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Bold' : 'sans-serif-medium',
   },
   imageUploadOptionDivider: {
     width: 1.5,
     height: '60%',
     backgroundColor: '#FFD5C2',
   },
-
   imagePreviewContainer: {
     borderRadius: 18,
     overflow: 'hidden',
     position: 'relative',
     height: 220,
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
   },
   imagePreview: {
     width: '100%',
@@ -842,18 +920,31 @@ const styles = StyleSheet.create({
   },
   imageOverlayBtn: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.65)',
-    paddingVertical: 10,
-    borderRadius: 12,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(15,23,42,0.65)',
+    paddingVertical: 10,
+    borderRadius: 24,
+    backdropFilter: 'blur(8px)',
   },
   imageOverlayBtnRed: {
-    backgroundColor: 'rgba(255,82,82,0.8)',
+    backgroundColor: 'rgba(220,38,38,0.72)',
+  },
+  overlayBtnIconWrap: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 6,
   },
   imageOverlayBtnText: {
     fontSize: 13,
     color: '#fff',
     fontWeight: '700',
+    fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Bold' : 'sans-serif-medium',
   },
   imageSuccessBadge: {
     position: 'absolute',
@@ -863,13 +954,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   imageSuccessText: {
     fontSize: 12,
     color: '#fff',
     fontWeight: '700',
+    fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Bold' : 'sans-serif-medium',
   },
-
   categoryRow: {
     gap: 10,
     paddingBottom: 4,
@@ -882,23 +975,20 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     backgroundColor: '#fff',
     borderWidth: 1.5,
-    borderColor: '#E0E0E0',
-    gap: 6,
+    borderColor: '#E2E8F0',
   },
   categoryChipActive: {
     backgroundColor: '#FF6B35',
     borderColor: '#FF6B35',
   },
-  categoryEmoji: { fontSize: 16 },
   categoryText: {
     fontSize: 13,
-    color: '#757575',
+    color: '#64748B',
     fontWeight: '600',
+    fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Medium' : 'sans-serif-medium',
   },
   categoryTextActive: { color: '#fff' },
-
   twoColumns: { flexDirection: 'row' },
-
   toggleRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -907,20 +997,21 @@ const styles = StyleSheet.create({
     padding: 16,
     marginBottom: 20,
     borderWidth: 1.5,
-    borderColor: '#E0E0E0',
+    borderColor: '#E2E8F0',
   },
   toggleInfo: { flex: 1 },
   toggleLabel: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#1A1A1A',
+    color: '#0F172A',
+    fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Bold' : 'sans-serif-medium',
   },
   toggleSubtitle: {
     fontSize: 12,
-    color: '#9E9E9E',
+    color: '#64748B',
     marginTop: 2,
+    fontFamily: Platform.OS === 'ios' ? 'Avenir Next' : 'sans-serif',
   },
-
   previewCard: {
     backgroundColor: '#FFF8F5',
     borderRadius: 18,
@@ -931,10 +1022,10 @@ const styles = StyleSheet.create({
     borderStyle: 'dashed',
   },
   previewLabel: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '700',
     color: '#FF6B35',
-    marginBottom: 12,
+    fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Bold' : 'sans-serif-medium',
   },
   previewContent: {
     flexDirection: 'row',
@@ -949,41 +1040,45 @@ const styles = StyleSheet.create({
     width: 90,
     height: 90,
     borderRadius: 12,
-    backgroundColor: '#F0F0F0',
+    backgroundColor: '#F1F5F9',
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#E0E0E0',
+    borderColor: '#CBD5E1',
     borderStyle: 'dashed',
   },
   previewImagePlaceholderText: {
     fontSize: 10,
-    color: '#BDBDBD',
+    color: '#64748B',
     textAlign: 'center',
     fontWeight: '500',
+    fontFamily: Platform.OS === 'ios' ? 'Avenir Next' : 'sans-serif',
   },
   previewInfo: { flex: 1 },
   previewMealTitle: {
     fontSize: 15,
     fontWeight: '800',
-    color: '#1A1A1A',
-    marginBottom: 3,
+    color: '#0F172A',
+    marginBottom: 4,
+    fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Bold' : 'sans-serif-medium',
   },
   previewPrice: {
     fontSize: 13,
     color: '#FF6B35',
     fontWeight: '700',
     marginBottom: 2,
+    fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Bold' : 'sans-serif-medium',
   },
   previewPortions: {
     fontSize: 12,
-    color: '#9E9E9E',
+    color: '#64748B',
     marginBottom: 6,
+    fontFamily: Platform.OS === 'ios' ? 'Avenir Next' : 'sans-serif',
   },
   previewMeta: {
     fontSize: 12,
-    color: '#757575',
-    marginBottom: 3,
+    color: '#334155',
+    fontFamily: Platform.OS === 'ios' ? 'Avenir Next' : 'sans-serif',
   },
   previewVegBadge: {
     alignSelf: 'flex-start',
@@ -991,22 +1086,24 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 10,
-    marginTop: 4,
+    marginTop: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   previewVegText: {
     fontSize: 11,
     color: '#4CAF50',
     fontWeight: '700',
+    fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Bold' : 'sans-serif-medium',
   },
-
   submitButtonWrapper: {
     borderRadius: 18,
     overflow: 'hidden',
-    elevation: 6,
     shadowColor: '#FF6B35',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
+    shadowOpacity: 0.25,
     shadowRadius: 10,
+    elevation: 4,
     marginBottom: 12,
   },
   submitButton: {
@@ -1021,20 +1118,20 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 10,
   },
-  submitEmoji: { fontSize: 22 },
   submitText: {
     fontSize: 18,
     fontWeight: '800',
     color: '#fff',
     letterSpacing: 0.5,
+    fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Bold' : 'sans-serif-medium',
   },
   submitHint: {
     fontSize: 12,
-    color: '#9E9E9E',
+    color: '#64748B',
     textAlign: 'center',
     lineHeight: 18,
     paddingHorizontal: 20,
+    fontFamily: Platform.OS === 'ios' ? 'Avenir Next' : 'sans-serif',
   },
 });

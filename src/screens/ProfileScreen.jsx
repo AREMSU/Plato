@@ -11,8 +11,10 @@ import {
   TextInput,
   Switch,
   Linking,
+  Platform,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useApp } from '../context/AppContext';
@@ -94,8 +96,8 @@ export default function ProfileScreen({ navigation }) {
   });
 
   const savedPayments = [
-    { id: '1', type: 'eSewa', number: '98XXXXXXXX', icon: '💚', color: '#4CAF50' },
-    { id: '2', type: 'Khalti', number: '98XXXXXXXX', icon: '💜', color: '#9C27B0' },
+    { id: '1', type: 'eSewa', number: '98XXXXXXXX', icon: 'wallet-outline', color: '#4CAF50' },
+    { id: '2', type: 'Khalti', number: '98XXXXXXXX', icon: 'wallet-outline', color: '#9C27B0' },
   ];
 
   const sellerReviews = Array.isArray(reviewsReceived) ? reviewsReceived : [];
@@ -245,7 +247,7 @@ export default function ProfileScreen({ navigation }) {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
         Alert.alert(
-          '🖼️ Permission Required',
+          'Permission Required',
           'Enable gallery permission in your phone Settings.',
           [{ text: 'OK' }]
         );
@@ -312,8 +314,8 @@ export default function ProfileScreen({ navigation }) {
 
   const removeAvatar = () => {
     Alert.alert(
-      '🗑️ Remove Photo',
-      'Your profile will show your name initial instead of a photo.',
+      'Remove Photo',
+      'Are you sure you want to remove your profile photo?',
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -337,18 +339,18 @@ export default function ProfileScreen({ navigation }) {
 
   const showAvatarOptions = () => {
     const options = [
-      { text: '📷 Take Photo', onPress: takeAvatarPhoto },
-      { text: '🖼️ Choose from Gallery', onPress: pickAvatarFromGallery },
+      { text: 'Take Photo', onPress: takeAvatarPhoto },
+      { text: 'Choose from Gallery', onPress: pickAvatarFromGallery },
     ];
     if (user?.avatar) {
       options.push({
-        text: '🗑️ Remove Photo',
+        text: 'Remove Photo',
         style: 'destructive',
         onPress: removeAvatar,
       });
     }
     options.push({ text: 'Cancel', style: 'cancel' });
-    Alert.alert('📸 Profile Photo', 'Choose an option', options);
+    Alert.alert('Profile Photo', 'Choose an option', options);
   };
 
   // ─────────────────────────────────────
@@ -374,7 +376,7 @@ export default function ProfileScreen({ navigation }) {
   // ─────────────────────────────────────
   // REUSABLE MENU ITEM
   // ─────────────────────────────────────
-  const MenuItem = ({ iconSource, label, value, onPress, color }) => (
+  const MenuItem = ({ iconName, iconSource, label, value, onPress, color }) => (
     <TouchableOpacity
       style={styles.menuItem}
       onPress={onPress}
@@ -386,7 +388,11 @@ export default function ProfileScreen({ navigation }) {
           { backgroundColor: (color || '#FF6B35') + '15' },
         ]}
       >
-        <Image source={iconSource} style={styles.menuIconImage} />
+        {iconName ? (
+          <Ionicons name={iconName} size={20} color={color || '#FF6B35'} />
+        ) : (
+          <Image source={iconSource} style={styles.menuIconImage} />
+        )}
       </View>
       <Text style={styles.menuLabel}>{label}</Text>
       <View style={styles.menuRight}>
@@ -429,7 +435,7 @@ export default function ProfileScreen({ navigation }) {
                   borderWidth={4}
                 />
                 <View style={styles.cameraBadge}>
-                  <Text style={styles.cameraBadgeIcon}>📷</Text>
+                  <Ionicons name="camera" size={16} color="#fff" />
                 </View>
               </TouchableOpacity>
               <View style={styles.onlineDot} />
@@ -449,7 +455,7 @@ export default function ProfileScreen({ navigation }) {
             </View>
 
             <Text style={styles.userUniversity}>
-              🎓 {user?.university}
+              <Ionicons name="school-outline" size={14} color="rgba(255,255,255,0.9)" /> {user?.university}
             </Text>
 
             {user?.bio ? (
@@ -498,54 +504,42 @@ export default function ProfileScreen({ navigation }) {
 
         {/* ══════════════ ACTIVITY ══════════════ */}
         <View style={styles.activityCard}>
-          <Text style={styles.activityTitle}>📊 Activity Summary</Text>
+          <Text style={styles.activityTitle}>Activity Summary</Text>
           <View style={styles.activityRow}>
             <TouchableOpacity
               style={styles.activityItem}
               onPress={() => navigation.navigate('MyMeals', { initialTab: 'listings' })}
             >
-              <Text style={styles.activityEmoji}>🍽️</Text>
+              <Ionicons name="restaurant" size={24} color="#FF6B35" style={{ marginBottom: 4 }} />
               <Text style={styles.activityValue}>{myMeals.length}</Text>
               <Text style={styles.activityLabel}>Listed</Text>
-<<<<<<< HEAD
-            </View >
-            <View style={styles.activityItem}>
-              <Image source={PROFILE_ICONS.dietary} style={styles.activityIconImage} />
-=======
             </TouchableOpacity>
-    <TouchableOpacity
-      style={styles.activityItem}
-      onPress={() => navigation.navigate('MyMeals', { initialTab: 'bookings' })}
-    >
-      <Text style={styles.activityEmoji}>✅</Text>
->>>>>>> origin/Aditya-Dev-Joshi
-      <Text style={styles.activityValue}>
-        {activeBookings.length}
-      </Text>
-      <Text style={styles.activityLabel}>Active</Text>
-    </TouchableOpacity>
-    <TouchableOpacity
-      style={styles.activityItem}
-      onPress={() => navigation.navigate('MyMeals', { initialTab: 'bookings' })}
-    >
-      <Text style={styles.activityEmoji}>❌</Text>
-      <Text style={styles.activityValue}>
-        {cancelledBookings.length}
-      </Text>
-      <Text style={styles.activityLabel}>Cancelled</Text>
-    </TouchableOpacity>
-    <TouchableOpacity
-      style={styles.activityItem}
-      onPress={() => setReviewsModalVisible(true)}
-    >
-      <Text style={styles.activityEmoji}>⭐</Text>
-      <Text style={styles.activityValue}>
-        {sellerReviews.length}
-      </Text>
-      <Text style={styles.activityLabel}>Reviews</Text>
-    </TouchableOpacity>
-          </View >
-        </View >
+            <TouchableOpacity
+              style={styles.activityItem}
+              onPress={() => navigation.navigate('MyMeals', { initialTab: 'bookings' })}
+            >
+              <Ionicons name="checkmark-circle" size={24} color="#4CAF50" style={{ marginBottom: 4 }} />
+              <Text style={styles.activityValue}>{activeBookings.length}</Text>
+              <Text style={styles.activityLabel}>Active</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.activityItem}
+              onPress={() => navigation.navigate('MyMeals', { initialTab: 'bookings' })}
+            >
+              <Ionicons name="close-circle" size={24} color="#F44336" style={{ marginBottom: 4 }} />
+              <Text style={styles.activityValue}>{cancelledBookings.length}</Text>
+              <Text style={styles.activityLabel}>Cancelled</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.activityItem}
+              onPress={() => setReviewsModalVisible(true)}
+            >
+              <Ionicons name="star" size={24} color="#FFC107" style={{ marginBottom: 4 }} />
+              <Text style={styles.activityValue}>{sellerReviews.length}</Text>
+              <Text style={styles.activityLabel}>Reviews</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
 
     {/* ══════════════ PREMIUM PLANS ══════════════ */ }
     < View style = { styles.premiumCard } >
@@ -569,19 +563,19 @@ export default function ProfileScreen({ navigation }) {
           </Text>
 
           <View style={styles.premiumFeatureRow}>
-            <Text style={styles.premiumFeatureIcon}>⬆️</Text>
+            <Ionicons name="cloud-upload-outline" size={18} color="#FF6B35" style={{ marginRight: 10 }} />
             <Text style={styles.premiumFeatureText}>
               Meals pushed to top of Explore and Home
             </Text>
           </View>
           <View style={styles.premiumFeatureRow}>
-            <Text style={styles.premiumFeatureIcon}>🤖</Text>
+            <Ionicons name="ribbon-outline" size={18} color="#FF6B35" style={{ marginRight: 10 }} />
             <Text style={styles.premiumFeatureText}>
               AI recommendations prioritize your meals
             </Text>
           </View>
           <View style={styles.premiumFeatureRow}>
-            <Text style={styles.premiumFeatureIcon}>⭐</Text>
+            <Ionicons name="star-outline" size={18} color="#FF6B35" style={{ marginRight: 10 }} />
             <Text style={styles.premiumFeatureText}>
               Featured badge on your listings
             </Text>
@@ -648,102 +642,52 @@ export default function ProfileScreen({ navigation }) {
   </TouchableOpacity>
         </View >
 
-    {/* ══════════════ SDG IMPACT ══════════════ */ }
-    < View style = { styles.sdgCard } >
-          <Text style={styles.sdgTitle}>🌍 Your SDG Impact</Text>
-          <View style={styles.sdgRow}>
-            <View
-              style={[styles.sdgBadge, { backgroundColor: '#FFC10715' }]}
-            >
-              <Text style={styles.sdgEmoji}>🌾</Text>
-              <Text style={styles.sdgLabel}>SDG 2{'\n'}Zero Hunger</Text>
-            </View>
-            <View
-              style={[styles.sdgBadge, { backgroundColor: '#4CAF5015' }]}
-            >
-              <Text style={styles.sdgEmoji}>❤️</Text>
-              <Text style={styles.sdgLabel}>SDG 3{'\n'}Good Health</Text>
-            </View>
-            <View
-              style={[styles.sdgBadge, { backgroundColor: '#FF6B3515' }]}
-            >
-              <Text style={styles.sdgEmoji}>♻️</Text>
-              <Text style={styles.sdgLabel}>SDG 12{'\n'}Responsible</Text>
-            </View>
-          </View>
-          <View style={styles.impactBar}>
-            <Text style={styles.impactBarLabel}>
-              Community Impact Score
-            </Text>
-            <View style={styles.impactBarTrack}>
-              <View
-                style={[
-                  styles.impactBarFill,
-                  {
-                    width: `${Math.min(
-                      (myMeals.length / 10) * 100,
-                      100
-                    )}%`,
-                  },
-                ]}
-              />
-            </View>
-            <Text style={styles.impactBarValue}>
-              {myMeals.length}/10 meals to next level
-            </Text>
-          </View>
-        </View >
-
     {/* ══════════════ MENU ══════════════ */ }
-    < View style = { styles.menuSection } >
+    <View style={styles.menuSection}>
           <Text style={styles.menuSectionTitle}>ACCOUNT</Text>
           <MenuItem
-            iconSource={PROFILE_ICONS.user}
+            iconName="person-outline"
             label="Edit Profile"
             color="#2196F3"
             onPress={() => setEditModalVisible(true)}
           />
           <MenuItem
-<<<<<<< HEAD
-            iconSource={PROFILE_ICONS.bell}
-=======
-            icon="💎"
+            iconName="ribbon-outline"
             label="Premium Plans"
             value={isPro ? 'Pro Active' : 'Free Plan'}
             color="#FF6B35"
             onPress={() => setPremiumModalVisible(true)}
           />
           <MenuItem
-            icon="🔔"
->>>>>>> origin/Aditya-Dev-Joshi
+            iconName="notifications-outline"
             label="Notifications"
             color="#9C27B0"
             onPress={() => setNotifModalVisible(true)}
           />
           <MenuItem
-            iconSource={PROFILE_ICONS.safety}
+            iconName="shield-checkmark-outline"
             label="Privacy & Safety"
             color="#4CAF50"
             onPress={() => setPrivacyModalVisible(true)}
           />
-        </View >
+        </View>
 
         <View style={styles.menuSection}>
           <Text style={styles.menuSectionTitle}>PREFERENCES</Text>
           <MenuItem
-            iconSource={PROFILE_ICONS.dietary}
+            iconName="restaurant-outline"
             label="Dietary Preferences"
             color="#4CAF50"
             onPress={() => setDietModalVisible(true)}
           />
           <MenuItem
-            iconSource={PROFILE_ICONS.payment}
+            iconName="card-outline"
             label="Payment Methods"
             color="#FF6B35"
             onPress={() => setPaymentModalVisible(true)}
           />
           <MenuItem
-            iconSource={PROFILE_ICONS.rating}
+            iconName="chatbubble-ellipses-outline"
             label="My Reviews"
             value={`${sellerReviews.length} reviews`}
             color="#FFC107"
@@ -754,36 +698,24 @@ export default function ProfileScreen({ navigation }) {
         <View style={styles.menuSection}>
           <Text style={styles.menuSectionTitle}>SUPPORT</Text>
           <MenuItem
-            iconSource={PROFILE_ICONS.faq}
+            iconName="help-circle-outline"
             label="Help & FAQ"
             color="#607D8B"
             onPress={() =>
               Alert.alert(
-                '❓ Help & FAQ',
+                'Help & FAQ',
                 'Common Questions:\n\n• How do I book a meal?\nBrowse meals → tap one → Book Now\n\n• How do I list a meal?\nTap + tab → fill details → List My Meal\n\n• Cancellation fee?\n30% of total booking amount\n\nContact: support@plato.edu.np',
                 [{ text: 'Got it!' }]
               )
             }
           />
-          {/* <MenuItem
-            icon="📄"
-            label="Terms of Service"
-            color="#607D8B"
-            onPress={() =>
-              Alert.alert(
-                '📄 Terms of Service',
-                '1. Share only safe and hygienic food\n2. Honour your meal commitments\n3. 30% cancellation fee applies\n4. Respect all community members\n5. Do not misuse the rating system\n6. Plato is not liable for food quality disputes',
-                [{ text: 'I Understand' }]
-              )
-            }
-          /> */}
           <MenuItem
-            iconSource={PROFILE_ICONS.contact}
+            iconName="mail-outline"
             label="Contact Us"
             color="#607D8B"
             onPress={() =>
               Alert.alert(
-                '📧 Contact Us',
+                'Contact Us',
                 'Email: support@plato.edu.np\nPhone: +977-01-XXXXXXX\nHours: Mon–Fri 9AM–6PM\n\nResponse time: Within 24 hours',
                 [
                   { text: 'Cancel', style: 'cancel' },
@@ -797,14 +729,14 @@ export default function ProfileScreen({ navigation }) {
             }
           />
           <MenuItem
-            iconSource={PROFILE_ICONS.info}
+            iconName="information-circle-outline"
             label="About Plato"
             color="#607D8B"
             onPress={() =>
               Alert.alert(
-                'ℹ️ About Plato v1.0.0',
-                'Peer-to-peer meal sharing for students.\n\nAligned with:\n🌾 SDG 2 — Zero Hunger\n❤️ SDG 3 — Good Health\n♻️ SDG 12 — Responsible Consumption\n\nBuilt by:\n• Aarnav Dahal — PM & AI\n• Aditya Dev Joshi — Backend\n• Nabin Chamlagai — UI/UX\n• Suraj Patel — Frontend\n\nMade with ❤️ in Nepal',
-                [{ text: 'Close' }]
+                'About Plato v1.0.0',
+                'Peer-to-peer meal sharing for students.\n\nBuilt by:\n• Aarnav Dahal — PM & AI\n• Aditya Dev Joshi — Backend\n• Nabin Chamlagai — UI/UX\n• Suraj Patel — Frontend\n\nMade with ❤️ for students in Nepal',
+                [{ text: 'Close', style: 'cancel' }]
               )
             }
           />
@@ -816,7 +748,7 @@ export default function ProfileScreen({ navigation }) {
           onPress={handleLogout}
           disabled={loggingOut}
         >
-          <Image source={PROFILE_ICONS.logout} style={styles.logoutIconImage} />
+          <Ionicons name="log-out-outline" size={20} color="#FF5252" style={{ marginRight: 8 }} />
           <Text style={styles.logoutText}>Log Out</Text>
         </TouchableOpacity>
 
@@ -833,13 +765,18 @@ export default function ProfileScreen({ navigation }) {
   {/* ══════════════════════════════════════
           EDIT PROFILE MODAL
       ══════════════════════════════════════ */}
-    < Modal visible = { editModalVisible } animationType = "slide" transparent >
+    <Modal
+      visible={editModalVisible}
+      animationType="slide"
+      transparent
+      onRequestClose={() => setEditModalVisible(false)}
+    >
       <View style={styles.modalOverlay}>
         <View style={styles.modalContainer}>
           <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>✏️ Edit Profile</Text>
+            <Text style={styles.modalTitle}>Edit Profile</Text>
             <TouchableOpacity onPress={() => setEditModalVisible(false)}>
-              <Image source={PROFILE_ICONS.close} style={styles.modalCloseIcon} />
+              <Ionicons name="close-circle" size={22} color="#9E9E9E" />
             </TouchableOpacity>
           </View>
 
@@ -860,7 +797,7 @@ export default function ProfileScreen({ navigation }) {
                   borderWidth={3}
                 />
                 <View style={styles.modalCameraOverlay}>
-                  <Text style={styles.modalCameraIcon}>📷</Text>
+                  <Ionicons name="camera-outline" size={16} color="#fff" />
                 </View>
               </TouchableOpacity>
 
@@ -869,7 +806,9 @@ export default function ProfileScreen({ navigation }) {
                   style={styles.modalAvatarBtn}
                   onPress={takeAvatarPhoto}
                 >
-                  <Text style={styles.modalAvatarBtnIcon}>📷</Text>
+                  <View style={styles.modalAvatarBtnIconWrap}>
+                    <Ionicons name="scan-outline" size={16} color="#FF6B35" />
+                  </View>
                   <Text style={styles.modalAvatarBtnText}>Camera</Text>
                 </TouchableOpacity>
 
@@ -877,7 +816,9 @@ export default function ProfileScreen({ navigation }) {
                   style={styles.modalAvatarBtn}
                   onPress={pickAvatarFromGallery}
                 >
-                  <Text style={styles.modalAvatarBtnIcon}>🖼️</Text>
+                  <View style={styles.modalAvatarBtnIconWrap}>
+                    <Ionicons name="images-outline" size={16} color="#FF6B35" />
+                  </View>
                   <Text style={styles.modalAvatarBtnText}>Gallery</Text>
                 </TouchableOpacity>
 
@@ -886,7 +827,9 @@ export default function ProfileScreen({ navigation }) {
                     style={[styles.modalAvatarBtn, styles.modalAvatarBtnRed]}
                     onPress={removeAvatar}
                   >
-                    <Image source={PROFILE_ICONS.delete} style={styles.modalAvatarBtnIconImage} />
+                    <View style={[styles.modalAvatarBtnIconWrap, { backgroundColor: '#FFF0F0' }]}>
+                      <Ionicons name="close" size={16} color="#FF5252" />
+                    </View>
                     <Text style={[styles.modalAvatarBtnText, { color: '#FF5252' }]}>
                       Remove
                     </Text>
@@ -972,13 +915,18 @@ export default function ProfileScreen({ navigation }) {
   {/* ══════════════════════════════════════
           NOTIFICATIONS MODAL
       ══════════════════════════════════════ */}
-    < Modal visible = { notifModalVisible } animationType = "slide" transparent >
+    <Modal
+      visible={notifModalVisible}
+      animationType="slide"
+      transparent
+      onRequestClose={() => setNotifModalVisible(false)}
+    >
       <View style={styles.modalOverlay}>
         <View style={styles.modalContainer}>
           <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>🔔 Notifications</Text>
+            <Text style={styles.modalTitle}>Notifications</Text>
             <TouchableOpacity onPress={() => setNotifModalVisible(false)}>
-              <Image source={PROFILE_ICONS.close} style={styles.modalCloseIcon} />
+              <Ionicons name="close-circle" size={22} color="#9E9E9E" />
             </TouchableOpacity>
           </View>
           <Text style={styles.modalSubtitle}>
@@ -986,14 +934,14 @@ export default function ProfileScreen({ navigation }) {
           </Text>
 
           {[
-            { key: 'newMeals', label: 'New Meals Available', desc: 'When new meals are posted near you', icon: '🍽️' },
-            { key: 'bookingUpdates', label: 'Booking Updates', desc: 'Confirmations and cancellations', icon: '📋' },
-            { key: 'reminders', label: 'Meal Reminders', desc: 'Pickup time reminders', icon: '⏰' },
-            { key: 'reviews', label: 'New Reviews', desc: 'When someone reviews your meal', icon: '⭐' },
-            { key: 'promotions', label: 'Promotions', desc: 'Deals and special offers', icon: '🎉' },
+            { key: 'newMeals', label: 'New Meals Available', desc: 'When new meals are posted near you', icon: 'restaurant-outline' },
+            { key: 'bookingUpdates', label: 'Booking Updates', desc: 'Confirmations and cancellations', icon: 'receipt-outline' },
+            { key: 'reminders', label: 'Meal Reminders', desc: 'Pickup time reminders', icon: 'time-outline' },
+            { key: 'reviews', label: 'New Reviews', desc: 'When someone reviews your meal', icon: 'star-outline' },
+            { key: 'promotions', label: 'Promotions', desc: 'Deals and special offers', icon: 'gift-outline' },
           ].map((item) => (
             <View key={item.key} style={styles.notifRow}>
-              <Text style={styles.notifIcon}>{item.icon}</Text>
+              <Ionicons name={item.icon} size={22} color="#757575" style={{ marginRight: 12, width: 24, textAlign: 'center' }} />
               <View style={styles.notifInfo}>
                 <Text style={styles.notifLabel}>{item.label}</Text>
                 <Text style={styles.notifDesc}>{item.desc}</Text>
@@ -1018,7 +966,7 @@ export default function ProfileScreen({ navigation }) {
 
           {notificationsList.length === 0 ? (
             <View style={styles.notifEmptyState}>
-              <Text style={styles.notifEmptyEmoji}>🔔</Text>
+              <Ionicons name="notifications-outline" size={48} color="#BDBDBD" style={{ marginBottom: 12 }} />
               <Text style={styles.notifEmptyTitle}>No notifications yet</Text>
               <Text style={styles.notifEmptySubtitle}>
                 Updates will appear here based on your preferences.
@@ -1070,13 +1018,18 @@ export default function ProfileScreen({ navigation }) {
   {/* ══════════════════════════════════════
           DIETARY MODAL
       ══════════════════════════════════════ */}
-    < Modal visible = { dietModalVisible } animationType = "slide" transparent >
+    <Modal
+      visible={dietModalVisible}
+      animationType="slide"
+      transparent
+      onRequestClose={() => setDietModalVisible(false)}
+    >
       <View style={styles.modalOverlay}>
         <View style={styles.modalContainer}>
           <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>🌿 Dietary Preferences</Text>
+            <Text style={styles.modalTitle}>Dietary Preferences</Text>
             <TouchableOpacity onPress={() => setDietModalVisible(false)}>
-              <Image source={PROFILE_ICONS.close} style={styles.modalCloseIcon} />
+              <Ionicons name="close-circle" size={22} color="#9E9E9E" />
             </TouchableOpacity>
           </View>
           <Text style={styles.modalSubtitle}>
@@ -1084,15 +1037,15 @@ export default function ProfileScreen({ navigation }) {
           </Text>
 
           {[
-            { key: 'vegetarian', label: 'Vegetarian', desc: 'No meat or fish', icon: '🌱' },
-            { key: 'vegan', label: 'Vegan', desc: 'No animal products at all', icon: '🥦' },
-            { key: 'glutenFree', label: 'Gluten Free', desc: 'No wheat, barley or rye', icon: '🌾' },
-            { key: 'dairyFree', label: 'Dairy Free', desc: 'No milk or dairy products', icon: '🥛' },
-            { key: 'nutFree', label: 'Nut Free', desc: 'No nuts or nut products', icon: '🥜' },
-            { key: 'halal', label: 'Halal', desc: 'Halal certified ingredients only', icon: '✅' },
+            { key: 'vegetarian', label: 'Vegetarian', desc: 'No meat or fish', icon: 'leaf-outline' },
+            { key: 'vegan', label: 'Vegan', desc: 'No animal products at all', icon: 'nutrition-outline' },
+            { key: 'glutenFree', label: 'Gluten Free', desc: 'No wheat, barley or rye', icon: 'leaf-outline' },
+            { key: 'dairyFree', label: 'Dairy Free', desc: 'No milk or dairy products', icon: 'water-outline' },
+            { key: 'nutFree', label: 'Nut Free', desc: 'No nuts or nut products', icon: 'shield-checkmark-outline' },
+            { key: 'halal', label: 'Halal', desc: 'Halal certified ingredients only', icon: 'checkmark-circle-outline' },
           ].map((item) => (
             <View key={item.key} style={styles.notifRow}>
-              <Text style={styles.notifIcon}>{item.icon}</Text>
+              <Ionicons name={item.icon} size={22} color="#757575" style={{ marginRight: 12, width: 24, textAlign: 'center' }} />
               <View style={styles.notifInfo}>
                 <Text style={styles.notifLabel}>{item.label}</Text>
                 <Text style={styles.notifDesc}>{item.desc}</Text>
@@ -1132,13 +1085,18 @@ export default function ProfileScreen({ navigation }) {
   {/* ══════════════════════════════════════
           PAYMENT MODAL
       ══════════════════════════════════════ */}
-    < Modal visible = { paymentModalVisible } animationType = "slide" transparent >
+    <Modal
+      visible={paymentModalVisible}
+      animationType="slide"
+      transparent
+      onRequestClose={() => setPaymentModalVisible(false)}
+    >
       <View style={styles.modalOverlay}>
         <View style={styles.modalContainer}>
           <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>💳 Payment Methods</Text>
+            <Text style={styles.modalTitle}>Payment Methods</Text>
             <TouchableOpacity onPress={() => setPaymentModalVisible(false)}>
-              <Image source={PROFILE_ICONS.close} style={styles.modalCloseIcon} />
+              <Ionicons name="close-circle" size={22} color="#9E9E9E" />
             </TouchableOpacity>
           </View>
           <Text style={styles.modalSubtitle}>
@@ -1153,7 +1111,7 @@ export default function ProfileScreen({ navigation }) {
                   { backgroundColor: pm.color + '20' },
                 ]}
               >
-                <Text style={styles.paymentIcon}>{pm.icon}</Text>
+                <Ionicons name={pm.icon} size={20} color={pm.color} />
               </View>
               <View style={styles.paymentInfo}>
                 <Text style={styles.paymentType}>{pm.type}</Text>
@@ -1169,16 +1127,16 @@ export default function ProfileScreen({ navigation }) {
             style={styles.addPaymentButton}
             onPress={() =>
               Alert.alert(
-                '➕ Add Payment Method',
+                'Add Payment Method',
                 'Choose a method to add:',
                 [
                   {
-                    text: '💚 eSewa',
+                    text: 'eSewa',
                     onPress: () =>
                       Alert.alert('eSewa', 'eSewa integration coming soon!'),
                   },
                   {
-                    text: '💜 Khalti',
+                    text: 'Khalti',
                     onPress: () =>
                       Alert.alert('Khalti', 'Khalti integration coming soon!'),
                   },
@@ -1188,13 +1146,13 @@ export default function ProfileScreen({ navigation }) {
             }
           >
             <Text style={styles.addPaymentText}>
-              ➕ Add New Payment Method
+              Add New Payment Method
             </Text>
           </TouchableOpacity>
 
           <View style={styles.paymentNote}>
             <Text style={styles.paymentNoteText}>
-              🔒 Your payment info is encrypted and secure. Plato never stores your full card details.
+              Your payment info is encrypted and secure. Plato never stores your full card details.
             </Text>
           </View>
 
@@ -1216,13 +1174,18 @@ export default function ProfileScreen({ navigation }) {
   {/* ══════════════════════════════════════
           REVIEWS MODAL
       ══════════════════════════════════════ */}
-    < Modal visible = { reviewsModalVisible } animationType = "slide" transparent >
+    <Modal
+      visible={reviewsModalVisible}
+      animationType="slide"
+      transparent
+      onRequestClose={() => setReviewsModalVisible(false)}
+    >
       <View style={styles.modalOverlay}>
         <View style={styles.modalContainer}>
           <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>⭐ My Reviews</Text>
+            <Text style={styles.modalTitle}>My Reviews</Text>
             <TouchableOpacity onPress={() => setReviewsModalVisible(false)}>
-              <Image source={PROFILE_ICONS.close} style={styles.modalCloseIcon} />
+              <Ionicons name="close-circle" size={22} color="#9E9E9E" />
             </TouchableOpacity>
           </View>
 
@@ -1242,7 +1205,7 @@ export default function ProfileScreen({ navigation }) {
           >
             {sellerReviews.length === 0 ? (
               <View style={styles.reviewEmptyState}>
-                <Text style={styles.reviewEmptyEmoji}>⭐</Text>
+                <Ionicons name="star-outline" size={48} color="#BDBDBD" />
                 <Text style={styles.reviewEmptyTitle}>No reviews yet</Text>
                 <Text style={styles.reviewEmptySubtitle}>
                   Reviews from buyers will appear here.
@@ -1258,7 +1221,7 @@ export default function ProfileScreen({ navigation }) {
                     />
                   ) : (
                     <View style={[styles.reviewAvatar, styles.reviewAvatarPlaceholder]}>
-                      <Text style={styles.reviewAvatarPlaceholderText}>👤</Text>
+                      <Ionicons name="person" size={24} color="#9E9E9E" />
                     </View>
                   )}
                   <View style={styles.reviewMeta}>
@@ -1312,7 +1275,12 @@ export default function ProfileScreen({ navigation }) {
   {/* ══════════════════════════════════════
           PREMIUM MODAL
       ══════════════════════════════════════ */}
-    < Modal visible = { premiumModalVisible } animationType = "slide" transparent >
+    <Modal
+      visible={premiumModalVisible}
+      animationType="slide"
+      transparent
+      onRequestClose={() => setPremiumModalVisible(false)}
+    >
       <View style={styles.modalOverlay}>
         <View style={styles.modalContainer}>
           <View style={styles.modalHeader}>
@@ -1340,7 +1308,7 @@ export default function ProfileScreen({ navigation }) {
           </Text>
 
           <View style={styles.premiumFeatureRow}>
-            <Text style={styles.premiumFeatureIcon}>⬆️</Text>
+            <Ionicons name="cloud-upload-outline" size={18} color="#FF6B35" style={{ marginRight: 10 }} />
             <Text style={styles.premiumFeatureText}>
               Meals pushed to top of Explore and Home
             </Text>
@@ -1352,7 +1320,7 @@ export default function ProfileScreen({ navigation }) {
             </Text>
           </View>
           <View style={styles.premiumFeatureRow}>
-            <Text style={styles.premiumFeatureIcon}>⭐</Text>
+            <Ionicons name="star-outline" size={18} color="#FF6B35" style={{ marginRight: 10 }} />
             <Text style={styles.premiumFeatureText}>
               Featured badge on your listings
             </Text>
@@ -1419,41 +1387,46 @@ export default function ProfileScreen({ navigation }) {
   {/* ══════════════════════════════════════
           PRIVACY MODAL
       ══════════════════════════════════════ */}
-    < Modal visible = { privacyModalVisible } animationType = "slide" transparent >
+    <Modal
+      visible={privacyModalVisible}
+      animationType="slide"
+      transparent
+      onRequestClose={() => setPrivacyModalVisible(false)}
+    >
       <View style={styles.modalOverlay}>
         <View style={styles.modalContainer}>
           <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>🛡️ Privacy & Safety</Text>
+            <Text style={styles.modalTitle}>Privacy & Safety</Text>
             <TouchableOpacity onPress={() => setPrivacyModalVisible(false)}>
-              <Image source={PROFILE_ICONS.close} style={styles.modalCloseIcon} />
+              <Ionicons name="close-circle" size={22} color="#9E9E9E" />
             </TouchableOpacity>
           </View>
 
           <ScrollView showsVerticalScrollIndicator={false}>
             {[
               {
-                icon: '👁️',
+                icon: 'person-circle-outline',
                 title: 'Profile Visibility',
                 desc: 'Your profile is visible to all Plato users on your campus. Your email is never shown publicly.',
               },
               {
-                icon: '📍',
+                icon: 'location-outline',
                 title: 'Location Privacy',
                 desc: 'Only your pickup location for active meals is shared. Your home address is never stored.',
               },
               {
-                icon: '💳',
+                icon: 'card-outline',
                 title: 'Payment Security',
                 desc: 'All payments are processed securely. Plato never stores card details.',
               },
               {
-                icon: '📊',
+                icon: 'stats-chart-outline',
                 title: 'Data Usage',
                 desc: 'We use your meal history to improve AI recommendations. Your data is never sold.',
               },
             ].map((item, index) => (
               <View key={index} style={styles.privacyItem}>
-                <Text style={styles.privacyIcon}>{item.icon}</Text>
+                <Ionicons name={item.icon} size={24} color="#FF6B35" style={{ marginRight: 14 }} />
                 <View style={styles.privacyContent}>
                   <Text style={styles.privacyTitle}>{item.title}</Text>
                   <Text style={styles.privacyDesc}>{item.desc}</Text>
@@ -1465,7 +1438,7 @@ export default function ProfileScreen({ navigation }) {
               style={styles.reportButton}
               onPress={() =>
                 Alert.alert(
-                  '🚨 Report a User',
+                  'Report a User',
                   'To report:\n\nEmail: safety@plato.edu.np\nInclude the username and issue description.\n\nWe respond within 24 hours.',
                   [
                     { text: 'Cancel', style: 'cancel' },
@@ -1479,7 +1452,9 @@ export default function ProfileScreen({ navigation }) {
               }
             >
               <View style={styles.actionButtonRow}>
-                <Image source={PROFILE_ICONS.safety} style={styles.actionButtonIcon} />
+                <View style={styles.actionButtonIconWrap}>
+                  <Ionicons name="shield-checkmark-outline" size={18} color="#FF6B35" />
+                </View>
                 <Text style={styles.reportButtonText}>Report a User</Text>
               </View>
             </TouchableOpacity>
@@ -1488,14 +1463,16 @@ export default function ProfileScreen({ navigation }) {
               style={styles.deleteButton}
               onPress={() =>
                 Alert.alert(
-                  '⚠️ Delete Account',
+                  'Delete Account',
                   'This will permanently delete your account.\n\nEmail: delete@plato.edu.np to request deletion.',
                   [{ text: 'OK' }]
                 )
               }
             >
               <View style={styles.actionButtonRow}>
-                <Image source={PROFILE_ICONS.delete} style={styles.actionButtonIcon} />
+                <View style={[styles.actionButtonIconWrap, { backgroundColor: '#FFF0F0' }]}>
+                  <Ionicons name="trash-outline" size={18} color="#FF5252" />
+                </View>
                 <Text style={styles.deleteButtonText}>Request Account Deletion</Text>
               </View>
             </TouchableOpacity>
@@ -1550,7 +1527,6 @@ const styles = StyleSheet.create({
     borderColor: '#fff',
     elevation: 4,
   },
-  cameraBadgeIcon: { fontSize: 16 },
   onlineDot: {
     position: 'absolute',
     top: 6,
@@ -1660,13 +1636,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-around',
   },
   activityItem: { alignItems: 'center' },
-  activityEmoji: { fontSize: 24, marginBottom: 6 },
-  activityIconImage: {
-    width: 33,
-    height: 33,
-    resizeMode: 'contain',
-    marginBottom: 6,
-  },
   activityValue: {
     fontSize: 20,
     fontWeight: '800',
@@ -1737,10 +1706,8 @@ const styles = StyleSheet.create({
   premiumFeatureRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
     marginBottom: 6,
   },
-  premiumFeatureIcon: { fontSize: 16 },
   premiumFeatureText: {
     fontSize: 13,
     color: '#424242',
@@ -1981,7 +1948,16 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: '#fff',
   },
-  modalCameraIcon: { fontSize: 13 },
+  modalCameraIcon: { /* deprecated – using Ionicons now */ },
+  modalAvatarBtnIconWrap: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#FFF0E8',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 6,
+  },
   modalAvatarButtons: {
     flexDirection: 'row',
     gap: 10,

@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { formatCurrency } from '../utils/helpers';
 
 export default function BookingCard({ booking, onCancel }) {
@@ -11,7 +12,7 @@ export default function BookingCard({ booking, onCancel }) {
         <Image source={{ uri: bookingImage }} style={styles.image} />
       ) : (
         <View style={[styles.image, styles.imagePlaceholder]}>
-          <Text style={styles.imagePlaceholderText}>🍽️</Text>
+          <Ionicons name="restaurant-outline" size={24} color="#FF6B35" />
         </View>
       )}
       <View style={styles.content}>
@@ -29,10 +30,16 @@ export default function BookingCard({ booking, onCancel }) {
           {booking.portions} portion{booking.portions > 1 ? 's' : ''} •{' '}
           <Text style={styles.price}>{formatCurrency(booking.totalCost)}</Text>
         </Text>
-        <Text style={styles.meta}>⏰ {booking.meal.pickupTime}</Text>
-        <Text style={styles.meta} numberOfLines={1}>
-          📍 {booking.meal.pickupLocation}
-        </Text>
+        <View style={styles.metaItem}>
+          <Ionicons name="time-outline" size={12} color="#9E9E9E" style={{ marginRight: 4 }} />
+          <Text style={styles.meta}>{booking.meal.pickupTime}</Text>
+        </View>
+        <View style={styles.metaItem}>
+          <Ionicons name="location-outline" size={12} color="#9E9E9E" style={{ marginRight: 4 }} />
+          <Text style={styles.meta} numberOfLines={1}>
+            {booking.meal.pickupLocation}
+          </Text>
+        </View>
         {isConfirmed && onCancel && (
           <TouchableOpacity style={styles.cancelButton} onPress={() => onCancel(booking)}>
             <Text style={styles.cancelText}>Cancel Booking</Text>
@@ -66,7 +73,8 @@ const styles = StyleSheet.create({
   statusText: { fontSize: 11, fontWeight: '700' },
   portions: { fontSize: 13, color: '#757575', marginBottom: 6 },
   price: { color: '#FF6B35', fontWeight: '700' },
-  meta: { fontSize: 12, color: '#9E9E9E', marginBottom: 4 },
+  metaItem: { flexDirection: 'row', alignItems: 'center', marginBottom: 4 },
+  meta: { fontSize: 12, color: '#9E9E9E' },
   cancelButton: {
     borderWidth: 1.5, borderColor: '#FF5252', borderRadius: 10,
     paddingVertical: 6, alignItems: 'center', marginTop: 6,

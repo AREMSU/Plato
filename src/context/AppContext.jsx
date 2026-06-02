@@ -16,6 +16,7 @@ export const AppProvider = ({ children }) => {
     const [isLoggedIn, setIsLoggedIn] = useState(false);
     const [loading, setLoading] = useState(false);
     const [loggingOut, setLoggingOut] = useState(false);
+    const [subscription, setSubscription] = useState(null);
 
     // ─── AUTH ─────────────────────────────────────────────────
 
@@ -34,6 +35,7 @@ export const AppProvider = ({ children }) => {
             await loadReviewsReceived();
             await loadNotifications();
             await loadAIRecommendations();
+            await getSubscription();
             return { success: true };
         } catch (error) {
             return { success: false, error: error.message || 'Login failed' };
@@ -53,6 +55,7 @@ export const AppProvider = ({ children }) => {
         await loadReviewsReceived();
         await loadNotifications();
         await loadAIRecommendations();
+        await getSubscription();
     };
 
     const logout = async () => {
@@ -255,6 +258,49 @@ export const AppProvider = ({ children }) => {
         return [...availableMeals].sort(() => 0.5 - Math.random()).slice(0, 3);
     };
 
+    // ─── SUBSCRIPTION ──────────────────────────────────────────
+
+    const getSubscription = async () => {
+        try {
+            const data = await apiCall('/subscription/', 'GET', null, true);
+            if (!data?.error) setSubscription(data);
+            return data;
+        } catch (error) {
+            console.log('Get subscription error:', error.message);
+            return { error: error.message };
+        }
+    };
+
+    const upgradeSubscription = async () => {
+        try {
+            const data = await apiCall('/subscription/upgrade/', 'POST', null, true);
+            if (!data?.error) await getSubscription();
+            return data;
+        } catch (error) {
+            return { error: error.message };
+        }
+    };
+
+    const cancelSubscription = async () => {
+        try {
+            const data = await apiCall('/subscription/cancel/', 'POST', null, true);
+            if (!data?.error) await getSubscription();
+            return data;
+        } catch (error) {
+            return { error: error.message };
+        }
+    };
+
+    const renewSubscription = async () => {
+        try {
+            const data = await apiCall('/subscription/renew/', 'POST', null, true);
+            if (!data?.error) await getSubscription();
+            return data;
+        } catch (error) {
+            return { error: error.message };
+        }
+    };
+
     return (
         <AppContext.Provider value={{
             user,
@@ -281,6 +327,11 @@ export const AppProvider = ({ children }) => {
             markNotificationsRead,
             loadAIRecommendations,
             getAIRecommendations,
+            subscription,
+            getSubscription,
+            upgradeSubscription,
+            cancelSubscription,
+            renewSubscription,
         }}>
             {children}
         </AppContext.Provider>

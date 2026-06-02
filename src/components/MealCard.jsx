@@ -1,6 +1,7 @@
-import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { formatCurrency, truncateText } from '../utils/helpers';
+import UserAvatar from './UserAvatar';
 
 export default function MealCard({ meal, onPress }) {
   const portionsLeft = meal.available_portions ?? meal.availablePortions ?? 0;
@@ -24,7 +25,7 @@ export default function MealCard({ meal, onPress }) {
           <Image source={{ uri: image }} style={styles.image} resizeMode="cover" />
         ) : (
           <View style={[styles.image, styles.imagePlaceholder]}>
-            <Text style={styles.imagePlaceholderText}>🍽️</Text>
+            <Ionicons name="restaurant-outline" size={40} color="#FF6B35" />
           </View>
         )}
         {isSoldOut && (
@@ -34,11 +35,12 @@ export default function MealCard({ meal, onPress }) {
         )}
         {isVegetarian && (
           <View style={styles.vegBadge}>
-            <Text style={styles.vegText}>🌱</Text>
+            <Ionicons name="leaf" size={14} color="#fff" />
           </View>
         )}
         <View style={styles.portionsBadge}>
-          <Text style={styles.portionsText}>🍽️ {portionsLeft} left</Text>
+          <Ionicons name="restaurant-outline" size={12} color="#fff" style={{ marginRight: 4 }} />
+          <Text style={styles.portionsText}>{portionsLeft} left</Text>
         </View>
       </View>
 
@@ -50,26 +52,24 @@ export default function MealCard({ meal, onPress }) {
         <Text style={styles.description} numberOfLines={2}>{meal.description}</Text>
         <View style={styles.metaRow}>
           <View style={styles.sellerRow}>
-            {sellerAvatar ? (
-              <Image source={{ uri: sellerAvatar }} style={styles.sellerAvatar} />
-            ) : (
-              <View style={[styles.sellerAvatar, styles.sellerAvatarPlaceholder]}>
-                <Text style={{ fontSize: 12 }}>👤</Text>
-              </View>
-            )}
+            <UserAvatar uri={sellerAvatar} name={sellerName} size={24} borderWidth={0} />
             <Text style={styles.sellerName} numberOfLines={1}>{sellerName}</Text>
           </View>
           <View style={styles.ratingRow}>
-            <Text style={styles.ratingStar}>★</Text>
+            <Ionicons name="star" size={14} color="#FFC107" />
             <Text style={styles.rating}>{meal.rating || 0}</Text>
           </View>
         </View>
-        <View style={styles.bottomRow}>
-          <Text style={styles.metaText}>⏰ {pickupTime}</Text>
-          <Text style={styles.metaText} numberOfLines={1}>
-            📍 {truncateText(pickupLocation, 20)}
-          </Text>
-        </View>
+          <View style={styles.metaItem}>
+            <Ionicons name="time-outline" size={14} color="#9E9E9E" style={{ marginRight: 4 }} />
+            <Text style={styles.metaText}>{pickupTime}</Text>
+          </View>
+          <View style={styles.metaItem}>
+            <Ionicons name="location-outline" size={14} color="#9E9E9E" style={{ marginRight: 4 }} />
+            <Text style={styles.metaText} numberOfLines={1}>
+              {truncateText(pickupLocation, 20)}
+            </Text>
+          </View>
         <View style={styles.categoryTag}>
           <Text style={styles.categoryText}>{meal.category}</Text>
         </View>
@@ -107,6 +107,7 @@ const styles = StyleSheet.create({
     position: 'absolute', top: 12, right: 12,
     backgroundColor: 'rgba(0,0,0,0.6)',
     paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20,
+    flexDirection: 'row', alignItems: 'center'
   },
   portionsText: { fontSize: 12, color: '#fff', fontWeight: '700' },
   content: { padding: 16 },
@@ -122,16 +123,12 @@ const styles = StyleSheet.create({
     alignItems: 'center', marginBottom: 10,
   },
   sellerRow: { flexDirection: 'row', alignItems: 'center', gap: 7, flex: 1 },
-  sellerAvatar: { width: 24, height: 24, borderRadius: 12 },
-  sellerAvatarPlaceholder: {
-    backgroundColor: '#F0F0F0',
-    justifyContent: 'center', alignItems: 'center',
-  },
   sellerName: { fontSize: 13, color: '#424242', fontWeight: '600', flex: 1 },
   ratingRow: { flexDirection: 'row', alignItems: 'center', gap: 3 },
   ratingStar: { color: '#FFC107', fontSize: 14 },
   rating: { fontSize: 13, fontWeight: '700', color: '#212121' },
   bottomRow: { flexDirection: 'row', gap: 14, marginBottom: 10, flexWrap: 'wrap' },
+  metaItem: { flexDirection: 'row', alignItems: 'center' },
   metaText: { fontSize: 12, color: '#9E9E9E', fontWeight: '500' },
   categoryTag: {
     alignSelf: 'flex-start', backgroundColor: '#FFF3EE',

@@ -1,9 +1,10 @@
 import React, { useState, useRef } from 'react';
 import {
     View, Text, StyleSheet, TextInput,
-    TouchableOpacity, Alert, ActivityIndicator
+    TouchableOpacity, Alert, ActivityIndicator, Platform
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
 import apiCall from '../api/client';
 import { useApp } from '../context/AppContext';
 
@@ -75,7 +76,7 @@ export default function OTPScreen({ navigation, route }) {
                 >
                     <Text style={styles.backArrow}>←</Text>
                 </TouchableOpacity>
-                <Text style={styles.headerTitle}>Verify Email 📧</Text>
+                <Text style={styles.headerTitle}>Verify Email</Text>
                 <Text style={styles.headerSubtitle}>
                     We sent a 6 digit code to
                 </Text>
@@ -100,7 +101,9 @@ export default function OTPScreen({ navigation, route }) {
                     ))}
                 </View>
 
-                <Text style={styles.expiry}>⏱️ Code expires in 5 minutes</Text>
+                <Text style={styles.expiry}>
+                    <Ionicons name="time-outline" size={14} color="#9E9E9E" /> Code expires in 5 minutes
+                </Text>
 
                 <TouchableOpacity
                     style={styles.verifyButton}
@@ -144,24 +147,69 @@ const styles = StyleSheet.create({
         alignItems: 'center', justifyContent: 'center',
         zIndex: 10,
     },
-    backArrow: { fontSize: 22, color: '#fff', fontWeight: '700' },
-    headerTitle: { fontSize: 28, fontWeight: '800', color: '#fff', marginBottom: 8 },
-    headerSubtitle: { fontSize: 15, color: 'rgba(255,255,255,0.85)' },
-    email: { fontSize: 16, color: '#fff', fontWeight: '700', marginTop: 4 },
+    backArrow: {
+        fontSize: 22,
+        color: '#fff',
+        fontWeight: '700',
+        fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Bold' : 'sans-serif-medium',
+    },
+    headerTitle: {
+        fontSize: 28,
+        fontWeight: '800',
+        color: '#fff',
+        marginBottom: 8,
+        fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Bold' : 'sans-serif-medium',
+    },
+    headerSubtitle: {
+        fontSize: 15,
+        color: 'rgba(255,255,255,0.85)',
+        fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Medium' : 'sans-serif',
+    },
+    email: {
+        fontSize: 16,
+        color: '#fff',
+        fontWeight: '700',
+        marginTop: 4,
+        fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Bold' : 'sans-serif-medium',
+    },
     content: { flex: 1, paddingHorizontal: 30, paddingTop: 40 },
-    label: { fontSize: 16, fontWeight: '600', color: '#424242', marginBottom: 20, textAlign: 'center' },
+    label: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: '#424242',
+        marginBottom: 20,
+        textAlign: 'center',
+        fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Medium' : 'sans-serif-medium',
+    },
     otpRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 20 },
     otpInput: {
         width: 48, height: 56, borderWidth: 2,
         borderColor: '#E0E0E0', borderRadius: 12,
         fontSize: 24, fontWeight: '800', color: '#1A1A1A',
         backgroundColor: '#FAFAFA',
+        fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Bold' : 'sans-serif-medium',
     },
     otpInputFilled: { borderColor: '#FF6B35', backgroundColor: '#FFF3EE' },
-    expiry: { textAlign: 'center', color: '#9E9E9E', fontSize: 13, marginBottom: 30 },
+    expiry: {
+        textAlign: 'center',
+        color: '#9E9E9E',
+        fontSize: 13,
+        marginBottom: 30,
+        fontFamily: Platform.OS === 'ios' ? 'Avenir Next' : 'sans-serif',
+    },
     verifyButton: { borderRadius: 16, overflow: 'hidden', elevation: 4, marginBottom: 16 },
     verifyGradient: { paddingVertical: 16, alignItems: 'center' },
-    verifyText: { fontSize: 17, fontWeight: '700', color: '#fff' },
+    verifyText: {
+        fontSize: 17,
+        fontWeight: '700',
+        color: '#fff',
+        fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Bold' : 'sans-serif-medium',
+    },
     resendButton: { alignItems: 'center', paddingVertical: 12 },
-    resendText: { fontSize: 14, color: '#FF6B35', fontWeight: '600' },
+    resendText: {
+        fontSize: 14,
+        color: '#FF6B35',
+        fontWeight: '600',
+        fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Bold' : 'sans-serif-medium',
+    },
 });

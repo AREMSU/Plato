@@ -1,20 +1,16 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
 
 export default function Header({ title, subtitle, onBack, rightIcon, onRightPress }) {
-  const rightIcons = {
-    'notifications-outline': '🔔',
-    'settings-outline': '⚙️',
-    'search-outline': '🔍',
-    'add-outline': '➕',
-  };
+
   return (
     <LinearGradient colors={['#FF6B35', '#FF8C42']} style={styles.header}>
       <View style={styles.headerContent}>
         {onBack && (
           <TouchableOpacity onPress={onBack} style={styles.backButton}>
-            <Text style={styles.backText}>←</Text>
+            <Ionicons name="chevron-back" size={24} color="#fff" />
           </TouchableOpacity>
         )}
         <View style={styles.titleContainer}>
@@ -26,7 +22,7 @@ export default function Header({ title, subtitle, onBack, rightIcon, onRightPres
         </View>
         {rightIcon && (
           <TouchableOpacity onPress={onRightPress} style={styles.rightButton}>
-            <Text style={styles.rightButtonText}>{rightIcons[rightIcon] || '⚙️'}</Text>
+            <Ionicons name={rightIcon || 'settings-outline'} size={20} color="#fff" />
           </TouchableOpacity>
         )}
       </View>
@@ -42,7 +38,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.2)',
     justifyContent: 'center', alignItems: 'center',
   },
-  backText: { fontSize: 22, color: '#fff', fontWeight: '700' },
+  },
   titleContainer: { flex: 1 },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   logo: { width: 26, height: 26, borderRadius: 6 },
@@ -53,5 +49,5 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.2)',
     justifyContent: 'center', alignItems: 'center',
   },
-  rightButtonText: { fontSize: 20 },
+  },
 });
