@@ -104,8 +104,8 @@ const apiCall = async (endpoint, method = 'GET', body = null, requiresAuth = fal
 
     } catch (error) {
         console.error('API CALL FAILED:', error.message);
-        // Only log raw error to terminal — never expose API details in the app UI
-        throw new Error('Something went wrong. Please try again.');
+        // Re-throw the real error so callers can show specific messages
+        throw error;
     }
 };
 

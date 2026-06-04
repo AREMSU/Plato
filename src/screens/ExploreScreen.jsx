@@ -19,12 +19,12 @@ import { isMealOwner } from '../utils/helpers';
 
 // Category icons mapping helper (consistent with CategoryFilter)
 const CATEGORY_ICONS = {
-  all:         'apps',
-  Nepali:      'flame-outline',
+  all: 'apps',
+  Nepali: 'flame-outline',
   Continental: 'pizza-outline',
-  Chinese:     'leaf-outline',
-  Snacks:      'fast-food-outline',
-  Breakfast:   'sunny-outline',
+  Chinese: 'leaf-outline',
+  Snacks: 'fast-food-outline',
+  Breakfast: 'sunny-outline',
 };
 const getCategoryIcon = (id) => CATEGORY_ICONS[id] || 'grid-outline';
 
@@ -137,14 +137,14 @@ export default function ExploreScreen({ navigation }) {
               style={[
                 styles.filterChip,
                 selectedDiet === filter.id &&
-                  styles.filterChipActive,
+                styles.filterChipActive,
               ]}
             >
               <Text
                 style={[
                   styles.filterChipText,
                   selectedDiet === filter.id &&
-                    styles.filterChipTextActive,
+                  styles.filterChipTextActive,
                 ]}
               >
                 {filter.label}
@@ -197,7 +197,7 @@ export default function ExploreScreen({ navigation }) {
               style={[
                 styles.categoryChip,
                 selectedCategory === cat.id &&
-                  styles.categoryChipActive,
+                styles.categoryChipActive,
               ]}
               activeOpacity={0.7}
             >
@@ -210,7 +210,7 @@ export default function ExploreScreen({ navigation }) {
                 style={[
                   styles.categoryText,
                   selectedCategory === cat.id &&
-                    styles.categoryTextActive,
+                  styles.categoryTextActive,
                 ]}
               >
                 {cat.label}

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View, Text, StyleSheet, TextInput, TouchableOpacity,
   ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator, Alert,
@@ -8,67 +8,117 @@ import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../context/AppContext';
 import apiCall from '../api/client';
 
+// ── Password strength helpers ─────────────────────────────────────────────────
+const PASSWORD_RULES = [
+  { key: 'length',  label: 'Between 8 and 16 characters',   test: (p) => p.length >= 8 && p.length <= 16 },
+  { key: 'upper',   label: 'One uppercase letter (A–Z)',    test: (p) => /[A-Z]/.test(p) },
+  { key: 'number',  label: 'One number (0–9)',              test: (p) => /\d/.test(p) },
+  { key: 'special', label: 'One special character (!@#…)',  test: (p) => /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>/?]/.test(p) },
+];
+
+const getStrength = (password) => {
+  const passed = PASSWORD_RULES.filter((r) => r.test(password)).length;
+  if (passed === 0) return { score: 0, label: '',        color: '#E0E0E0' };
+  if (passed === 1) return { score: 1, label: 'Weak',    color: '#FF5252' };
+  if (passed === 2) return { score: 2, label: 'Fair',    color: '#FF9800' };
+  if (passed === 3) return { score: 3, label: 'Good',    color: '#2196F3' };
+  return              { score: 4, label: 'Strong',       color: '#4CAF50' };
+};
 
 export default function RegisterScreen({ navigation }) {
   const {} = useApp();
-  const [form, setForm] = useState({ name: '', email: '', university: '', password: '', confirmPassword: '' });
+  const [form, setForm] = useState({
+    name: '', email: '', university: '', password: '', confirmPassword: '',
+  });
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
+  const [passwordFocused, setPasswordFocused] = useState(false);
+
+  const strength = useMemo(() => getStrength(form.password), [form.password]);
 
   const updateForm = (key, value) => {
-    setForm({ ...form, [key]: value });
-    if (errors[key]) setErrors({ ...errors, [key]: null });
+    setForm((prev) => ({ ...prev, [key]: value }));
+    if (errors[key]) setErrors((prev) => ({ ...prev, [key]: null }));
   };
 
   const validate = () => {
-    const newErrors = {};
-    if (!form.name.trim()) newErrors.name = 'Name is required';
-    if (!form.email.trim()) newErrors.email = 'Email is required';
-    else if (!/\S+@\S+\.\S+/.test(form.email)) newErrors.email = 'Invalid email';
-    if (!form.university.trim()) newErrors.university = 'University is required';
-    if (!form.password) newErrors.password = 'Password is required';
-    else if (form.password.length < 6) newErrors.password = 'Min 6 characters';
-    if (form.password !== form.confirmPassword) newErrors.confirmPassword = 'Passwords do not match';
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    const e = {};
+    if (!form.name.trim()) e.name = 'Full name is required';
+
+    if (!form.email.trim()) {
+      e.email = 'Email is required';
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
+      e.email = 'Enter a valid email address (e.g. you@university.edu)';
+    }
+
+    if (!form.university.trim()) e.university = 'University / college is required';
+
+    if (!form.password) {
+      e.password = 'Password is required';
+    } else if (form.password.length > 16) {
+      e.password = 'Password must be at most 16 characters';
+    } else {
+      const failed = PASSWORD_RULES.filter((r) => !r.test(form.password));
+      if (failed.length > 0) e.password = failed[0].label + ' required';
+    }
+
+    if (!form.confirmPassword) {
+      e.confirmPassword = 'Please confirm your password';
+    } else if (form.password !== form.confirmPassword) {
+      e.confirmPassword = 'Passwords do not match';
+    }
+
+    setErrors(e);
+    return Object.keys(e).length === 0;
   };
 
- const handleRegister = async () => {
+  const handleRegister = async () => {
     if (!validate()) return;
     setLoading(true);
     try {
-        const data = await apiCall('/auth/register/', 'POST', {
-            first_name: form.name.trim(),
-            email: form.email.trim(),
-            university: form.university.trim(),
-            password: form.password,
-            confirm_password: form.confirmPassword,
-        });
-        // Navigate to OTP screen
-        navigation.navigate('OTP', {
-            email: form.email.trim(),
-            name: form.name.trim(),
-        });
+      await apiCall('/auth/register/', 'POST', {
+        first_name: form.name.trim(),
+        email: form.email.trim(),
+        university: form.university.trim(),
+        password: form.password,
+        confirm_password: form.confirmPassword,
+      });
+      navigation.navigate('OTP', {
+        email: form.email.trim(),
+        name: form.name.trim(),
+      });
     } catch (error) {
-        console.error('Registration error:', error.message);
-        Alert.alert('Registration Failed', 'Something went wrong. Please try again.');
+      const msg = error?.message || '';
+      // Route backend error to the right field
+      if (
+        msg.toLowerCase().includes('email') ||
+        msg.toLowerCase().includes('disposable') ||
+        msg.toLowerCase().includes('domain') ||
+        msg.toLowerCase().includes('temporary')
+      ) {
+        setErrors((prev) => ({ ...prev, email: msg }));
+      } else if (msg.toLowerCase().includes('password')) {
+        setErrors((prev) => ({ ...prev, password: msg }));
+      } else {
+        Alert.alert('Registration Failed', msg || 'Something went wrong. Please try again.');
+      }
     } finally {
-        setLoading(false);
+      setLoading(false);
     }
-};
-
-  const fields = [
-    { key: 'name', label: 'Full Name', icon: 'person-outline', placeholder: 'Your full name' },
-    { key: 'email', label: 'Email Address', icon: 'mail-outline', placeholder: 'your@student.edu', keyboardType: 'email-address' },
-    { key: 'university', label: 'University / College', icon: 'school-outline', placeholder: 'e.g. Kathmandu University' },
-    { key: 'password', label: 'Password', icon: 'lock-closed-outline', placeholder: 'Create a password', secure: true },
-    { key: 'confirmPassword', label: 'Confirm Password', icon: 'lock-closed-outline', placeholder: 'Repeat your password', secure: true },
-  ];
+  };
 
   return (
-    <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
         <LinearGradient colors={['#FF6B35', '#FF8C42']} style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
             <Text style={styles.backButtonText}>← Back</Text>
@@ -78,35 +128,175 @@ export default function RegisterScreen({ navigation }) {
         </LinearGradient>
 
         <View style={styles.formContainer}>
-          {fields.map((field) => (
-            <View key={field.key} style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>{field.label}</Text>
-              <View style={[styles.inputWrapper, errors[field.key] && styles.inputError]}>
-                <Ionicons name={field.icon} size={20} color="#757575" style={{ marginRight: 10 }} />
-                <TextInput
-                  style={styles.input}
-                  placeholder={field.placeholder}
-                  placeholderTextColor="#BDBDBD"
-                  value={form[field.key]}
-                  onChangeText={(t) => updateForm(field.key, t)}
-                  keyboardType={field.keyboardType || 'default'}
-                  secureTextEntry={field.secure && !showPassword}
-                  autoCapitalize={field.keyboardType === 'email-address' ? 'none' : 'words'}
-                  autoCorrect={false}
+
+          {/* ── Full Name ── */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>Full Name</Text>
+            <View style={[styles.inputWrapper, errors.name && styles.inputError]}>
+              <Ionicons name="person-outline" size={20} color="#757575" style={{ marginRight: 10 }} />
+              <TextInput
+                style={styles.input}
+                placeholder="Your full name"
+                placeholderTextColor="#BDBDBD"
+                value={form.name}
+                onChangeText={(t) => updateForm('name', t)}
+                autoCapitalize="words"
+                autoCorrect={false}
+              />
+            </View>
+            {errors.name ? <Text style={styles.errorText}>⚠ {errors.name}</Text> : null}
+          </View>
+
+          {/* ── Email ── */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>Email Address</Text>
+            <View style={[styles.inputWrapper, errors.email && styles.inputError]}>
+              <Ionicons name="mail-outline" size={20} color="#757575" style={{ marginRight: 10 }} />
+              <TextInput
+                style={styles.input}
+                placeholder="your@student.edu"
+                placeholderTextColor="#BDBDBD"
+                value={form.email}
+                onChangeText={(t) => updateForm('email', t)}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+            </View>
+            {errors.email ? <Text style={styles.errorText}>⚠ {errors.email}</Text> : null}
+          </View>
+
+          {/* ── University ── */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>University / College</Text>
+            <View style={[styles.inputWrapper, errors.university && styles.inputError]}>
+              <Ionicons name="school-outline" size={20} color="#757575" style={{ marginRight: 10 }} />
+              <TextInput
+                style={styles.input}
+                placeholder="e.g. Kathmandu University"
+                placeholderTextColor="#BDBDBD"
+                value={form.university}
+                onChangeText={(t) => updateForm('university', t)}
+                autoCorrect={false}
+              />
+            </View>
+            {errors.university ? <Text style={styles.errorText}>⚠ {errors.university}</Text> : null}
+          </View>
+
+          {/* ── Password ── */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>Password</Text>
+            <View style={[styles.inputWrapper, errors.password && styles.inputError]}>
+              <Ionicons name="lock-closed-outline" size={20} color="#757575" style={{ marginRight: 10 }} />
+              <TextInput
+                style={styles.input}
+                placeholder="Create a strong password"
+                placeholderTextColor="#BDBDBD"
+                value={form.password}
+                onChangeText={(t) => updateForm('password', t)}
+                secureTextEntry={!showPassword}
+                autoCapitalize="none"
+                autoCorrect={false}
+                maxLength={16}
+                onFocus={() => setPasswordFocused(true)}
+                onBlur={() => setPasswordFocused(false)}
+              />
+              <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+                <Ionicons
+                  name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                  size={20}
+                  color="#757575"
                 />
-                {field.secure && (
-                  <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-                    <Ionicons name={showPassword ? "eye-off-outline" : "eye-outline"} size={20} color="#757575" />
-                  </TouchableOpacity>
+              </TouchableOpacity>
+            </View>
+            {errors.password ? <Text style={styles.errorText}>⚠ {errors.password}</Text> : null}
+
+            {/* Strength bar + rules */}
+            {form.password.length > 0 && (
+              <View style={styles.strengthContainer}>
+                {/* Segmented bar */}
+                <View style={styles.strengthBarRow}>
+                  {[1, 2, 3, 4].map((i) => (
+                    <View
+                      key={i}
+                      style={[
+                        styles.strengthSegment,
+                        { backgroundColor: i <= strength.score ? strength.color : '#E0E0E0' },
+                      ]}
+                    />
+                  ))}
+                  {strength.label ? (
+                    <Text style={[styles.strengthLabel, { color: strength.color }]}>
+                      {strength.label}
+                    </Text>
+                  ) : null}
+                </View>
+
+                {/* Rule checklist */}
+                {(passwordFocused || form.password.length > 0) && (
+                  <View style={styles.rulesContainer}>
+                    {PASSWORD_RULES.map((rule) => {
+                      const passed = rule.test(form.password);
+                      return (
+                        <View key={rule.key} style={styles.ruleRow}>
+                          <Ionicons
+                            name={passed ? 'checkmark-circle' : 'ellipse-outline'}
+                            size={14}
+                            color={passed ? '#4CAF50' : '#BDBDBD'}
+                            style={{ marginRight: 6 }}
+                          />
+                          <Text style={[styles.ruleText, passed && styles.ruleTextPassed]}>
+                            {rule.label}
+                          </Text>
+                        </View>
+                      );
+                    })}
+                  </View>
                 )}
               </View>
-              {errors[field.key] && <Text style={styles.errorText}>{errors[field.key]}</Text>}
-            </View>
-          ))}
+            )}
+          </View>
 
-          <TouchableOpacity onPress={handleRegister} style={styles.registerButton} disabled={loading}>
+          {/* ── Confirm Password ── */}
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>Confirm Password</Text>
+            <View style={[styles.inputWrapper, errors.confirmPassword && styles.inputError]}>
+              <Ionicons name="lock-closed-outline" size={20} color="#757575" style={{ marginRight: 10 }} />
+              <TextInput
+                style={styles.input}
+                placeholder="Repeat your password"
+                placeholderTextColor="#BDBDBD"
+                value={form.confirmPassword}
+                onChangeText={(t) => updateForm('confirmPassword', t)}
+                secureTextEntry={!showConfirm}
+                autoCapitalize="none"
+                autoCorrect={false}
+                maxLength={16}
+              />
+              <TouchableOpacity onPress={() => setShowConfirm(!showConfirm)}>
+                <Ionicons
+                  name={showConfirm ? 'eye-off-outline' : 'eye-outline'}
+                  size={20}
+                  color="#757575"
+                />
+              </TouchableOpacity>
+            </View>
+            {errors.confirmPassword ? (
+              <Text style={styles.errorText}>⚠ {errors.confirmPassword}</Text>
+            ) : null}
+          </View>
+
+          <TouchableOpacity
+            onPress={handleRegister}
+            style={styles.registerButton}
+            disabled={loading}
+          >
             <LinearGradient colors={['#FF6B35', '#FF8C42']} style={styles.registerGradient}>
-              {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.registerText}>Create Account</Text>}
+              {loading ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.registerText}>Create Account</Text>
+              )}
             </LinearGradient>
           </TouchableOpacity>
 
@@ -116,6 +306,7 @@ export default function RegisterScreen({ navigation }) {
               <Text style={styles.loginLink}>Sign In</Text>
             </TouchableOpacity>
           </View>
+
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -125,7 +316,13 @@ export default function RegisterScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff' },
   scrollContent: { flexGrow: 1 },
-  header: { paddingTop: 60, paddingBottom: 40, paddingHorizontal: 28, borderBottomLeftRadius: 40, borderBottomRightRadius: 40 },
+  header: {
+    paddingTop: 60,
+    paddingBottom: 40,
+    paddingHorizontal: 28,
+    borderBottomLeftRadius: 40,
+    borderBottomRightRadius: 40,
+  },
   backButton: { marginBottom: 16 },
   backButtonText: {
     fontSize: 16,
@@ -156,9 +353,14 @@ const styles = StyleSheet.create({
     fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Medium' : 'sans-serif-medium',
   },
   inputWrapper: {
-    flexDirection: 'row', alignItems: 'center', borderWidth: 1.5,
-    borderColor: '#E0E0E0', borderRadius: 14, paddingHorizontal: 14,
-    paddingVertical: 12, backgroundColor: '#FAFAFA',
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: '#E0E0E0',
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    backgroundColor: '#FAFAFA',
   },
   inputError: { borderColor: '#FF5252' },
   input: {
@@ -175,6 +377,35 @@ const styles = StyleSheet.create({
     marginLeft: 4,
     fontFamily: Platform.OS === 'ios' ? 'Avenir Next' : 'sans-serif',
   },
+  // ── Strength meter ──
+  strengthContainer: { marginTop: 10, paddingHorizontal: 2 },
+  strengthBarRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginBottom: 8,
+  },
+  strengthSegment: {
+    flex: 1,
+    height: 4,
+    borderRadius: 2,
+  },
+  strengthLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    marginLeft: 6,
+    width: 44,
+    fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Bold' : 'sans-serif-medium',
+  },
+  rulesContainer: { gap: 4 },
+  ruleRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 2 },
+  ruleText: {
+    fontSize: 12,
+    color: '#BDBDBD',
+    fontFamily: Platform.OS === 'ios' ? 'Avenir Next' : 'sans-serif',
+  },
+  ruleTextPassed: { color: '#4CAF50' },
+  // ── Bottom ──
   registerButton: { borderRadius: 16, overflow: 'hidden', elevation: 4, marginTop: 8 },
   registerGradient: { paddingVertical: 16, alignItems: 'center', borderRadius: 16 },
   registerText: {

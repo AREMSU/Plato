@@ -42,7 +42,7 @@ const PROFILE_ICONS = {
   delete: require('../../assets/branding/delete.png'),
 };
 
-export default function ProfileScreen({ navigation }) {
+export default function ProfileScreen({ navigation, route }) {
   const {
     user,
     logout,
@@ -198,6 +198,13 @@ export default function ProfileScreen({ navigation }) {
     loadNotifications();
     markNotificationsRead();
   }, [notifModalVisible]);
+
+  useEffect(() => {
+    if (route?.params?.openReviews) {
+      setReviewsModalVisible(true);
+      navigation.setParams({ openReviews: undefined });
+    }
+  }, [route?.params?.openReviews, navigation]);
 
   useEffect(() => {
     if (!user) return;
@@ -601,8 +608,8 @@ export default function ProfileScreen({ navigation }) {
         </View>
 
 
-    {/* ══════════════ MENU ══════════════ */ }
-    <View style={styles.menuSection}>
+        {/* ══════════════ MENU ══════════════ */}
+        <View style={styles.menuSection}>
           <Text style={styles.menuSectionTitle}>ACCOUNT</Text>
           <MenuItem
             iconName="person-outline"
@@ -701,7 +708,7 @@ export default function ProfileScreen({ navigation }) {
           />
         </View>
 
-  {/* ══════════════ LOGOUT ══════════════ */ }
+        {/* ══════════════ LOGOUT ══════════════ */}
         <TouchableOpacity
           style={styles.logoutButton}
           onPress={handleLogout}
@@ -721,756 +728,756 @@ export default function ProfileScreen({ navigation }) {
         <View style={{ height: 24 }} />
       </ScrollView >
 
-  {/* ══════════════════════════════════════
+      {/* ══════════════════════════════════════
           EDIT PROFILE MODAL
       ══════════════════════════════════════ */}
-    <Modal
-      visible={editModalVisible}
-      animationType="slide"
-      transparent
-      onRequestClose={() => setEditModalVisible(false)}
-    >
-      <View style={styles.modalOverlay}>
-        <View style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Edit Profile</Text>
-            <TouchableOpacity onPress={() => setEditModalVisible(false)}>
-              <Ionicons name="close-circle" size={22} color="#9E9E9E" />
-            </TouchableOpacity>
-          </View>
-
-          <ScrollView showsVerticalScrollIndicator={false}>
-
-            {/* Avatar picker inside modal */}
-            <View style={styles.modalAvatarSection}>
-              <TouchableOpacity
-                onPress={showAvatarOptions}
-                style={styles.modalAvatarTouchable}
-              >
-                <UserAvatar
-                  uri={user?.avatar}
-                  name={user?.name}
-                  size={90}
-                  loading={avatarLoading}
-                  borderColor="#FF6B35"
-                  borderWidth={3}
-                />
-                <View style={styles.modalCameraOverlay}>
-                  <Ionicons name="camera-outline" size={16} color="#fff" />
-                </View>
+      <Modal
+        visible={editModalVisible}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setEditModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Edit Profile</Text>
+              <TouchableOpacity onPress={() => setEditModalVisible(false)}>
+                <Ionicons name="close-circle" size={22} color="#9E9E9E" />
               </TouchableOpacity>
+            </View>
 
-              <View style={styles.modalAvatarButtons}>
+            <ScrollView showsVerticalScrollIndicator={false}>
+
+              {/* Avatar picker inside modal */}
+              <View style={styles.modalAvatarSection}>
                 <TouchableOpacity
-                  style={styles.modalAvatarBtn}
-                  onPress={takeAvatarPhoto}
+                  onPress={showAvatarOptions}
+                  style={styles.modalAvatarTouchable}
                 >
-                  <View style={styles.modalAvatarBtnIconWrap}>
-                    <Ionicons name="scan-outline" size={16} color="#FF6B35" />
+                  <UserAvatar
+                    uri={user?.avatar}
+                    name={user?.name}
+                    size={90}
+                    loading={avatarLoading}
+                    borderColor="#FF6B35"
+                    borderWidth={3}
+                  />
+                  <View style={styles.modalCameraOverlay}>
+                    <Ionicons name="camera-outline" size={16} color="#fff" />
                   </View>
-                  <Text style={styles.modalAvatarBtnText}>Camera</Text>
                 </TouchableOpacity>
 
-                <TouchableOpacity
-                  style={styles.modalAvatarBtn}
-                  onPress={pickAvatarFromGallery}
-                >
-                  <View style={styles.modalAvatarBtnIconWrap}>
-                    <Ionicons name="images-outline" size={16} color="#FF6B35" />
-                  </View>
-                  <Text style={styles.modalAvatarBtnText}>Gallery</Text>
-                </TouchableOpacity>
-
-                {user?.avatar && (
+                <View style={styles.modalAvatarButtons}>
                   <TouchableOpacity
-                    style={[styles.modalAvatarBtn, styles.modalAvatarBtnRed]}
-                    onPress={removeAvatar}
+                    style={styles.modalAvatarBtn}
+                    onPress={takeAvatarPhoto}
                   >
-                    <View style={[styles.modalAvatarBtnIconWrap, { backgroundColor: '#FFF0F0' }]}>
-                      <Ionicons name="close" size={16} color="#FF5252" />
+                    <View style={styles.modalAvatarBtnIconWrap}>
+                      <Ionicons name="scan-outline" size={16} color="#FF6B35" />
                     </View>
-                    <Text style={[styles.modalAvatarBtnText, { color: '#FF5252' }]}>
-                      Remove
-                    </Text>
+                    <Text style={styles.modalAvatarBtnText}>Camera</Text>
                   </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.modalAvatarBtn}
+                    onPress={pickAvatarFromGallery}
+                  >
+                    <View style={styles.modalAvatarBtnIconWrap}>
+                      <Ionicons name="images-outline" size={16} color="#FF6B35" />
+                    </View>
+                    <Text style={styles.modalAvatarBtnText}>Gallery</Text>
+                  </TouchableOpacity>
+
+                  {user?.avatar && (
+                    <TouchableOpacity
+                      style={[styles.modalAvatarBtn, styles.modalAvatarBtnRed]}
+                      onPress={removeAvatar}
+                    >
+                      <View style={[styles.modalAvatarBtnIconWrap, { backgroundColor: '#FFF0F0' }]}>
+                        <Ionicons name="close" size={16} color="#FF5252" />
+                      </View>
+                      <Text style={[styles.modalAvatarBtnText, { color: '#FF5252' }]}>
+                        Remove
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+
+                {!user?.avatar && (
+                  <View style={styles.noAvatarInfo}>
+                    <Text style={styles.noAvatarInfoText}>
+                      Your name initial is shown when no photo is set
+                    </Text>
+                  </View>
                 )}
               </View>
 
-              {!user?.avatar && (
-                <View style={styles.noAvatarInfo}>
-                  <Text style={styles.noAvatarInfoText}>
-                    Your name initial is shown when no photo is set
+              {/* Name */}
+              <View style={styles.modalField}>
+                <Text style={styles.modalLabel}>Full Name</Text>
+                <TextInput
+                  style={styles.modalInput}
+                  value={editForm.name}
+                  onChangeText={(t) => setEditForm({ ...editForm, name: t })}
+                  placeholder="Your full name"
+                  placeholderTextColor="#BDBDBD"
+                />
+              </View>
+
+              {/* University */}
+              <View style={styles.modalField}>
+                <Text style={styles.modalLabel}>University / College</Text>
+                <TextInput
+                  style={styles.modalInput}
+                  value={editForm.university}
+                  onChangeText={(t) => setEditForm({ ...editForm, university: t })}
+                  placeholder="e.g. Kathmandu University"
+                  placeholderTextColor="#BDBDBD"
+                />
+              </View>
+
+              {/* Bio */}
+              <View style={styles.modalField}>
+                <Text style={styles.modalLabel}>Bio</Text>
+                <TextInput
+                  style={[styles.modalInput, styles.modalInputMulti]}
+                  value={editForm.bio}
+                  onChangeText={(t) => setEditForm({ ...editForm, bio: t })}
+                  placeholder="Tell others about yourself..."
+                  placeholderTextColor="#BDBDBD"
+                  multiline
+                  numberOfLines={3}
+                  textAlignVertical="top"
+                />
+              </View>
+
+              {/* Email (readonly) */}
+              <View style={styles.modalField}>
+                <Text style={styles.modalLabel}>Email</Text>
+                <View style={styles.modalInputDisabled}>
+                  <Text style={styles.modalInputDisabledText}>
+                    {user?.email}
                   </Text>
                 </View>
-              )}
+                <Text style={styles.modalHint}>🔒 Email cannot be changed</Text>
+              </View>
+
+              <TouchableOpacity
+                style={styles.modalSaveButton}
+                onPress={handleSaveProfile}
+              >
+                <LinearGradient
+                  colors={['#FF6B35', '#FF8C42']}
+                  style={styles.modalSaveGradient}
+                >
+                  <Text style={styles.modalSaveText}>Save Changes</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal >
+
+      {/* ══════════════════════════════════════
+          NOTIFICATIONS MODAL
+      ══════════════════════════════════════ */}
+      <Modal
+        visible={notifModalVisible}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setNotifModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Notifications</Text>
+              <TouchableOpacity onPress={() => setNotifModalVisible(false)}>
+                <Ionicons name="close-circle" size={22} color="#9E9E9E" />
+              </TouchableOpacity>
+            </View>
+            <Text style={styles.modalSubtitle}>
+              Choose what notifications you receive
+            </Text>
+
+            {[
+              { key: 'newMeals', label: 'New Meals Available', desc: 'When new meals are posted near you', icon: 'restaurant-outline' },
+              { key: 'bookingUpdates', label: 'Booking Updates', desc: 'Confirmations and cancellations', icon: 'receipt-outline' },
+              { key: 'reminders', label: 'Meal Reminders', desc: 'Pickup time reminders', icon: 'time-outline' },
+              { key: 'reviews', label: 'New Reviews', desc: 'When someone reviews your meal', icon: 'star-outline' },
+              { key: 'promotions', label: 'Promotions', desc: 'Deals and special offers', icon: 'gift-outline' },
+            ].map((item) => (
+              <View key={item.key} style={styles.notifRow}>
+                <Ionicons name={item.icon} size={22} color="#757575" style={{ marginRight: 12, width: 24, textAlign: 'center' }} />
+                <View style={styles.notifInfo}>
+                  <Text style={styles.notifLabel}>{item.label}</Text>
+                  <Text style={styles.notifDesc}>{item.desc}</Text>
+                </View>
+                <Switch
+                  value={notifications[item.key]}
+                  onValueChange={(v) =>
+                    setNotifications({ ...notifications, [item.key]: v })
+                  }
+                  trackColor={{ false: '#E0E0E0', true: '#FF6B35' }}
+                  thumbColor="#fff"
+                />
+              </View>
+            ))}
+
+            <View style={styles.notifSectionHeader}>
+              <Text style={styles.notifSectionTitle}>Recent Notifications</Text>
+              <TouchableOpacity onPress={() => loadNotifications()}>
+                <Text style={styles.notifRefresh}>Refresh</Text>
+              </TouchableOpacity>
             </View>
 
-            {/* Name */}
-            <View style={styles.modalField}>
-              <Text style={styles.modalLabel}>Full Name</Text>
-              <TextInput
-                style={styles.modalInput}
-                value={editForm.name}
-                onChangeText={(t) => setEditForm({ ...editForm, name: t })}
-                placeholder="Your full name"
-                placeholderTextColor="#BDBDBD"
-              />
-            </View>
-
-            {/* University */}
-            <View style={styles.modalField}>
-              <Text style={styles.modalLabel}>University / College</Text>
-              <TextInput
-                style={styles.modalInput}
-                value={editForm.university}
-                onChangeText={(t) => setEditForm({ ...editForm, university: t })}
-                placeholder="e.g. Kathmandu University"
-                placeholderTextColor="#BDBDBD"
-              />
-            </View>
-
-            {/* Bio */}
-            <View style={styles.modalField}>
-              <Text style={styles.modalLabel}>Bio</Text>
-              <TextInput
-                style={[styles.modalInput, styles.modalInputMulti]}
-                value={editForm.bio}
-                onChangeText={(t) => setEditForm({ ...editForm, bio: t })}
-                placeholder="Tell others about yourself..."
-                placeholderTextColor="#BDBDBD"
-                multiline
-                numberOfLines={3}
-                textAlignVertical="top"
-              />
-            </View>
-
-            {/* Email (readonly) */}
-            <View style={styles.modalField}>
-              <Text style={styles.modalLabel}>Email</Text>
-              <View style={styles.modalInputDisabled}>
-                <Text style={styles.modalInputDisabledText}>
-                  {user?.email}
+            {notificationsList.length === 0 ? (
+              <View style={styles.notifEmptyState}>
+                <Ionicons name="notifications-outline" size={48} color="#BDBDBD" style={{ marginBottom: 12 }} />
+                <Text style={styles.notifEmptyTitle}>No notifications yet</Text>
+                <Text style={styles.notifEmptySubtitle}>
+                  Updates will appear here based on your preferences.
                 </Text>
               </View>
-              <Text style={styles.modalHint}>🔒 Email cannot be changed</Text>
-            </View>
+            ) : (
+              notificationsList.slice(0, 10).map((n) => (
+                <View key={n.id} style={styles.notifItem}>
+                  {!n.isRead && <View style={styles.notifDot} />}
+                  <View style={styles.notifContent}>
+                    <Text style={styles.notifTitle}>{n.title}</Text>
+                    <Text style={styles.notifMessage}>{n.message}</Text>
+                    <Text style={styles.notifTime}>
+                      {new Date(n.createdAt).toLocaleString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                        hour: 'numeric',
+                        minute: '2-digit',
+                      })}
+                    </Text>
+                  </View>
+                </View>
+              ))
+            )}
 
             <TouchableOpacity
               style={styles.modalSaveButton}
-              onPress={handleSaveProfile}
+              onPress={async () => {
+                try {
+                  await saveNotificationPrefs();
+                  setNotifModalVisible(false);
+                  Alert.alert('✅ Saved', 'Notification preferences updated!');
+                } catch (error) {
+                  console.error('Save notification prefs error:', error.message);
+                  Alert.alert('Error', 'Failed to save preferences. Please try again.');
+                }
+              }}
             >
               <LinearGradient
                 colors={['#FF6B35', '#FF8C42']}
                 style={styles.modalSaveGradient}
               >
-                <Text style={styles.modalSaveText}>Save Changes</Text>
+                <Text style={styles.modalSaveText}>Save Preferences</Text>
               </LinearGradient>
             </TouchableOpacity>
-          </ScrollView>
+          </View>
         </View>
-      </View>
       </Modal >
 
-  {/* ══════════════════════════════════════
-          NOTIFICATIONS MODAL
-      ══════════════════════════════════════ */}
-    <Modal
-      visible={notifModalVisible}
-      animationType="slide"
-      transparent
-      onRequestClose={() => setNotifModalVisible(false)}
-    >
-      <View style={styles.modalOverlay}>
-        <View style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Notifications</Text>
-            <TouchableOpacity onPress={() => setNotifModalVisible(false)}>
-              <Ionicons name="close-circle" size={22} color="#9E9E9E" />
-            </TouchableOpacity>
-          </View>
-          <Text style={styles.modalSubtitle}>
-            Choose what notifications you receive
-          </Text>
-
-          {[
-            { key: 'newMeals', label: 'New Meals Available', desc: 'When new meals are posted near you', icon: 'restaurant-outline' },
-            { key: 'bookingUpdates', label: 'Booking Updates', desc: 'Confirmations and cancellations', icon: 'receipt-outline' },
-            { key: 'reminders', label: 'Meal Reminders', desc: 'Pickup time reminders', icon: 'time-outline' },
-            { key: 'reviews', label: 'New Reviews', desc: 'When someone reviews your meal', icon: 'star-outline' },
-            { key: 'promotions', label: 'Promotions', desc: 'Deals and special offers', icon: 'gift-outline' },
-          ].map((item) => (
-            <View key={item.key} style={styles.notifRow}>
-              <Ionicons name={item.icon} size={22} color="#757575" style={{ marginRight: 12, width: 24, textAlign: 'center' }} />
-              <View style={styles.notifInfo}>
-                <Text style={styles.notifLabel}>{item.label}</Text>
-                <Text style={styles.notifDesc}>{item.desc}</Text>
-              </View>
-              <Switch
-                value={notifications[item.key]}
-                onValueChange={(v) =>
-                  setNotifications({ ...notifications, [item.key]: v })
-                }
-                trackColor={{ false: '#E0E0E0', true: '#FF6B35' }}
-                thumbColor="#fff"
-              />
-            </View>
-          ))}
-
-          <View style={styles.notifSectionHeader}>
-            <Text style={styles.notifSectionTitle}>Recent Notifications</Text>
-            <TouchableOpacity onPress={() => loadNotifications()}>
-              <Text style={styles.notifRefresh}>Refresh</Text>
-            </TouchableOpacity>
-          </View>
-
-          {notificationsList.length === 0 ? (
-            <View style={styles.notifEmptyState}>
-              <Ionicons name="notifications-outline" size={48} color="#BDBDBD" style={{ marginBottom: 12 }} />
-              <Text style={styles.notifEmptyTitle}>No notifications yet</Text>
-              <Text style={styles.notifEmptySubtitle}>
-                Updates will appear here based on your preferences.
-              </Text>
-            </View>
-          ) : (
-            notificationsList.slice(0, 10).map((n) => (
-              <View key={n.id} style={styles.notifItem}>
-                {!n.isRead && <View style={styles.notifDot} />}
-                <View style={styles.notifContent}>
-                  <Text style={styles.notifTitle}>{n.title}</Text>
-                  <Text style={styles.notifMessage}>{n.message}</Text>
-                  <Text style={styles.notifTime}>
-                    {new Date(n.createdAt).toLocaleString('en-US', {
-                      month: 'short',
-                      day: 'numeric',
-                      hour: 'numeric',
-                      minute: '2-digit',
-                    })}
-                  </Text>
-                </View>
-              </View>
-            ))
-          )}
-
-          <TouchableOpacity
-            style={styles.modalSaveButton}
-            onPress={async () => {
-              try {
-                await saveNotificationPrefs();
-                setNotifModalVisible(false);
-                Alert.alert('✅ Saved', 'Notification preferences updated!');
-              } catch (error) {
-                console.error('Save notification prefs error:', error.message);
-                Alert.alert('Error', 'Failed to save preferences. Please try again.');
-              }
-            }}
-          >
-            <LinearGradient
-              colors={['#FF6B35', '#FF8C42']}
-              style={styles.modalSaveGradient}
-            >
-              <Text style={styles.modalSaveText}>Save Preferences</Text>
-            </LinearGradient>
-          </TouchableOpacity>
-        </View>
-      </View>
-      </Modal >
-
-  {/* ══════════════════════════════════════
+      {/* ══════════════════════════════════════
           DIETARY MODAL
       ══════════════════════════════════════ */}
-    <Modal
-      visible={dietModalVisible}
-      animationType="slide"
-      transparent
-      onRequestClose={() => setDietModalVisible(false)}
-    >
-      <View style={styles.modalOverlay}>
-        <View style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Dietary Preferences</Text>
-            <TouchableOpacity onPress={() => setDietModalVisible(false)}>
-              <Ionicons name="close-circle" size={22} color="#9E9E9E" />
-            </TouchableOpacity>
-          </View>
-          <Text style={styles.modalSubtitle}>
-            Set your dietary needs for better meal recommendations
-          </Text>
-
-          {[
-            { key: 'vegetarian', label: 'Vegetarian', desc: 'No meat or fish', icon: 'leaf-outline' },
-            { key: 'vegan', label: 'Vegan', desc: 'No animal products at all', icon: 'nutrition-outline' },
-            { key: 'glutenFree', label: 'Gluten Free', desc: 'No wheat, barley or rye', icon: 'leaf-outline' },
-            { key: 'dairyFree', label: 'Dairy Free', desc: 'No milk or dairy products', icon: 'water-outline' },
-            { key: 'nutFree', label: 'Nut Free', desc: 'No nuts or nut products', icon: 'shield-checkmark-outline' },
-            { key: 'halal', label: 'Halal', desc: 'Halal certified ingredients only', icon: 'checkmark-circle-outline' },
-          ].map((item) => (
-            <View key={item.key} style={styles.notifRow}>
-              <Ionicons name={item.icon} size={22} color="#757575" style={{ marginRight: 12, width: 24, textAlign: 'center' }} />
-              <View style={styles.notifInfo}>
-                <Text style={styles.notifLabel}>{item.label}</Text>
-                <Text style={styles.notifDesc}>{item.desc}</Text>
-              </View>
-              <Switch
-                value={dietary[item.key]}
-                onValueChange={(v) =>
-                  setDietary({ ...dietary, [item.key]: v })
-                }
-                trackColor={{ false: '#E0E0E0', true: '#4CAF50' }}
-                thumbColor="#fff"
-              />
+      <Modal
+        visible={dietModalVisible}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setDietModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Dietary Preferences</Text>
+              <TouchableOpacity onPress={() => setDietModalVisible(false)}>
+                <Ionicons name="close-circle" size={22} color="#9E9E9E" />
+              </TouchableOpacity>
             </View>
-          ))}
-
-          <TouchableOpacity
-            style={styles.modalSaveButton}
-            onPress={() => {
-              setDietModalVisible(false);
-              Alert.alert(
-                '✅ Saved',
-                'Dietary preferences updated! AI will now recommend better meals.'
-              );
-            }}
-          >
-            <LinearGradient
-              colors={['#4CAF50', '#66BB6A']}
-              style={styles.modalSaveGradient}
-            >
-              <Text style={styles.modalSaveText}>Save Preferences</Text>
-            </LinearGradient>
-          </TouchableOpacity>
-        </View>
-      </View>
-      </Modal >
-
-  {/* ══════════════════════════════════════
-          PAYMENT MODAL
-      ══════════════════════════════════════ */}
-    <Modal
-      visible={paymentModalVisible}
-      animationType="slide"
-      transparent
-      onRequestClose={() => setPaymentModalVisible(false)}
-    >
-      <View style={styles.modalOverlay}>
-        <View style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Payment Methods</Text>
-            <TouchableOpacity onPress={() => setPaymentModalVisible(false)}>
-              <Ionicons name="close-circle" size={22} color="#9E9E9E" />
-            </TouchableOpacity>
-          </View>
-          <Text style={styles.modalSubtitle}>
-            Your saved payment methods
-          </Text>
-
-          {savedPayments.map((pm) => (
-            <View key={pm.id} style={styles.paymentRow}>
-              <View
-                style={[
-                  styles.paymentIconBox,
-                  pm.logo ? styles.paymentLogoBox : { backgroundColor: pm.color + '20' },
-                ]}
-              >
-                {pm.logo ? (
-                  <Image source={pm.logo} style={styles.paymentLogoImage} resizeMode="contain" />
-                ) : (
-                  <Ionicons name={pm.icon} size={20} color={pm.color} />
-                )}
-              </View>
-              <View style={styles.paymentInfo}>
-                <Text style={styles.paymentType}>{pm.type}</Text>
-                <Text style={styles.paymentNumber}>{pm.number}</Text>
-              </View>
-              <View style={styles.paymentActiveBadge}>
-                <Text style={styles.paymentActiveText}>Active</Text>
-              </View>
-            </View>
-          ))}
-
-          <TouchableOpacity
-            style={styles.addPaymentButton}
-            onPress={() =>
-              Alert.alert(
-                'Add Payment Method',
-                'Choose a method to add:',
-                [
-                  {
-                    text: 'eSewa',
-                    onPress: () =>
-                      Alert.alert('eSewa', 'eSewa integration coming soon!'),
-                  },
-                  { text: 'Cancel', style: 'cancel' },
-                ]
-              )
-            }
-          >
-            <Text style={styles.addPaymentText}>
-              Add New Payment Method
+            <Text style={styles.modalSubtitle}>
+              Set your dietary needs for better meal recommendations
             </Text>
-          </TouchableOpacity>
 
-          <View style={styles.paymentNote}>
-            <Text style={styles.paymentNoteText}>
-              Your payment info is encrypted and secure. Plato never stores your full card details.
-            </Text>
-          </View>
-
-          <TouchableOpacity
-            style={styles.modalSaveButton}
-            onPress={() => setPaymentModalVisible(false)}
-          >
-            <LinearGradient
-              colors={['#FF6B35', '#FF8C42']}
-              style={styles.modalSaveGradient}
-            >
-              <Text style={styles.modalSaveText}>Done</Text>
-            </LinearGradient>
-          </TouchableOpacity>
-        </View>
-      </View>
-      </Modal >
-
-  {/* ══════════════════════════════════════
-          REVIEWS MODAL
-      ══════════════════════════════════════ */}
-    <Modal
-      visible={reviewsModalVisible}
-      animationType="slide"
-      transparent
-      onRequestClose={() => setReviewsModalVisible(false)}
-    >
-      <View style={styles.modalOverlay}>
-        <View style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>My Reviews</Text>
-            <TouchableOpacity onPress={() => setReviewsModalVisible(false)}>
-              <Ionicons name="close-circle" size={22} color="#9E9E9E" />
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.reviewSummary}>
-            <Text style={styles.reviewBigRating}>
-              {user?.rating?.toFixed(1)}
-            </Text>
-            <RatingStars rating={user?.rating || 5} size={22} />
-            <Text style={styles.reviewCount}>
-              Based on {sellerReviews.length} reviews
-            </Text>
-          </View>
-
-          <ScrollView
-            style={styles.reviewsList}
-            showsVerticalScrollIndicator={false}
-          >
-            {sellerReviews.length === 0 ? (
-              <View style={styles.reviewEmptyState}>
-                <Ionicons name="star-outline" size={48} color="#BDBDBD" />
-                <Text style={styles.reviewEmptyTitle}>No reviews yet</Text>
-                <Text style={styles.reviewEmptySubtitle}>
-                  Reviews from buyers will appear here.
-                </Text>
-              </View>
-            ) : sellerReviews.map((review) => (
-              <View key={review.id} style={styles.reviewCard}>
-                <View style={styles.reviewHeader}>
-                  {review.reviewerAvatar ? (
-                    <Image
-                      source={{ uri: review.reviewerAvatar }}
-                      style={styles.reviewAvatar}
-                    />
-                  ) : (
-                    <View style={[styles.reviewAvatar, styles.reviewAvatarPlaceholder]}>
-                      <Ionicons name="person" size={24} color="#9E9E9E" />
-                    </View>
-                  )}
-                  <View style={styles.reviewMeta}>
-                    <Text style={styles.reviewerName}>
-                      {review.reviewerName || 'Anonymous'}
-                    </Text>
-                    <Text style={styles.reviewDate}>
-                      {new Date(review.createdAt).toLocaleDateString('en-US', {
-                        month: 'short',
-                        day: 'numeric',
-                        year: 'numeric',
-                      })}
-                    </Text>
-                  </View>
-                  <View style={styles.reviewStarsRow}>
-                    {[1, 2, 3, 4, 5].map((s) => (
-                      <Text
-                        key={s}
-                        style={{
-                          fontSize: 13,
-                          color: s <= review.rating ? '#FFC107' : '#E0E0E0',
-                        }}
-                      >
-                        ★
-                      </Text>
-                    ))}
-                  </View>
+            {[
+              { key: 'vegetarian', label: 'Vegetarian', desc: 'No meat or fish', icon: 'leaf-outline' },
+              { key: 'vegan', label: 'Vegan', desc: 'No animal products at all', icon: 'nutrition-outline' },
+              { key: 'glutenFree', label: 'Gluten Free', desc: 'No wheat, barley or rye', icon: 'leaf-outline' },
+              { key: 'dairyFree', label: 'Dairy Free', desc: 'No milk or dairy products', icon: 'water-outline' },
+              { key: 'nutFree', label: 'Nut Free', desc: 'No nuts or nut products', icon: 'shield-checkmark-outline' },
+              { key: 'halal', label: 'Halal', desc: 'Halal certified ingredients only', icon: 'checkmark-circle-outline' },
+            ].map((item) => (
+              <View key={item.key} style={styles.notifRow}>
+                <Ionicons name={item.icon} size={22} color="#757575" style={{ marginRight: 12, width: 24, textAlign: 'center' }} />
+                <View style={styles.notifInfo}>
+                  <Text style={styles.notifLabel}>{item.label}</Text>
+                  <Text style={styles.notifDesc}>{item.desc}</Text>
                 </View>
-                {review.comment ? (
-                  <Text style={styles.reviewComment}>{review.comment}</Text>
-                ) : null}
+                <Switch
+                  value={dietary[item.key]}
+                  onValueChange={(v) =>
+                    setDietary({ ...dietary, [item.key]: v })
+                  }
+                  trackColor={{ false: '#E0E0E0', true: '#4CAF50' }}
+                  thumbColor="#fff"
+                />
               </View>
             ))}
-          </ScrollView>
 
-          <TouchableOpacity
-            style={styles.modalSaveButton}
-            onPress={() => setReviewsModalVisible(false)}
-          >
-            <LinearGradient
-              colors={['#FF6B35', '#FF8C42']}
-              style={styles.modalSaveGradient}
+            <TouchableOpacity
+              style={styles.modalSaveButton}
+              onPress={() => {
+                setDietModalVisible(false);
+                Alert.alert(
+                  '✅ Saved',
+                  'Dietary preferences updated! AI will now recommend better meals.'
+                );
+              }}
             >
-              <Text style={styles.modalSaveText}>Close</Text>
-            </LinearGradient>
-          </TouchableOpacity>
-        </View>
-      </View>
-      </Modal >
-
-  {/* ══════════════════════════════════════
-          PREMIUM MODAL
-      ══════════════════════════════════════ */}
-    <Modal
-      visible={premiumModalVisible}
-      animationType="slide"
-      transparent
-      onRequestClose={() => setPremiumModalVisible(false)}
-    >
-      <View style={styles.modalOverlay}>
-        <View style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>💎 Premium Plans</Text>
-            <TouchableOpacity onPress={() => setPremiumModalVisible(false)}>
-              <Text style={styles.modalClose}>✕</Text>
+              <LinearGradient
+                colors={['#4CAF50', '#66BB6A']}
+                style={styles.modalSaveGradient}
+              >
+                <Text style={styles.modalSaveText}>Save Preferences</Text>
+              </LinearGradient>
             </TouchableOpacity>
           </View>
-
-          <View style={styles.premiumModalHeaderRow}>
-            <Text style={styles.premiumModalTitle}>Plato Pro</Text>
-            <View
-              style={[
-                styles.premiumBadge,
-                isPro ? styles.premiumBadgePro : (subscription?.status === 'pending' ? styles.premiumBadgePending : (subscription?.status === 'rejected' ? styles.premiumBadgeRejected : styles.premiumBadgeFree)),
-              ]}
-            >
-              <Text style={styles.premiumBadgeText}>
-                {isPro ? 'ACTIVE' : (subscription?.status === 'pending' ? 'PENDING' : (subscription?.status === 'rejected' ? 'REJECTED' : 'FREE'))}
-              </Text>
-            </View>
-          </View>
-
-          <Text style={styles.premiumPrice}>NPR 199 / month</Text>
-          <Text style={styles.premiumSubtitle}>
-            Featured placement and AI priority to grow your sales.
-          </Text>
-
-          <View style={styles.premiumFeatureRow}>
-            <Ionicons name="cloud-upload-outline" size={18} color="#FF6B35" style={{ marginRight: 10 }} />
-            <Text style={styles.premiumFeatureText}>
-              Meals pushed to top of Explore and Home
-            </Text>
-          </View>
-          <View style={styles.premiumFeatureRow}>
-            <Text style={styles.premiumFeatureIcon}>🤖</Text>
-            <Text style={styles.premiumFeatureText}>
-              AI recommendations prioritize your meals
-            </Text>
-          </View>
-          <View style={styles.premiumFeatureRow}>
-            <Ionicons name="star-outline" size={18} color="#FF6B35" style={{ marginRight: 10 }} />
-            <Text style={styles.premiumFeatureText}>
-              Featured badge on your listings
-            </Text>
-          </View>
-
-          {subscriptionLoading ? (
-            <Text style={styles.premiumStatus}>Checking subscription...</Text>
-          ) : (
-            <Text style={styles.premiumStatus}>
-              {isPro
-                ? (renewalCancelled
-                  ? 'Pro active • renewal cancelled'
-                  : `Pro active • ${daysRemaining} days left`)
-                : (subscription?.status === 'pending'
-                  ? 'Upgrade request pending approval'
-                  : (subscription?.status === 'rejected'
-                    ? 'Previous request was rejected'
-                    : 'You are on the Free plan'))}
-            </Text>
-          )}
-
-          {isPro && expiresLabel && (
-            <Text style={styles.premiumExpiry}>Expires on {expiresLabel}</Text>
-          )}
-
-          {isPro ? (
-            <View style={styles.premiumActions}>
-              <TouchableOpacity
-                style={[styles.premiumButton, styles.premiumButtonOutline]}
-                onPress={handleCancelSubscription}
-                disabled={subscriptionActionLoading}
-              >
-                <Text style={styles.premiumButtonOutlineText}>Cancel Renewal</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.premiumButton}
-                onPress={handleRenewSubscription}
-                disabled={subscriptionActionLoading}
-              >
-                <Text style={styles.premiumButtonText}>Renew 30 Days</Text>
-              </TouchableOpacity>
-            </View>
-          ) : subscription?.status === 'pending' ? (
-            <View style={styles.premiumActions}>
-              <TouchableOpacity
-                style={[styles.premiumButton, styles.premiumButtonDisabled]}
-                disabled={true}
-              >
-                <Text style={styles.premiumButtonText}>Verification in Progress</Text>
-              </TouchableOpacity>
-            </View>
-          ) : (
-            <View style={styles.premiumActions}>
-              <TouchableOpacity
-                style={styles.premiumButton}
-                onPress={handleUpgrade}
-                disabled={subscriptionActionLoading}
-              >
-                <Text style={styles.premiumButtonText}>
-                  {subscription?.status === 'rejected' ? 'Retry Upgrade to Pro' : 'Upgrade to Pro'}
-                </Text>
-              </TouchableOpacity>
-            </View>
-          )}
-
-          <TouchableOpacity
-            style={styles.modalSaveButton}
-            onPress={() => setPremiumModalVisible(false)}
-          >
-            <LinearGradient
-              colors={['#FF6B35', '#FF8C42']}
-              style={styles.modalSaveGradient}
-            >
-              <Text style={styles.modalSaveText}>Close</Text>
-            </LinearGradient>
-          </TouchableOpacity>
         </View>
-      </View>
       </Modal >
 
-
-
-  {/* ══════════════════════════════════════
-          PRIVACY MODAL
+      {/* ══════════════════════════════════════
+          PAYMENT MODAL
       ══════════════════════════════════════ */}
-    <Modal
-      visible={privacyModalVisible}
-      animationType="slide"
-      transparent
-      onRequestClose={() => setPrivacyModalVisible(false)}
-    >
-      <View style={styles.modalOverlay}>
-        <View style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Privacy & Safety</Text>
-            <TouchableOpacity onPress={() => setPrivacyModalVisible(false)}>
-              <Ionicons name="close-circle" size={22} color="#9E9E9E" />
-            </TouchableOpacity>
-          </View>
+      <Modal
+        visible={paymentModalVisible}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setPaymentModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Payment Methods</Text>
+              <TouchableOpacity onPress={() => setPaymentModalVisible(false)}>
+                <Ionicons name="close-circle" size={22} color="#9E9E9E" />
+              </TouchableOpacity>
+            </View>
+            <Text style={styles.modalSubtitle}>
+              Your saved payment methods
+            </Text>
 
-          <ScrollView showsVerticalScrollIndicator={false}>
-            {[
-              {
-                icon: 'person-circle-outline',
-                title: 'Profile Visibility',
-                desc: 'Your profile is visible to all Plato users on your campus. Your email is never shown publicly.',
-              },
-              {
-                icon: 'location-outline',
-                title: 'Location Privacy',
-                desc: 'Only your pickup location for active meals is shared. Your home address is never stored.',
-              },
-              {
-                icon: 'card-outline',
-                title: 'Payment Security',
-                desc: 'All payments are processed securely. Plato never stores card details.',
-              },
-              {
-                icon: 'stats-chart-outline',
-                title: 'Data Usage',
-                desc: 'We use your meal history to improve AI recommendations. Your data is never sold.',
-              },
-            ].map((item, index) => (
-              <View key={index} style={styles.privacyItem}>
-                <Ionicons name={item.icon} size={24} color="#FF6B35" style={{ marginRight: 14 }} />
-                <View style={styles.privacyContent}>
-                  <Text style={styles.privacyTitle}>{item.title}</Text>
-                  <Text style={styles.privacyDesc}>{item.desc}</Text>
+            {savedPayments.map((pm) => (
+              <View key={pm.id} style={styles.paymentRow}>
+                <View
+                  style={[
+                    styles.paymentIconBox,
+                    pm.logo ? styles.paymentLogoBox : { backgroundColor: pm.color + '20' },
+                  ]}
+                >
+                  {pm.logo ? (
+                    <Image source={pm.logo} style={styles.paymentLogoImage} resizeMode="contain" />
+                  ) : (
+                    <Ionicons name={pm.icon} size={20} color={pm.color} />
+                  )}
+                </View>
+                <View style={styles.paymentInfo}>
+                  <Text style={styles.paymentType}>{pm.type}</Text>
+                  <Text style={styles.paymentNumber}>{pm.number}</Text>
+                </View>
+                <View style={styles.paymentActiveBadge}>
+                  <Text style={styles.paymentActiveText}>Active</Text>
                 </View>
               </View>
             ))}
 
             <TouchableOpacity
-              style={styles.reportButton}
+              style={styles.addPaymentButton}
               onPress={() =>
                 Alert.alert(
-                  'Report a User',
-                  'To report:\n\nEmail: safety@plato.edu.np\nInclude the username and issue description.\n\nWe respond within 24 hours.',
+                  'Add Payment Method',
+                  'Choose a method to add:',
                   [
-                    { text: 'Cancel', style: 'cancel' },
                     {
-                      text: 'Send Report',
+                      text: 'eSewa',
                       onPress: () =>
-                        Linking.openURL('mailto:safety@plato.edu.np'),
+                        Alert.alert('eSewa', 'eSewa integration coming soon!'),
                     },
+                    { text: 'Cancel', style: 'cancel' },
                   ]
                 )
               }
             >
-              <View style={styles.actionButtonRow}>
-                <View style={styles.actionButtonIconWrap}>
-                  <Ionicons name="shield-checkmark-outline" size={18} color="#FF6B35" />
-                </View>
-                <Text style={styles.reportButtonText}>Report a User</Text>
-              </View>
+              <Text style={styles.addPaymentText}>
+                Add New Payment Method
+              </Text>
             </TouchableOpacity>
+
+            <View style={styles.paymentNote}>
+              <Text style={styles.paymentNoteText}>
+                Your payment info is encrypted and secure. Plato never stores your full card details.
+              </Text>
+            </View>
 
             <TouchableOpacity
-              style={styles.deleteButton}
-              onPress={() =>
-                Alert.alert(
-                  'Delete Account',
-                  'This will permanently delete your account.\n\nEmail: delete@plato.edu.np to request deletion.',
-                  [{ text: 'OK' }]
-                )
-              }
+              style={styles.modalSaveButton}
+              onPress={() => setPaymentModalVisible(false)}
             >
-              <View style={styles.actionButtonRow}>
-                <View style={[styles.actionButtonIconWrap, { backgroundColor: '#FFF0F0' }]}>
-                  <Ionicons name="trash-outline" size={18} color="#FF5252" />
-                </View>
-                <Text style={styles.deleteButtonText}>Request Account Deletion</Text>
-              </View>
+              <LinearGradient
+                colors={['#FF6B35', '#FF8C42']}
+                style={styles.modalSaveGradient}
+              >
+                <Text style={styles.modalSaveText}>Done</Text>
+              </LinearGradient>
             </TouchableOpacity>
-          </ScrollView>
-
-          <TouchableOpacity
-            style={styles.modalSaveButton}
-            onPress={() => setPrivacyModalVisible(false)}
-          >
-            <LinearGradient
-              colors={['#FF6B35', '#FF8C42']}
-              style={styles.modalSaveGradient}
-            >
-              <Text style={styles.modalSaveText}>Close</Text>
-            </LinearGradient>
-          </TouchableOpacity>
+          </View>
         </View>
-      </View>
+      </Modal >
+
+      {/* ══════════════════════════════════════
+          REVIEWS MODAL
+      ══════════════════════════════════════ */}
+      <Modal
+        visible={reviewsModalVisible}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setReviewsModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>My Reviews</Text>
+              <TouchableOpacity onPress={() => setReviewsModalVisible(false)}>
+                <Ionicons name="close-circle" size={22} color="#9E9E9E" />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.reviewSummary}>
+              <Text style={styles.reviewBigRating}>
+                {user?.rating?.toFixed(1)}
+              </Text>
+              <RatingStars rating={user?.rating || 5} size={22} />
+              <Text style={styles.reviewCount}>
+                Based on {sellerReviews.length} reviews
+              </Text>
+            </View>
+
+            <ScrollView
+              style={styles.reviewsList}
+              showsVerticalScrollIndicator={false}
+            >
+              {sellerReviews.length === 0 ? (
+                <View style={styles.reviewEmptyState}>
+                  <Ionicons name="star-outline" size={48} color="#BDBDBD" />
+                  <Text style={styles.reviewEmptyTitle}>No reviews yet</Text>
+                  <Text style={styles.reviewEmptySubtitle}>
+                    Reviews from buyers will appear here.
+                  </Text>
+                </View>
+              ) : sellerReviews.map((review) => (
+                <View key={review.id} style={styles.reviewCard}>
+                  <View style={styles.reviewHeader}>
+                    {review.reviewerAvatar ? (
+                      <Image
+                        source={{ uri: review.reviewerAvatar }}
+                        style={styles.reviewAvatar}
+                      />
+                    ) : (
+                      <View style={[styles.reviewAvatar, styles.reviewAvatarPlaceholder]}>
+                        <Ionicons name="person" size={24} color="#9E9E9E" />
+                      </View>
+                    )}
+                    <View style={styles.reviewMeta}>
+                      <Text style={styles.reviewerName}>
+                        {review.reviewerName || 'Anonymous'}
+                      </Text>
+                      <Text style={styles.reviewDate}>
+                        {new Date(review.createdAt).toLocaleDateString('en-US', {
+                          month: 'short',
+                          day: 'numeric',
+                          year: 'numeric',
+                        })}
+                      </Text>
+                    </View>
+                    <View style={styles.reviewStarsRow}>
+                      {[1, 2, 3, 4, 5].map((s) => (
+                        <Text
+                          key={s}
+                          style={{
+                            fontSize: 13,
+                            color: s <= review.rating ? '#FFC107' : '#E0E0E0',
+                          }}
+                        >
+                          ★
+                        </Text>
+                      ))}
+                    </View>
+                  </View>
+                  {review.comment ? (
+                    <Text style={styles.reviewComment}>{review.comment}</Text>
+                  ) : null}
+                </View>
+              ))}
+            </ScrollView>
+
+            <TouchableOpacity
+              style={styles.modalSaveButton}
+              onPress={() => setReviewsModalVisible(false)}
+            >
+              <LinearGradient
+                colors={['#FF6B35', '#FF8C42']}
+                style={styles.modalSaveGradient}
+              >
+                <Text style={styles.modalSaveText}>Close</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal >
+
+      {/* ══════════════════════════════════════
+          PREMIUM MODAL
+      ══════════════════════════════════════ */}
+      <Modal
+        visible={premiumModalVisible}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setPremiumModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>💎 Premium Plans</Text>
+              <TouchableOpacity onPress={() => setPremiumModalVisible(false)}>
+                <Text style={styles.modalClose}>✕</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.premiumModalHeaderRow}>
+              <Text style={styles.premiumModalTitle}>Plato Pro</Text>
+              <View
+                style={[
+                  styles.premiumBadge,
+                  isPro ? styles.premiumBadgePro : (subscription?.status === 'pending' ? styles.premiumBadgePending : (subscription?.status === 'rejected' ? styles.premiumBadgeRejected : styles.premiumBadgeFree)),
+                ]}
+              >
+                <Text style={styles.premiumBadgeText}>
+                  {isPro ? 'ACTIVE' : (subscription?.status === 'pending' ? 'PENDING' : (subscription?.status === 'rejected' ? 'REJECTED' : 'FREE'))}
+                </Text>
+              </View>
+            </View>
+
+            <Text style={styles.premiumPrice}>NPR 199 / month</Text>
+            <Text style={styles.premiumSubtitle}>
+              Featured placement and AI priority to grow your sales.
+            </Text>
+
+            <View style={styles.premiumFeatureRow}>
+              <Ionicons name="cloud-upload-outline" size={18} color="#FF6B35" style={{ marginRight: 10 }} />
+              <Text style={styles.premiumFeatureText}>
+                Meals pushed to top of Explore and Home
+              </Text>
+            </View>
+            <View style={styles.premiumFeatureRow}>
+              <Text style={styles.premiumFeatureIcon}>🤖</Text>
+              <Text style={styles.premiumFeatureText}>
+                AI recommendations prioritize your meals
+              </Text>
+            </View>
+            <View style={styles.premiumFeatureRow}>
+              <Ionicons name="star-outline" size={18} color="#FF6B35" style={{ marginRight: 10 }} />
+              <Text style={styles.premiumFeatureText}>
+                Featured badge on your listings
+              </Text>
+            </View>
+
+            {subscriptionLoading ? (
+              <Text style={styles.premiumStatus}>Checking subscription...</Text>
+            ) : (
+              <Text style={styles.premiumStatus}>
+                {isPro
+                  ? (renewalCancelled
+                    ? 'Pro active • renewal cancelled'
+                    : `Pro active • ${daysRemaining} days left`)
+                  : (subscription?.status === 'pending'
+                    ? 'Upgrade request pending approval'
+                    : (subscription?.status === 'rejected'
+                      ? 'Previous request was rejected'
+                      : 'You are on the Free plan'))}
+              </Text>
+            )}
+
+            {isPro && expiresLabel && (
+              <Text style={styles.premiumExpiry}>Expires on {expiresLabel}</Text>
+            )}
+
+            {isPro ? (
+              <View style={styles.premiumActions}>
+                <TouchableOpacity
+                  style={[styles.premiumButton, styles.premiumButtonOutline]}
+                  onPress={handleCancelSubscription}
+                  disabled={subscriptionActionLoading}
+                >
+                  <Text style={styles.premiumButtonOutlineText}>Cancel Renewal</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.premiumButton}
+                  onPress={handleRenewSubscription}
+                  disabled={subscriptionActionLoading}
+                >
+                  <Text style={styles.premiumButtonText}>Renew 30 Days</Text>
+                </TouchableOpacity>
+              </View>
+            ) : subscription?.status === 'pending' ? (
+              <View style={styles.premiumActions}>
+                <TouchableOpacity
+                  style={[styles.premiumButton, styles.premiumButtonDisabled]}
+                  disabled={true}
+                >
+                  <Text style={styles.premiumButtonText}>Verification in Progress</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <View style={styles.premiumActions}>
+                <TouchableOpacity
+                  style={styles.premiumButton}
+                  onPress={handleUpgrade}
+                  disabled={subscriptionActionLoading}
+                >
+                  <Text style={styles.premiumButtonText}>
+                    {subscription?.status === 'rejected' ? 'Retry Upgrade to Pro' : 'Upgrade to Pro'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            <TouchableOpacity
+              style={styles.modalSaveButton}
+              onPress={() => setPremiumModalVisible(false)}
+            >
+              <LinearGradient
+                colors={['#FF6B35', '#FF8C42']}
+                style={styles.modalSaveGradient}
+              >
+                <Text style={styles.modalSaveText}>Close</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal >
+
+
+
+      {/* ══════════════════════════════════════
+          PRIVACY MODAL
+      ══════════════════════════════════════ */}
+      <Modal
+        visible={privacyModalVisible}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setPrivacyModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Privacy & Safety</Text>
+              <TouchableOpacity onPress={() => setPrivacyModalVisible(false)}>
+                <Ionicons name="close-circle" size={22} color="#9E9E9E" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {[
+                {
+                  icon: 'person-circle-outline',
+                  title: 'Profile Visibility',
+                  desc: 'Your profile is visible to all Plato users on your campus. Your email is never shown publicly.',
+                },
+                {
+                  icon: 'location-outline',
+                  title: 'Location Privacy',
+                  desc: 'Only your pickup location for active meals is shared. Your home address is never stored.',
+                },
+                {
+                  icon: 'card-outline',
+                  title: 'Payment Security',
+                  desc: 'All payments are processed securely. Plato never stores card details.',
+                },
+                {
+                  icon: 'stats-chart-outline',
+                  title: 'Data Usage',
+                  desc: 'We use your meal history to improve AI recommendations. Your data is never sold.',
+                },
+              ].map((item, index) => (
+                <View key={index} style={styles.privacyItem}>
+                  <Ionicons name={item.icon} size={24} color="#FF6B35" style={{ marginRight: 14 }} />
+                  <View style={styles.privacyContent}>
+                    <Text style={styles.privacyTitle}>{item.title}</Text>
+                    <Text style={styles.privacyDesc}>{item.desc}</Text>
+                  </View>
+                </View>
+              ))}
+
+              <TouchableOpacity
+                style={styles.reportButton}
+                onPress={() =>
+                  Alert.alert(
+                    'Report a User',
+                    'To report:\n\nEmail: safety@plato.edu.np\nInclude the username and issue description.\n\nWe respond within 24 hours.',
+                    [
+                      { text: 'Cancel', style: 'cancel' },
+                      {
+                        text: 'Send Report',
+                        onPress: () =>
+                          Linking.openURL('mailto:safety@plato.edu.np'),
+                      },
+                    ]
+                  )
+                }
+              >
+                <View style={styles.actionButtonRow}>
+                  <View style={styles.actionButtonIconWrap}>
+                    <Ionicons name="shield-checkmark-outline" size={18} color="#FF6B35" />
+                  </View>
+                  <Text style={styles.reportButtonText}>Report a User</Text>
+                </View>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.deleteButton}
+                onPress={() =>
+                  Alert.alert(
+                    'Delete Account',
+                    'This will permanently delete your account.\n\nEmail: delete@plato.edu.np to request deletion.',
+                    [{ text: 'OK' }]
+                  )
+                }
+              >
+                <View style={styles.actionButtonRow}>
+                  <View style={[styles.actionButtonIconWrap, { backgroundColor: '#FFF0F0' }]}>
+                    <Ionicons name="trash-outline" size={18} color="#FF5252" />
+                  </View>
+                  <Text style={styles.deleteButtonText}>Request Account Deletion</Text>
+                </View>
+              </TouchableOpacity>
+            </ScrollView>
+
+            <TouchableOpacity
+              style={styles.modalSaveButton}
+              onPress={() => setPrivacyModalVisible(false)}
+            >
+              <LinearGradient
+                colors={['#FF6B35', '#FF8C42']}
+                style={styles.modalSaveGradient}
+              >
+                <Text style={styles.modalSaveText}>Close</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          </View>
+        </View>
       </Modal >
     </View >
   );

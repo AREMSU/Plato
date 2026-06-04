@@ -478,7 +478,7 @@ class CancelBookingView(APIView):
             meal.seller,
             'booking_updates',
             'Booking Cancelled',
-            f"A booking for {meal.title} was cancelled."
+            f"A booking for {meal.title} was cancelled by {request.user.first_name or request.user.email}."
         )
 
         return Response(BookingSerializer(booking).data)

@@ -83,12 +83,12 @@ function MainTabs() {
       <Tab.Screen
         name="MyMeals"
         component={MyMealsScreen}
-        options={{ tabBarLabel: 'Orders' }}
+        options={{ tabBarLabel: 'Orders', unmountOnBlur: true }}
       />
       <Tab.Screen
         name="Profile"
         component={ProfileScreen}
-        options={{ tabBarLabel: 'Profile' }}
+        options={{ tabBarLabel: 'Profile', unmountOnBlur: true }}
       />
     </Tab.Navigator>
   );

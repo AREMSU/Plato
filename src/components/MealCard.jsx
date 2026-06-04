@@ -3,6 +3,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { formatCurrency, truncateText } from '../utils/helpers';
 import UserAvatar from './UserAvatar';
 
+const VegSymbol = ({ isVeg }) => (
+  <View style={[styles.vegBox, { borderColor: isVeg ? '#0F8A5F' : '#E23744' }]}>
+    <View style={[styles.vegDot, { backgroundColor: isVeg ? '#0F8A5F' : '#E23744' }]} />
+  </View>
+);
+
 export default function MealCard({ meal, onPress }) {
   const portionsLeft = meal.available_portions ?? meal.availablePortions ?? 0;
   const isSoldOut = portionsLeft === 0;
@@ -14,86 +20,78 @@ export default function MealCard({ meal, onPress }) {
   const pickupLocation = meal.pickup_location || meal.pickupLocation || '';
   const isVegetarian = meal.is_vegetarian ?? meal.isVegetarian ?? false;
   const rating = meal.rating || 0;
+  const isFeatured = meal.is_featured ?? meal.isFeatured ?? false;
+
+  const getRatingColor = (r) => {
+    if (r >= 4.0) return '#257D3D';
+    if (r > 0) return '#E2A93E';
+    return '#64748B';
+  };
 
   return (
     <TouchableOpacity
       style={[styles.card, isSoldOut && styles.cardSoldOut]}
       onPress={onPress}
-      activeOpacity={0.92}
+      activeOpacity={0.85}
     >
-      {/* ── Image ── */}
-      <View style={styles.imageContainer}>
-        {image ? (
-          <Image source={{ uri: image }} style={styles.image} resizeMode="cover" />
-        ) : (
-          <View style={[styles.image, styles.imagePlaceholder]}>
-            <Ionicons name="restaurant-outline" size={44} color="#FFB89A" />
-          </View>
-        )}
-
-        {/* Top badges */}
-        <View style={styles.imageBadgesTop}>
-          {isVegetarian && (
-            <View style={styles.vegBadge}>
-              <Ionicons name="leaf" size={13} color="#fff" />
+      {/* ── Left Side Details ── */}
+      <View style={styles.detailsContainer}>
+        {/* Top Indicators */}
+        <View style={styles.badgeRow}>
+          <VegSymbol isVeg={isVegetarian} />
+          {isFeatured && (
+            <View style={styles.featuredBadge}>
+              <Ionicons name="star" size={10} color="#fff" />
+              <Text style={styles.featuredText}>Bestseller</Text>
             </View>
           )}
         </View>
 
-        {/* Portions badge top-right */}
-        <View style={[styles.portionsBadge, isSoldOut && { backgroundColor: 'rgba(200,0,0,0.7)' }]}>
-          <Ionicons name="layers-outline" size={12} color="#fff" style={{ marginRight: 3 }} />
-          <Text style={styles.portionsText}>{isSoldOut ? 'Sold Out' : `${portionsLeft} left`}</Text>
-        </View>
+        {/* Title */}
+        <Text style={styles.title} numberOfLines={1}>{meal.title}</Text>
 
-        {/* Sold out dim */}
-        {isSoldOut && <View style={styles.soldOutOverlay} />}
-      </View>
-
-      {/* ── Content ── */}
-      <View style={styles.content}>
-        {/* Title + Price */}
-        <View style={styles.topRow}>
-          <Text style={styles.title} numberOfLines={1}>{meal.title}</Text>
-          <Text style={styles.price}>{formatCurrency(price)}</Text>
-        </View>
-
-        {/* Description */}
-        <Text style={styles.description} numberOfLines={2}>{meal.description}</Text>
-
-        {/* Divider */}
-        <View style={styles.divider} />
-
-        {/* Bottom row */}
-        <View style={styles.bottomRow}>
-          {/* Seller */}
-          <View style={styles.sellerRow}>
-            <UserAvatar uri={sellerAvatar} name={sellerName} size={26} borderWidth={0} />
-            <Text style={styles.sellerName} numberOfLines={1}>{sellerName}</Text>
-          </View>
-
-          {/* Rating */}
-          <View style={styles.ratingPill}>
-            <Ionicons name="star" size={12} color="#FFC107" />
+        {/* Rating and Delivery time row */}
+        <View style={styles.metaRow}>
+          <View style={[styles.ratingBadge, { backgroundColor: getRatingColor(rating) }]}>
+            <Ionicons name="star" size={10} color="#fff" style={{ marginRight: 2 }} />
             <Text style={styles.ratingText}>{rating > 0 ? rating.toFixed(1) : 'New'}</Text>
           </View>
+          <Text style={styles.metaBullet}>•</Text>
+          <Text style={styles.metaText} numberOfLines={1}>{pickupTime || 'Anytime'}</Text>
         </View>
 
-        {/* Meta info row */}
-        <View style={styles.metaRow}>
-          <View style={styles.metaChip}>
-            <Ionicons name="time-outline" size={13} color="#757575" />
-            <Text style={styles.metaText}>{pickupTime || 'Anytime'}</Text>
+        {/* Price */}
+        <Text style={styles.price}>{formatCurrency(price)}</Text>
+
+        {/* Description */}
+        <Text style={styles.description} numberOfLines={2}>
+          {meal.description}
+        </Text>
+
+        {/* Seller Info */}
+        <View style={styles.sellerRow}>
+          <UserAvatar uri={sellerAvatar} name={sellerName} size={20} borderWidth={0} />
+          <Text style={styles.sellerName} numberOfLines={1}>
+            By {sellerName} · {truncateText(pickupLocation, 14)}
+          </Text>
+        </View>
+      </View>
+
+      {/* ── Right Side Image & Portions Overlay ── */}
+      <View style={styles.imageWrapper}>
+        {image ? (
+          <Image source={{ uri: image }} style={styles.image} resizeMode="cover" />
+        ) : (
+          <View style={[styles.image, styles.imagePlaceholder]}>
+            <Ionicons name="restaurant-outline" size={32} color="#CBD5E1" />
           </View>
-          <View style={styles.metaChip}>
-            <Ionicons name="navigate-outline" size={13} color="#757575" />
-            <Text style={styles.metaText} numberOfLines={1}>
-              {truncateText(pickupLocation, 18) || 'Not specified'}
-            </Text>
-          </View>
-          <View style={styles.categoryPill}>
-            <Text style={styles.categoryText}>{meal.category}</Text>
-          </View>
+        )}
+
+        {/* Custom Portions Overlay positioned like Swiggy "ADD" button */}
+        <View style={[styles.portionsPill, isSoldOut && styles.portionsPillSoldOut]}>
+          <Text style={[styles.portionsPillText, isSoldOut && styles.portionsPillTextSoldOut]}>
+            {isSoldOut ? 'SOLD OUT' : `${portionsLeft} LEFT`}
+          </Text>
         </View>
       </View>
     </TouchableOpacity>
@@ -102,157 +100,172 @@ export default function MealCard({ meal, onPress }) {
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#fff',
-    borderRadius: 22,
-    marginBottom: 16,
-    overflow: 'hidden',
-    shadowColor: '#1E293B',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 16,
-    elevation: 5,
-  },
-  cardSoldOut: { opacity: 0.72 },
-
-  // ── Image ──
-  imageContainer: { position: 'relative' },
-  image: { width: '100%', height: 190 },
-  imagePlaceholder: {
-    backgroundColor: '#FFF3EE',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  imageBadgesTop: {
-    position: 'absolute',
-    top: 12,
-    left: 12,
     flexDirection: 'row',
-    gap: 8,
-  },
-  vegBadge: {
-    backgroundColor: '#4CAF50',
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
+    shadowColor: '#0F172A',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowOpacity: 0.03,
+    shadowRadius: 6,
+    elevation: 2,
+    gap: 12,
   },
-  portionsBadge: {
-    position: 'absolute',
-    top: 12,
-    right: 12,
-    backgroundColor: 'rgba(0,0,0,0.55)',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 20,
+  cardSoldOut: {
+    opacity: 0.8,
+  },
+  detailsContainer: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  badgeRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    marginBottom: 6,
+    gap: 6,
   },
-  portionsText: { fontSize: 11, color: '#fff', fontWeight: '700' },
-  soldOutOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.35)',
-  },
-
-  // ── Content ──
-  content: { padding: 14 },
-  topRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  vegBox: {
+    width: 14,
+    height: 14,
+    borderWidth: 1,
+    justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 5,
+    padding: 2,
+    backgroundColor: '#ffffff',
+    borderRadius: 2,
+  },
+  vegDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  featuredBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FC8019',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    gap: 2,
+  },
+  featuredText: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#ffffff',
+    textTransform: 'uppercase',
   },
   title: {
-    flex: 1,
     fontSize: 16,
     fontWeight: '800',
-    color: '#1A1A1A',
-    marginRight: 10,
+    color: '#0F172A',
+    marginBottom: 4,
     fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Bold' : 'sans-serif-medium',
   },
-  price: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: '#FF6B35',
-    fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Bold' : 'sans-serif-medium',
-  },
-  description: {
-    fontSize: 13,
-    color: '#757575',
-    lineHeight: 19,
-    marginBottom: 12,
-    fontFamily: Platform.OS === 'ios' ? 'Avenir Next' : 'sans-serif',
-  },
-  divider: {
-    height: 1,
-    backgroundColor: '#F0F0F0',
-    marginBottom: 12,
-  },
-
-  // Bottom row
-  bottomRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  sellerRow: { flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 },
-  sellerName: {
-    fontSize: 13,
-    color: '#424242',
-    fontWeight: '600',
-    flex: 1,
-    fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Medium' : 'sans-serif-medium',
-  },
-  ratingPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFFDE7',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 10,
-    gap: 3,
-  },
-  ratingText: { fontSize: 12, fontWeight: '700', color: '#F57F17' },
-
-  // Meta row
   metaRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    flexWrap: 'wrap',
+    marginBottom: 6,
+    gap: 6,
   },
-  metaChip: {
+  ratingBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#F5F5F5',
-    paddingHorizontal: 9,
-    paddingVertical: 5,
-    borderRadius: 10,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  ratingText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#ffffff',
+  },
+  metaBullet: {
+    color: '#94A3B8',
+    fontSize: 10,
   },
   metaText: {
-    fontSize: 11,
-    color: '#616161',
+    fontSize: 12,
+    color: '#64748B',
     fontWeight: '600',
+    maxWidth: 120,
     fontFamily: Platform.OS === 'ios' ? 'Avenir Next' : 'sans-serif',
   },
-  categoryPill: {
-    backgroundColor: '#FFF3EE',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 10,
-    marginLeft: 'auto',
-  },
-  categoryText: {
-    fontSize: 11,
-    color: '#FF6B35',
-    fontWeight: '700',
+  price: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#334155',
+    marginBottom: 6,
     fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Bold' : 'sans-serif-medium',
+  },
+  description: {
+    fontSize: 12,
+    color: '#64748B',
+    lineHeight: 16,
+    marginBottom: 8,
+    fontFamily: Platform.OS === 'ios' ? 'Avenir Next' : 'sans-serif',
+  },
+  sellerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 4,
+  },
+  sellerName: {
+    fontSize: 11,
+    color: '#94A3B8',
+    fontWeight: '600',
+    fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Medium' : 'sans-serif-medium',
+  },
+
+  // Image styles
+  imageWrapper: {
+    position: 'relative',
+    alignSelf: 'center',
+  },
+  image: {
+    width: 104,
+    height: 104,
+    borderRadius: 12,
+    backgroundColor: '#F8FAFC',
+  },
+  imagePlaceholder: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  portionsPill: {
+    position: 'absolute',
+    bottom: -8,
+    alignSelf: 'center',
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#FC8019',
+    borderRadius: 8,
+    paddingVertical: 4,
+    paddingHorizontal: 12,
+    minWidth: 76,
+    alignItems: 'center',
+    shadowColor: '#FC8019',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  portionsPillSoldOut: {
+    borderColor: '#94A3B8',
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+  },
+  portionsPillText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#FC8019',
+  },
+  portionsPillTextSoldOut: {
+    color: '#64748B',
   },
 });

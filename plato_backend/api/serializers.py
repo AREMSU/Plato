@@ -6,7 +6,7 @@ from .validators import is_disposable_email, has_email_dns
 class RegisterSerializer(serializers.Serializer):
     first_name = serializers.CharField()
     email = serializers.EmailField()
-    password = serializers.CharField(write_only=True, min_length=6)
+    password = serializers.CharField(write_only=True, min_length=8, max_length=16)
     confirm_password = serializers.CharField(write_only=True)
     university = serializers.CharField(required=False, allow_blank=True)
 

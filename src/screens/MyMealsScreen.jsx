@@ -42,12 +42,17 @@ const isPickupPassed = (booking) => {
 export default function MyMealsScreen({ navigation, route }) {
   const { bookings, bookingsReceived, cancelBooking, user, meals, createReview } = useApp();
   const [activeTab, setActiveTab] = useState('bookings');
-    useEffect(() => {
-      const nextTab = route?.params?.initialTab;
-      if (nextTab) {
-        setActiveTab(nextTab);
-      }
-    }, [route?.params?.initialTab]);
+  useEffect(() => {
+    const nextTab = route?.params?.initialTab;
+    if (nextTab) {
+      setActiveTab(nextTab);
+      navigation.setParams({ initialTab: undefined });
+    }
+  }, [route?.params?.initialTab, navigation]);
+
+  const ordersReceived = bookingsReceived || [];
+  const ordersActive = ordersReceived.filter((b) => b.status !== 'cancelled');
+  const ordersCancelled = ordersReceived.filter((b) => b.status === 'cancelled');
   const [reviewModalVisible, setReviewModalVisible] = useState(false);
   const [reviewBooking, setReviewBooking] = useState(null);
   const [reviewRating, setReviewRating] = useState(5);
@@ -64,7 +69,7 @@ export default function MyMealsScreen({ navigation, route }) {
   const cancelledBookings = bookings.filter(
     (b) => b.status === 'cancelled'
   );
-  const ordersReceived = bookingsReceived || [];
+
 
   const handleCancel = (booking) => {
     const fee = calculateCancellationFee(booking.totalCost);
@@ -224,25 +229,63 @@ export default function MyMealsScreen({ navigation, route }) {
     const buyerName = booking.buyerName || booking.buyer_name || 'Someone';
     const buyerAvatar = booking.buyerAvatar || booking.buyer_avatar;
     const mealTitle = booking.meal?.title || 'a meal';
+    const isCancelledOrder = booking.status === 'cancelled';
 
     return (
-      <View style={[styles.bookingCard, { padding: 12, alignItems: 'center' }]}>
-        {buyerAvatar ? (
-          <Image source={{ uri: buyerAvatar }} style={{ width: 44, height: 44, borderRadius: 22 }} />
-        ) : (
-          <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: '#E0E0E0', justifyContent: 'center', alignItems: 'center' }}>
-            <Ionicons name="person" size={20} color="#757575" />
-          </View>
-        )}
+      <View style={[
+        styles.bookingCard,
+        { padding: 12, alignItems: 'center' },
+        isCancelledOrder && styles.cancelledOrderCard,
+      ]}>
+        {/* Avatar */}
+        <View style={{ position: 'relative' }}>
+          {buyerAvatar ? (
+            <Image source={{ uri: buyerAvatar }} style={{ width: 44, height: 44, borderRadius: 22, opacity: isCancelledOrder ? 0.5 : 1 }} />
+          ) : (
+            <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: isCancelledOrder ? '#FFEBEB' : '#E0E0E0', justifyContent: 'center', alignItems: 'center' }}>
+              <Ionicons name="person" size={20} color={isCancelledOrder ? '#FF5252' : '#757575'} />
+            </View>
+          )}
+          {isCancelledOrder && (
+            <View style={styles.cancelledAvatarBadge}>
+              <Ionicons name="close" size={8} color="#fff" />
+            </View>
+          )}
+        </View>
+
+        {/* Info */}
         <View style={{ flex: 1, marginLeft: 12 }}>
-          <Text style={{ fontSize: 14, color: '#424242', fontWeight: '500' }}>
-            <Text style={{ fontWeight: '800', color: '#1A1A1A' }}>{buyerName}</Text> booked <Text style={{ fontWeight: '700' }}>{booking.portions}</Text> portion{booking.portions > 1 ? 's' : ''} of {mealTitle}
-          </Text>
+          {isCancelledOrder ? (
+            <Text style={{ fontSize: 14, color: '#9E9E9E', fontWeight: '500' }}>
+              <Text style={{ fontWeight: '800', color: '#FF5252' }}>{buyerName}</Text>
+              {' cancelled their booking of '}
+              <Text style={{ fontWeight: '700', color: '#757575' }}>{booking.portions}</Text>
+              {' portion'}{booking.portions > 1 ? 's' : ''}
+              {' of '}{mealTitle}
+            </Text>
+          ) : (
+            <Text style={{ fontSize: 14, color: '#424242', fontWeight: '500' }}>
+              <Text style={{ fontWeight: '800', color: '#1A1A1A' }}>{buyerName}</Text>
+              {' booked '}
+              <Text style={{ fontWeight: '700' }}>{booking.portions}</Text>
+              {' portion'}{booking.portions > 1 ? 's' : ''}
+              {' of '}{mealTitle}
+            </Text>
+          )}
           <Text style={{ fontSize: 12, color: '#9E9E9E', marginTop: 4 }}>
             {new Date(booking.bookedAt || booking.booked_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
           </Text>
         </View>
-        <Text style={{ fontSize: 15, fontWeight: '800', color: '#4CAF50' }}>+{formatCurrency(booking.totalCost)}</Text>
+
+        {/* Amount / Status badge */}
+        {isCancelledOrder ? (
+          <View style={styles.cancelledBadge}>
+            <Ionicons name="close-circle" size={12} color="#FF5252" style={{ marginRight: 3 }} />
+            <Text style={styles.cancelledBadgeText}>Cancelled</Text>
+          </View>
+        ) : (
+          <Text style={{ fontSize: 15, fontWeight: '800', color: '#4CAF50' }}>+{formatCurrency(booking.totalCost)}</Text>
+        )}
       </View>
     );
   };
@@ -263,7 +306,7 @@ export default function MyMealsScreen({ navigation, route }) {
         >
           <Text style={styles.headerTitle}>My Orders</Text>
           <Text style={styles.headerSubtitle}>
-            {upcomingBookings.length} upcoming · {ordersReceived.length} orders received
+            {upcomingBookings.length} upcoming · {ordersActive.length} orders received
           </Text>
         </LinearGradient>
 
@@ -293,9 +336,14 @@ export default function MyMealsScreen({ navigation, route }) {
               <Text style={[styles.tabText, activeTab === 'orders' && styles.tabTextActive]}>
                 Orders
               </Text>
-              {ordersReceived.length > 0 && (
+              {ordersActive.length > 0 && (
                 <View style={styles.tabBadge}>
-                  <Text style={styles.tabBadgeText}>{ordersReceived.length}</Text>
+                  <Text style={styles.tabBadgeText}>{ordersActive.length}</Text>
+                </View>
+              )}
+              {ordersCancelled.length > 0 && (
+                <View style={[styles.tabBadge, { backgroundColor: '#FF5252' }]}>
+                  <Text style={styles.tabBadgeText}>{ordersCancelled.length}</Text>
                 </View>
               )}
             </View>
@@ -398,12 +446,36 @@ export default function MyMealsScreen({ navigation, route }) {
               </View>
             ) : (
               <>
-                <Text style={styles.sectionTitle}>
-                  Who Booked Your Meals
-                </Text>
-                {ordersReceived.map((b) => (
-                  <ReceivedBookingCard key={b.id} booking={b} />
-                ))}
+                {ordersActive.length > 0 && (
+                  <>
+                    <Text style={styles.sectionTitle}>Active Orders</Text>
+                    {ordersActive.map((b) => (
+                      <ReceivedBookingCard key={b.id} booking={b} />
+                    ))}
+                  </>
+                )}
+                {ordersCancelled.length > 0 && (
+                  <>
+                    <View style={styles.cancelledSectionHeader}>
+                      <Ionicons name="close-circle-outline" size={16} color="#FF5252" style={{ marginRight: 6 }} />
+                      <Text style={[styles.sectionTitle, { color: '#FF5252', marginBottom: 0 }]}>
+                        Cancellations ({ordersCancelled.length})
+                      </Text>
+                    </View>
+                    <Text style={styles.cancellationNote}>
+                      These customers cancelled their orders
+                    </Text>
+                    {ordersCancelled.map((b) => (
+                      <ReceivedBookingCard key={b.id} booking={b} />
+                    ))}
+                  </>
+                )}
+                {ordersActive.length === 0 && ordersCancelled.length === 0 && (
+                  <View style={styles.emptyState}>
+                    <Ionicons name="bag-handle-outline" size={52} color="#BDBDBD" style={{ marginBottom: 14 }} />
+                    <Text style={styles.emptyTitle}>No orders yet</Text>
+                  </View>
+                )}
               </>
             )}
           </>
@@ -573,6 +645,53 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   cancelledCard: { opacity: 0.7 },
+  cancelledOrderCard: {
+    backgroundColor: '#FFF5F5',
+    borderWidth: 1,
+    borderColor: '#FFCDD2',
+    opacity: 0.9,
+  },
+  cancelledAvatarBadge: {
+    position: 'absolute',
+    bottom: -2,
+    right: -2,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: '#FF5252',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: '#fff',
+  },
+  cancelledBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFEBEB',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#FFCDD2',
+  },
+  cancelledBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#FF5252',
+    fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Bold' : 'sans-serif-medium',
+  },
+  cancelledSectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 16,
+    marginBottom: 6,
+  },
+  cancellationNote: {
+    fontSize: 12,
+    color: '#9E9E9E',
+    marginBottom: 10,
+    fontFamily: Platform.OS === 'ios' ? 'Avenir Next' : 'sans-serif',
+  },
   bookingImage: {
     width: 100,
     minHeight: 120,
