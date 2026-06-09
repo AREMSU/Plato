@@ -40,7 +40,7 @@ const isPickupPassed = (booking) => {
 };
 
 export default function MyMealsScreen({ navigation, route }) {
-  const { bookings, bookingsReceived, cancelBooking, user, meals, createReview } = useApp();
+  const { bookings, bookingsReceived, cancelBooking, user, meals, createReview, markBookingReceived } = useApp();
   const [activeTab, setActiveTab] = useState('bookings');
   useEffect(() => {
     const nextTab = route?.params?.initialTab;
@@ -64,7 +64,7 @@ export default function MyMealsScreen({ navigation, route }) {
     (b) => b.status === 'confirmed' && !isPickupPassed(b)
   );
   const completedBookings = bookings.filter(
-    (b) => b.status === 'confirmed' && isPickupPassed(b)
+    (b) => b.status === 'received' || (b.status === 'confirmed' && isPickupPassed(b))
   );
   const cancelledBookings = bookings.filter(
     (b) => b.status === 'cancelled'
@@ -74,20 +74,29 @@ export default function MyMealsScreen({ navigation, route }) {
   const handleCancel = (booking) => {
     const fee = calculateCancellationFee(booking.totalCost);
     const refund = getRefundAmount(booking.totalCost);
+    const method = booking.paymentMethod;
+
+    const refundNote = method === 'wallet'
+      ? `${formatCurrency(refund)} will be returned to your Plato Wallet instantly.`
+      : method === 'esewa'
+      ? `${formatCurrency(refund)} will be refunded to your eSewa account. Admin will process this shortly.`
+      : `This was a cash booking — no refund is needed.`;
+
+    const confirmMsg = method === 'cash'
+      ? `You paid with cash. Cancelling will free up the portion for others.`
+      : `A 30% cancellation fee applies.\n\nCancellation fee: ${formatCurrency(fee)}\nRefund: ${formatCurrency(refund)}`;
+
     Alert.alert(
       'Cancel Booking?',
-      `Fee: ${formatCurrency(fee)} (30%)\nRefund: ${formatCurrency(refund)}`,
+      confirmMsg,
       [
         { text: 'Keep Booking', style: 'cancel' },
         {
-          text: 'Cancel',
+          text: 'Yes, Cancel',
           style: 'destructive',
           onPress: () => {
             cancelBooking(booking.id);
-            Alert.alert(
-              'Cancelled',
-              `Refund of ${formatCurrency(refund)} will be processed.`
-            );
+            Alert.alert('Booking Cancelled', refundNote);
           },
         },
       ]
@@ -124,12 +133,13 @@ export default function MyMealsScreen({ navigation, route }) {
     const hasReviewed = booking.hasReviewed ?? booking.has_reviewed ?? false;
     const isPast = isPickupPassed(booking);
     const isCancelled = booking.status === 'cancelled';
-    const canReview = booking.status === 'confirmed' && !hasReviewed;
+    const isReceived = booking.status === 'received';
+    const canReview = (booking.status === 'confirmed' || isReceived) && !hasReviewed;
 
-    const displayStatus = isCancelled ? 'Cancelled' : isPast ? 'Completed' : 'Confirmed';
-    const statusColor = isCancelled ? '#FF5252' : isPast ? '#607D8B' : '#4CAF50';
-    const statusBg = isCancelled ? '#FF525220' : isPast ? '#607D8B20' : '#4CAF5020';
-    const statusIcon = isCancelled ? 'close-circle' : isPast ? 'checkmark-done-circle' : 'checkmark-circle';
+    const displayStatus = isCancelled ? 'Cancelled' : isReceived ? 'Received' : isPast ? 'Completed' : 'Confirmed';
+    const statusColor = isCancelled ? '#FF5252' : isReceived ? '#4CAF50' : isPast ? '#607D8B' : '#2196F3';
+    const statusBg = isCancelled ? '#FF525220' : isReceived ? '#4CAF5020' : isPast ? '#607D8B20' : '#2196F320';
+    const statusIcon = isCancelled ? 'close-circle' : isReceived ? 'checkmark-done-circle' : isPast ? 'checkmark-done-circle' : 'checkmark-circle';
 
     return (
     <View
@@ -148,7 +158,7 @@ export default function MyMealsScreen({ navigation, route }) {
       <View style={styles.bookingInfo}>
         <View style={styles.bookingHeader}>
           <Text style={styles.bookingTitle} numberOfLines={1}>
-            {booking.meal.title}
+            {booking.meal?.title ?? 'Meal no longer available'}
           </Text>
           <View
             style={[
@@ -168,18 +178,80 @@ export default function MyMealsScreen({ navigation, route }) {
           {formatCurrency(booking.totalCost)}
         </Text>
         <Text style={styles.bookingDetail}>
-          <Ionicons name="time-outline" size={13} color="#757575" /> {booking.meal.pickupTime}
+          <Ionicons name="time-outline" size={13} color="#757575" /> {booking.meal?.pickupTime ?? '—'}
         </Text>
         <Text style={styles.bookingDetail} numberOfLines={1}>
-          <Ionicons name="location-outline" size={13} color="#757575" /> {booking.meal.pickupLocation}
+          <Ionicons name="location-outline" size={13} color="#757575" /> {booking.meal?.pickupLocation ?? '—'}
         </Text>
-        {booking.status === 'confirmed' && !isPast && (
+        {isCancelled && booking.paymentMethod !== 'cash' && (
+          <View style={[
+            styles.refundBanner,
+            booking.refundStatus === 'completed' && { backgroundColor: '#E8F5E9' }
+          ]}>
+            <Ionicons
+              name={booking.refundStatus === 'completed' ? 'checkmark-circle' : 'time-outline'}
+              size={13}
+              color={booking.refundStatus === 'completed' ? '#2E7D32' : '#FF6B35'}
+            />
+            <Text style={[
+              styles.refundBannerText,
+              booking.refundStatus === 'completed' && { color: '#2E7D32' }
+            ]}>
+              {booking.refundStatus === 'completed'
+                ? `${formatCurrency(getRefundAmount(booking.totalCost))} refunded to ${booking.paymentMethod === 'wallet' ? 'your Wallet' : 'eSewa'} ✓`
+                : booking.paymentMethod === 'wallet'
+                ? `${formatCurrency(getRefundAmount(booking.totalCost))} returned to your Wallet`
+                : `${formatCurrency(getRefundAmount(booking.totalCost))} refund pending — admin will process`
+              }
+            </Text>
+          </View>
+        )}
+        {booking.status === 'confirmed' && (
           <TouchableOpacity
-            style={styles.cancelButton}
-            onPress={() => handleCancel(booking)}
+            style={styles.receivedButton}
+            onPress={() => {
+              Alert.alert(
+                'Confirm Receipt',
+                'Have you received your food?',
+                [
+                  { text: 'Not Yet', style: 'cancel' },
+                  {
+                    text: 'Yes, Received!',
+                    onPress: async () => {
+                      const result = await markBookingReceived(booking.id);
+                      if (result?.error) {
+                        Alert.alert('Error', result.error);
+                      } else {
+                        Alert.alert('Enjoy your meal! 🍽️', 'Marked as received. The seller has been notified.');
+                      }
+                    },
+                  },
+                ]
+              );
+            }}
           >
-            <Text style={styles.cancelButtonText}>Cancel Booking</Text>
+            <Ionicons name="checkmark-done-outline" size={15} color="#fff" />
+            <Text style={styles.receivedButtonText}>Mark as Received</Text>
           </TouchableOpacity>
+        )}
+        {booking.status === 'confirmed' && !isPast && (
+          <>
+            <View style={styles.refundNote}>
+              <Ionicons name="information-circle-outline" size={12} color="#FF6B35" />
+              <Text style={styles.refundNoteText}>
+                {booking.paymentMethod === 'cash'
+                  ? 'Cancel anytime · Cash booking · No refund needed'
+                  : `Cancel now · 30% fee · ${formatCurrency(getRefundAmount(booking.totalCost))} refund${booking.paymentMethod === 'wallet' ? ' to Wallet' : ''}`
+                }
+              </Text>
+            </View>
+            <TouchableOpacity
+              style={styles.cancelButton}
+              onPress={() => handleCancel(booking)}
+            >
+              <Text style={styles.cancelButtonText}>Cancel Booking</Text>
+            </TouchableOpacity>
+          </>
         )}
         {canReview && (
           <TouchableOpacity
@@ -382,7 +454,9 @@ export default function MyMealsScreen({ navigation, route }) {
                 )}
                 {completedBookings.length > 0 && (
                   <>
-                    <Text style={[styles.sectionTitle, { marginTop: 16 }]}>Completed</Text>
+                    <Text style={[styles.sectionTitle, { marginTop: 16 }]}>
+                      Received & Completed ({completedBookings.length})
+                    </Text>
                     {completedBookings.map((b) => (
                       <BookingCard key={b.id} booking={b} />
                     ))}
@@ -396,7 +470,7 @@ export default function MyMealsScreen({ navigation, route }) {
                     ))}
                   </>
                 )}
-                {upcomingBookings.length === 0 && completedBookings.length === 0 && cancelledBookings.length === 0 && (
+                {upcomingBookings.length === 0 && completedBookings.length === 0 && cancelledBookings.length === 0 && bookings.filter(b => b.status === 'received').length === 0 && (
                   <View style={styles.emptyState}>
                     <Ionicons name="receipt-outline" size={52} color="#BDBDBD" style={{ marginBottom: 14 }} />
                     <Text style={styles.emptyTitle}>No bookings yet</Text>
@@ -740,13 +814,57 @@ const styles = StyleSheet.create({
     marginBottom: 4,
     fontFamily: Platform.OS === 'ios' ? 'Avenir Next' : 'sans-serif',
   },
+  refundNote: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 6,
+    marginBottom: 2,
+  },
+  refundNoteText: {
+    fontSize: 11,
+    color: '#FF6B35',
+    fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Medium' : 'sans-serif',
+  },
+  refundBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 6,
+    backgroundColor: '#FFF3EE',
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+  },
+  refundBannerText: {
+    fontSize: 11,
+    color: '#FF6B35',
+    fontWeight: '600',
+    fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Medium' : 'sans-serif-medium',
+  },
+  receivedButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: '#4CAF50',
+    borderRadius: 10,
+    paddingVertical: 8,
+    marginTop: 6,
+  },
+  receivedButtonText: {
+    fontSize: 13,
+    color: '#fff',
+    fontWeight: '700',
+    fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Bold' : 'sans-serif-medium',
+  },
   cancelButton: {
     borderWidth: 1.5,
     borderColor: '#FF5252',
     borderRadius: 10,
     paddingVertical: 7,
     alignItems: 'center',
-    marginTop: 6,
+    marginTop: 2,
   },
   cancelButtonText: {
     fontSize: 13,

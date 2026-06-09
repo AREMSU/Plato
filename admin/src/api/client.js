@@ -1,6 +1,6 @@
 // Dynamic host detection for local servers (LAN IP, Android Emulator, localhost)
 const BASE_URLS = [
-  'https://lather-moonlit-plasma.ngrok-free.dev/panel/api',
+  process.env.EXPO_PUBLIC_ADMIN_API_URL || 'https://lather-moonlit-plasma.ngrok-free.dev/panel/api',
   'http://192.168.1.7:8000/panel/api',
   'http://10.0.2.2:8000/panel/api',
   'http://127.0.0.1:8000/panel/api',
@@ -98,6 +98,9 @@ export const getBookings = (params = '') =>
 
 export const cancelBooking = (id) =>
   customFetch(`/bookings/${id}/cancel/`, { method: 'POST' }).then(handleResponse);
+
+export const markRefundComplete = (id) =>
+  customFetch(`/bookings/${id}/refund-complete/`, { method: 'POST' }).then(handleResponse);
 
 // Subscriptions
 export const getSubscriptions = (params = '') =>

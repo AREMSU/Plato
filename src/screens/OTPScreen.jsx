@@ -1,8 +1,9 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
     View, Text, StyleSheet, TextInput,
-    TouchableOpacity, Alert, ActivityIndicator, Platform
+    TouchableOpacity, Alert, ActivityIndicator, Platform, AppState
 } from 'react-native';
+import * as Clipboard from 'expo-clipboard';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import apiCall from '../api/client';
@@ -17,7 +18,37 @@ export default function OTPScreen({ navigation, route }) {
     const inputs = useRef([]);
     const { loginAfterVerification } = useApp();
 
+    const tryFillFromClipboard = async () => {
+        try {
+            const text = await Clipboard.getStringAsync();
+            const digits = text?.replace(/\D/g, '');
+            if (digits?.length === 6) {
+                setOtp(digits.split(''));
+                inputs.current[5]?.focus();
+                await Clipboard.setStringAsync('');
+            }
+        } catch (_) {}
+    };
+
+    useEffect(() => {
+        tryFillFromClipboard();
+        const sub = AppState.addEventListener('change', state => {
+            if (state === 'active') tryFillFromClipboard();
+        });
+        return () => sub.remove();
+    }, []);
+
     const handleChange = (text, index) => {
+        // Handle paste of full OTP code
+        if (text.length > 1) {
+            const digits = text.replace(/\D/g, '').slice(0, 6).split('');
+            const newOtp = [...otp];
+            digits.forEach((d, i) => { newOtp[i] = d; });
+            setOtp(newOtp);
+            const lastFilled = Math.min(digits.length - 1, 5);
+            inputs.current[lastFilled]?.focus();
+            return;
+        }
         const newOtp = [...otp];
         newOtp[index] = text;
         setOtp(newOtp);
@@ -27,7 +58,7 @@ export default function OTPScreen({ navigation, route }) {
     };
 
     const handleKeyPress = (e, index) => {
-        if (e.nativeEvent.key === 'Backspace' && !otp[index] && index > 0) {
+        if (e.nativeEvent.key === 'Backspace' && index > 0) {
             inputs.current[index - 1].focus();
         }
     };
@@ -94,11 +125,13 @@ export default function OTPScreen({ navigation, route }) {
                             ref={ref => inputs.current[index] = ref}
                             style={[styles.otpInput, digit && styles.otpInputFilled]}
                             value={digit}
-                            onChangeText={text => handleChange(text.slice(-1), index)}
+                            onChangeText={text => handleChange(text, index)}
                             onKeyPress={e => handleKeyPress(e, index)}
                             keyboardType="numeric"
-                            maxLength={1}
+                            maxLength={6}
                             textAlign="center"
+                            textContentType="oneTimeCode"
+                            autoComplete="one-time-code"
                         />
                     ))}
                 </View>

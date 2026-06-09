@@ -1,4 +1,5 @@
 from datetime import timedelta
+import os
 
 from rest_framework import status
 from rest_framework.views import APIView
@@ -10,12 +11,15 @@ from django.utils import timezone
 from django.db.models import Avg
 import uuid
 
+BACKEND_URL = os.getenv("BACKEND_URL", "https://lather-moonlit-plasma.ngrok-free.dev")
+
 from api import models
-from .models import Subscription, User, Meal, Booking, OTP, Review, Notification
+from .models import Subscription, User, Meal, Booking, OTP, Review, Notification, Wallet, WalletTransaction
 from .ai_views import classify_food_image
 from .serializers import (
     RegisterSerializer, SubscriptionSerializer, UserSerializer,
-    MealSerializer, BookingSerializer, ReviewSerializer, NotificationSerializer
+    MealSerializer, BookingSerializer, ReviewSerializer, NotificationSerializer,
+    WalletSerializer
 )
 from rest_framework.decorators import api_view, permission_classes
 from django.core.mail import send_mail
@@ -26,6 +30,31 @@ from django.conf import settings
 from .email_service import send_otp_email
 from .validators import is_disposable_email
 from django.utils import timezone
+# ─── HELPERS ──────────────────────────────────────────────────
+
+from zoneinfo import ZoneInfo
+from datetime import datetime as _dt
+
+_NEPAL_TZ = ZoneInfo('Asia/Kathmandu')
+
+def _pickup_passed(meal):
+    """Return True if meal's pickup time on meal_date is already past (Nepal time)."""
+    now_np = timezone.now().astimezone(_NEPAL_TZ)
+    today_np = now_np.date()
+    if meal.meal_date > today_np:
+        return False
+    if meal.meal_date < today_np:
+        return True
+    try:
+        pt = _dt.strptime(meal.pickup_time.strip(), '%I:%M %p')
+        return (now_np.hour, now_np.minute) >= (pt.hour, pt.minute)
+    except Exception:
+        return False
+
+def filter_active_meals(qs):
+    """Remove meals whose pickup datetime has already passed."""
+    return [m for m in qs if not _pickup_passed(m)]
+
 # ─── AUTH VIEWS ───────────────────────────────────────────────
 
 
@@ -291,7 +320,7 @@ class MealListCreateView(APIView):
         today = timezone.now().date()
         meals = Meal.objects.filter(seller__isnull=False, seller__is_active=True, meal_date__gte=today, status='approved')
 
-        # Filters
+        # Apply DB filters first (while still a QuerySet)
         category = request.query_params.get('category')
         is_veg = request.query_params.get('is_vegetarian')
         search = request.query_params.get('search')
@@ -304,15 +333,15 @@ class MealListCreateView(APIView):
         if search:
             meals = meals.filter(title__icontains=search)
 
-        # Sorting (featured/pro meals first)
         if sort == 'rating':
             meals = meals.order_by('-is_featured', '-rating')
         elif sort == 'price':
             meals = meals.order_by('-is_featured', 'price_per_portion')
-        elif sort == 'newest':
-            meals = meals.order_by('-is_featured', '-created_at')
         else:
             meals = meals.order_by('-is_featured', '-created_at')
+
+        # Now filter by pickup time (converts to list)
+        meals = filter_active_meals(meals)
 
         serializer = MealSerializer(meals, many=True)
         return Response(serializer.data)
@@ -358,7 +387,7 @@ class MealListView(APIView):
         today = timezone.now().date()
         meals = Meal.objects.filter(seller__isnull=False, seller__is_active=True, meal_date__gte=today, status='approved')
 
-        # Filters
+        # Apply DB filters first (while still a QuerySet)
         category = request.query_params.get('category')
         is_vegetarian = request.query_params.get('is_vegetarian')
         search = request.query_params.get('search')
@@ -374,13 +403,15 @@ class MealListView(APIView):
                 models.Q(description__icontains=search)
             )
 
-        # ── Sort: featured (pro sellers) always first ──
         if sort == 'rating':
             meals = meals.order_by('-is_featured', '-rating')
         elif sort == 'price':
             meals = meals.order_by('-is_featured', 'price_per_portion')
-        else:  # newest (default)
+        else:
             meals = meals.order_by('-is_featured', '-created_at')
+
+        # Now filter by pickup time (converts to list)
+        meals = filter_active_meals(meals)
 
         serializer = MealSerializer(meals, many=True, context={'request': request})
         return Response(serializer.data)
@@ -419,11 +450,16 @@ class BookingListCreateView(APIView):
             )
 
         total_cost = meal.price_per_portion * portions
+        payment_method = request.data.get('payment_method', 'cash')
+        is_wallet = payment_method == 'wallet'
+
         booking = Booking.objects.create(
             meal=meal,
             user=request.user,
             portions=portions,
             total_cost=total_cost,
+            status='pending_payment' if is_wallet else 'confirmed',
+            payment_method=payment_method,
         )
 
         # Update meal portions
@@ -431,18 +467,20 @@ class BookingListCreateView(APIView):
         meal.bookings += portions
         meal.save()
 
-        create_notification(
-            request.user,
-            'booking_updates',
-            'Booking Confirmed',
-            f"Your booking for {meal.title} is confirmed."
-        )
-        create_notification(
-            meal.seller,
-            'booking_updates',
-            'New Booking',
-            f"{request.user.first_name or request.user.email} booked {meal.title}."
-        )
+        # Only notify if booking is immediately confirmed (cash)
+        if not is_wallet:
+            create_notification(
+                request.user,
+                'booking_updates',
+                'Booking Confirmed',
+                f"Your booking for {meal.title} is confirmed."
+            )
+            create_notification(
+                meal.seller,
+                'booking_updates',
+                'New Booking',
+                f"{request.user.first_name or request.user.email} booked {meal.title}."
+            )
 
         return Response(BookingSerializer(booking).data, status=201)
 
@@ -460,28 +498,89 @@ class CancelBookingView(APIView):
             return Response({'error': 'Already cancelled'}, status=400)
 
         booking.status = 'cancelled'
+        refund_amount = round(booking.total_cost * 0.7, 2)
+
+        meal = booking.meal
+        meal_title = meal.title if meal else 'meal'
+        cancellation_fee = round(booking.total_cost * 0.3, 2)
+
+        if booking.payment_method == 'wallet':
+            # Refund 70% to buyer instantly
+            buyer_wallet, _ = Wallet.objects.get_or_create(user=request.user)
+            buyer_wallet.balance = round(buyer_wallet.balance + refund_amount, 2)
+            buyer_wallet.save()
+            WalletTransaction.objects.create(
+                wallet=buyer_wallet, type='credit', amount=refund_amount,
+                reason='refund',
+                description=f'Refund for cancelled booking — {meal_title}',
+                reference=str(booking.id),
+            )
+
+            # Deduct 70% from seller (they keep 30% cancellation fee)
+            if meal:
+                seller_wallet, _ = Wallet.objects.get_or_create(user=meal.seller)
+                seller_wallet.balance = round(seller_wallet.balance - refund_amount, 2)
+                seller_wallet.save()
+                WalletTransaction.objects.create(
+                    wallet=seller_wallet, type='debit', amount=refund_amount,
+                    reason='refund',
+                    description=f'Refund issued for cancelled booking — {meal_title}. You keep Rs.{int(cancellation_fee)} cancellation fee.',
+                    reference=str(booking.id),
+                )
+            booking.refund_status = 'completed'
+        elif booking.payment_method == 'esewa':
+            booking.refund_status = 'pending'
+        else:
+            booking.refund_status = 'none'
         booking.save()
 
         # Restore portions
-        meal = booking.meal
-        meal.available_portions += booking.portions
-        meal.bookings -= booking.portions
-        meal.save()
+        if meal:
+            meal.available_portions += booking.portions
+            meal.bookings -= booking.portions
+            meal.save()
 
         create_notification(
-            request.user,
-            'booking_updates',
-            'Booking Cancelled',
-            f"Your booking for {meal.title} was cancelled."
+            request.user, 'booking_updates', 'Booking Cancelled',
+            f'Your booking for {meal_title} was cancelled. '
+            + (f'Rs.{int(refund_amount)} refunded to your wallet.' if booking.payment_method == 'wallet' else '')
         )
-        create_notification(
-            meal.seller,
-            'booking_updates',
-            'Booking Cancelled',
-            f"A booking for {meal.title} was cancelled by {request.user.first_name or request.user.email}."
-        )
+        if meal:
+            create_notification(
+                meal.seller, 'booking_updates', 'Booking Cancelled',
+                f'A booking for {meal_title} was cancelled. '
+                + (f'You keep Rs.{int(cancellation_fee)} cancellation fee.' if booking.payment_method == 'wallet' else '')
+            )
 
         return Response(BookingSerializer(booking).data)
+
+
+class MarkBookingReceivedView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk):
+        try:
+            booking = Booking.objects.get(pk=pk, user=request.user)
+        except Booking.DoesNotExist:
+            return Response({'error': 'Booking not found'}, status=404)
+
+        if booking.status != 'confirmed':
+            return Response({'error': 'Only confirmed bookings can be marked as received'}, status=400)
+
+        booking.status = 'received'
+        booking.save(update_fields=['status'])
+
+        meal = booking.meal
+        if meal:
+            create_notification(
+                meal.seller,
+                'booking_updates',
+                'Food Received ✅',
+                f'{request.user.first_name or request.user.email} confirmed they received {meal.title}.'
+            )
+
+        return Response(BookingSerializer(booking).data)
+
 
 class BookingReceivedView(APIView):
     permission_classes = [IsAuthenticated]
@@ -536,8 +635,8 @@ class ReviewListCreateView(APIView):
         except Booking.DoesNotExist:
             return Response({'error': 'Booking not found'}, status=404)
 
-        if booking.status != 'confirmed':
-            return Response({'error': 'Only confirmed bookings can be reviewed'}, status=400)
+        if booking.status not in ('confirmed', 'received'):
+            return Response({'error': 'Only confirmed or received bookings can be reviewed'}, status=400)
 
         if hasattr(booking, 'review'):
             return Response({'error': 'You already reviewed this booking'}, status=400)
@@ -801,7 +900,7 @@ class EsewaSubscriptionInitiateView(APIView):
         subscription.save()
 
         # Generate checkout URL
-        checkout_url = f"https://lather-moonlit-plasma.ngrok-free.dev/api/payment/esewa/checkout/?uuid={transaction_uuid}&type=subscription"
+        checkout_url = f"{BACKEND_URL}/api/payment/esewa/checkout/?uuid={transaction_uuid}&type=subscription"
 
         return Response({
             'checkout_url': checkout_url,
@@ -824,7 +923,7 @@ class EsewaSubscriptionRenewView(APIView):
         subscription.payment_reference = transaction_uuid
         subscription.save()
 
-        checkout_url = f"https://lather-moonlit-plasma.ngrok-free.dev/api/payment/esewa/checkout/?uuid={transaction_uuid}&type=subscription"
+        checkout_url = f"{BACKEND_URL}/api/payment/esewa/checkout/?uuid={transaction_uuid}&type=subscription"
 
         return Response({
             'checkout_url': checkout_url,
@@ -873,7 +972,7 @@ class EsewaBookingInitiateView(APIView):
         booking.save()
 
         # Generate checkout URL
-        checkout_url = f"https://lather-moonlit-plasma.ngrok-free.dev/api/payment/esewa/checkout/?uuid={transaction_uuid}&type=booking"
+        checkout_url = f"{BACKEND_URL}/api/payment/esewa/checkout/?uuid={transaction_uuid}&type=booking"
 
         return Response({
             'checkout_url': checkout_url,
@@ -894,7 +993,7 @@ class EsewaCheckoutView(APIView):
         if p_type == 'subscription':
             try:
                 sub = Subscription.objects.get(payment_reference=uuid)
-                amount = 199  # Pro upgrade cost
+                amount = 199
             except Subscription.DoesNotExist:
                 return HttpResponse("Subscription not found", status=404)
         elif p_type == 'booking':
@@ -903,6 +1002,13 @@ class EsewaCheckoutView(APIView):
                 amount = int(booking.total_cost)
             except Booking.DoesNotExist:
                 return HttpResponse("Booking not found", status=404)
+        elif p_type == 'wallet':
+            try:
+                amount = int(request.query_params.get('amount', 0))
+                if amount < 50:
+                    return HttpResponse("Invalid amount", status=400)
+            except (TypeError, ValueError):
+                return HttpResponse("Invalid amount", status=400)
         else:
             return HttpResponse("Invalid payment type", status=400)
 
@@ -911,8 +1017,8 @@ class EsewaCheckoutView(APIView):
         msg = f"total_amount={amount},transaction_uuid={uuid},product_code={product_code}"
         signature = generate_esewa_signature(msg)
 
-        success_url = f"https://lather-moonlit-plasma.ngrok-free.dev/api/payment/esewa/success/"
-        failure_url = f"https://lather-moonlit-plasma.ngrok-free.dev/api/payment/esewa/failure/?uuid={uuid}"
+        success_url = f"{BACKEND_URL}/api/payment/esewa/success/"
+        failure_url = f"{BACKEND_URL}/api/payment/esewa/failure/?uuid={uuid}"
 
         html_content = f"""
         <!DOCTYPE html>
@@ -1023,30 +1129,26 @@ class EsewaSuccessView(APIView):
                 payment_msg = "Your account is now Pro. Enjoy featured listings and premium badges!"
             except Subscription.DoesNotExist:
                 return HttpResponse("Subscription not found", status=404)
-        elif transaction_uuid.startswith('BKG-'):
+        elif transaction_uuid.startswith('WLT-'):
             try:
-                booking = Booking.objects.get(payment_reference=transaction_uuid)
-                booking.status = 'confirmed'
-                booking.save()
-
-                # Trigger notifications
-                create_notification(
-                    booking.user,
-                    'booking_updates',
-                    'Booking Confirmed',
-                    f"Your booking for {booking.meal.title} is confirmed."
-                )
-                create_notification(
-                    booking.meal.seller,
-                    'booking_updates',
-                    'New Booking',
-                    f"{booking.user.first_name or booking.user.email} booked {booking.meal.title}."
-                )
-
-                payment_title = "Meal Booked Successfully!"
-                payment_msg = f"Your booking for {booking.meal.title} has been confirmed. Enjoy your meal!"
-            except Booking.DoesNotExist:
-                return HttpResponse("Booking not found", status=404)
+                parts = transaction_uuid.split('-')
+                user_id = int(parts[1])
+                user = User.objects.get(pk=user_id)
+            except (User.DoesNotExist, IndexError, ValueError):
+                return HttpResponse("User not found", status=404)
+            amount_credited = float(total_amount)
+            wallet, _ = Wallet.objects.get_or_create(user=user)
+            wallet.balance = round(wallet.balance + amount_credited, 2)
+            wallet.save()
+            WalletTransaction.objects.create(
+                wallet=wallet, type='credit', amount=amount_credited,
+                reason='topup', description='Wallet top-up via eSewa',
+                reference=transaction_uuid,
+            )
+            create_notification(user, 'booking_updates', 'Wallet Topped Up',
+                                f'Rs.{int(amount_credited)} added to your Plato Wallet.')
+            payment_title = "Wallet Topped Up!"
+            payment_msg = f"Rs.{int(amount_credited)} has been added to your Plato Wallet."
         else:
             return HttpResponse("Unknown transaction prefix", status=400)
 
@@ -1074,26 +1176,33 @@ class EsewaSuccessView(APIView):
                 <div class="icon">✅</div>
                 <h2>{payment_title}</h2>
                 <p class="subtitle">{payment_msg}</p>
-                <p class="hint">Tap the button below to return to Plato. If it doesn't open, close this browser tab manually.</p>
+                <p class="hint">Tap the button below to return to Plato.</p>
                 <a href="exp+plato://mymeals" class="btn-primary" id="returnBtn">↩ Return to Plato</a>
-                <div class="countdown">Auto-redirecting in <span id="timer">5</span>s...</div>
+                <div class="countdown" id="countdownEl">Auto-redirecting in <span id="timer">3</span>s...</div>
             </div>
             <script>
-                // Auto-redirect via deep link after 3s
-                var count = 5;
-                var interval = setInterval(function() {{
-                    count--;
-                    var el = document.getElementById('timer');
-                    if (el) el.textContent = count;
-                    if (count <= 0) {{
-                        clearInterval(interval);
-                        window.location.href = 'exp+plato://mymeals';
-                    }}
-                }}, 1000);
-                // Also trigger immediately on button click
-                document.getElementById('returnBtn').addEventListener('click', function(e) {{
-                    clearInterval(interval);
-                }});
+                var returnPath = '{"wallet" if transaction_uuid.startswith("WLT-") else "profile" if transaction_uuid.startswith(("SUB-","RNW-")) else "mymeals"}';
+                var isAndroid = /Android/i.test(navigator.userAgent);
+                var androidIntent = 'intent://' + returnPath + '#Intent;scheme=exp+plato;package=host.exp.exponent;S.browser_fallback_url=intent%3A%2F%2F' + returnPath + '%23Intent%3Bscheme%3Dplato%3Bpackage%3Dcom.platofood.plato%3Bend;end';
+                var iosLink = 'exp+plato://' + returnPath;
+
+                if (isAndroid) {{
+                    document.getElementById('returnBtn').href = androidIntent;
+                    var count = 3;
+                    var t = setInterval(function() {{
+                        count--;
+                        var el = document.getElementById('timer');
+                        if (el) el.textContent = count;
+                        if (count <= 0) {{
+                            clearInterval(t);
+                            window.location.href = androidIntent;
+                        }}
+                    }}, 1000);
+                }} else {{
+                    document.getElementById('returnBtn').href = iosLink;
+                    var cd = document.getElementById('countdownEl');
+                    if (cd) cd.style.display = 'none';
+                }}
             </script>
         </body>
         </html>
@@ -1157,22 +1266,30 @@ class EsewaFailureView(APIView):
                 <p class="subtitle">The transaction was cancelled or could not be completed.</p>
                 <p class="hint">You have not been charged. Tap below to return to Plato and try again.</p>
                 <a href="exp+plato://mymeals" class="btn-primary" id="returnBtn">↩ Return to Plato</a>
-                <div class="countdown">Auto-redirecting in <span id="timer">5</span>s...</div>
+                <div class="countdown" id="countdownEl">Auto-redirecting in <span id="timer">3</span>s...</div>
             </div>
             <script>
-                var count = 5;
-                var interval = setInterval(function() {
-                    count--;
-                    var el = document.getElementById('timer');
-                    if (el) el.textContent = count;
-                    if (count <= 0) {
-                        clearInterval(interval);
-                        window.location.href = 'exp+plato://mymeals';
-                    }
-                }, 1000);
-                document.getElementById('returnBtn').addEventListener('click', function() {
-                    clearInterval(interval);
-                });
+                var isAndroid = /Android/i.test(navigator.userAgent);
+                var androidIntent = 'intent://mymeals#Intent;scheme=exp+plato;package=host.exp.exponent;S.browser_fallback_url=intent%3A%2F%2Fmymeals%23Intent%3Bscheme%3Dplato%3Bpackage%3Dcom.platofood.plato%3Bend;end';
+                var iosLink = 'exp+plato://mymeals';
+
+                if (isAndroid) {
+                    document.getElementById('returnBtn').href = androidIntent;
+                    var count = 3;
+                    var t = setInterval(function() {
+                        count--;
+                        var el = document.getElementById('timer');
+                        if (el) el.textContent = count;
+                        if (count <= 0) {
+                            clearInterval(t);
+                            window.location.href = androidIntent;
+                        }
+                    }, 1000);
+                } else {
+                    document.getElementById('returnBtn').href = iosLink;
+                    var cd = document.getElementById('countdownEl');
+                    if (cd) cd.style.display = 'none';
+                }
             </script>
         </body>
         </html>
@@ -1181,3 +1298,203 @@ class EsewaFailureView(APIView):
 
     
 
+
+
+# ─── WALLET VIEWS ─────────────────────────────────────────────────────────
+
+class WalletView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        wallet, _ = Wallet.objects.get_or_create(user=request.user)
+        txns = wallet.transactions.order_by('-created_at')[:30]
+        from .serializers import WalletTransactionSerializer
+        return Response({
+            'balance': wallet.balance,
+            'transactions': WalletTransactionSerializer(txns, many=True).data,
+        })
+
+
+class WalletTopupInitiateView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        amount = request.data.get('amount')
+        try:
+            amount = float(amount)
+            if amount < 50:
+                return Response({'error': 'Minimum top-up is Rs.50'}, status=400)
+        except (TypeError, ValueError):
+            return Response({'error': 'Invalid amount'}, status=400)
+
+        transaction_uuid = f"WLT-{request.user.id}-{uuid.uuid4().hex[:8].upper()}"
+        # Route through eSewa checkout (same as subscription/booking)
+        checkout_url = f"{BACKEND_URL}/api/payment/esewa/checkout/?uuid={transaction_uuid}&type=wallet&amount={int(amount)}"
+
+        return Response({'checkoutUrl': checkout_url})
+
+
+class WalletTopupSuccessView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        transaction_uuid = request.query_params.get('uuid', '')
+        amount = request.query_params.get('amount', 0)
+
+        if not transaction_uuid.startswith('WLT-'):
+            return HttpResponse('Invalid request', status=400)
+
+        try:
+            parts = transaction_uuid.split('-')
+            user_id = int(parts[1])
+            user = User.objects.get(pk=user_id)
+        except (User.DoesNotExist, IndexError, ValueError):
+            return HttpResponse('User not found', status=404)
+
+        try:
+            amount = float(amount)
+        except (TypeError, ValueError):
+            return HttpResponse('Invalid amount', status=400)
+
+        # Credit the wallet
+        wallet, _ = Wallet.objects.get_or_create(user=user)
+        wallet.balance = round(wallet.balance + amount, 2)
+        wallet.save()
+
+        WalletTransaction.objects.create(
+            wallet=wallet,
+            type='credit',
+            amount=amount,
+            reason='topup',
+            description=f'Wallet top-up via eSewa',
+            reference=transaction_uuid,
+        )
+
+        create_notification(user, 'booking_updates', 'Wallet Topped Up',
+                            f'Rs.{int(amount)} added to your Plato Wallet.')
+
+        html = f"""<!DOCTYPE html><html>
+        <head><title>Top-up Successful</title>
+        <meta name="viewport" content="width=device-width,initial-scale=1">
+        <style>*{{box-sizing:border-box;margin:0;padding:0}}body{{font-family:-apple-system,sans-serif;background:#FFF8F5;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}}.card{{background:#fff;padding:40px 30px;border-radius:28px;box-shadow:0 20px 60px rgba(0,0,0,.08);max-width:380px;width:100%;text-align:center}}.icon{{font-size:64px;margin-bottom:20px}}h2{{font-size:22px;font-weight:800;color:#0F172A;margin-bottom:10px}}.sub{{color:#475569;font-size:15px;margin-bottom:24px}}.amt{{font-size:32px;font-weight:800;color:#FF6B35;margin-bottom:24px}}.btn{{background:linear-gradient(135deg,#FF6B35,#FF8C42);color:#fff;padding:15px 32px;text-decoration:none;border-radius:16px;font-weight:700;font-size:15px;display:inline-block;width:100%}}</style></head>
+        <body><div class="card"><div class="icon">💰</div><h2>Wallet Topped Up!</h2><p class="sub">Successfully added</p><div class="amt">Rs.{int(amount)}</div>
+        <a href="exp+plato://wallet" class="btn" id="btn">↩ Return to Plato</a></div>
+        <script>var isAndroid=/Android/i.test(navigator.userAgent);var link=isAndroid?'intent://wallet#Intent;scheme=exp+plato;package=host.exp.exponent;S.browser_fallback_url=intent%3A%2F%2Fwallet%23Intent%3Bscheme%3Dplato%3Bpackage%3Dcom.platofood.plato%3Bend;end':'exp+plato://wallet';document.getElementById('btn').href=link;var c=3,t=setInterval(function(){{c--;if(c<=0){{clearInterval(t);window.location.href=link;}}}},1000);</script>
+        </body></html>"""
+        return HttpResponse(html)
+
+
+class WalletPayView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        booking_id = request.data.get('booking_id')
+        try:
+            booking = Booking.objects.get(pk=booking_id, user=request.user)
+        except Booking.DoesNotExist:
+            return Response({'error': 'Booking not found'}, status=404)
+
+        if booking.status != 'pending_payment':
+            return Response({'error': 'Booking is not awaiting payment'}, status=400)
+        if booking.payment_method != 'wallet':
+            return Response({'error': 'This booking is not set up for wallet payment'}, status=400)
+
+        wallet, _ = Wallet.objects.get_or_create(user=request.user)
+        if wallet.balance < booking.total_cost:
+            return Response({
+                'error': f'Insufficient wallet balance. You have Rs.{wallet.balance}, need Rs.{booking.total_cost}.'
+            }, status=400)
+
+        meal_title = booking.meal.title if booking.meal else 'meal'
+        seller = booking.meal.seller if booking.meal else None
+
+        # Deduct from buyer wallet
+        wallet.balance = round(wallet.balance - booking.total_cost, 2)
+        wallet.save()
+        WalletTransaction.objects.create(
+            wallet=wallet, type='debit', amount=booking.total_cost,
+            reason='booking_payment',
+            description=f'Payment for {meal_title}',
+            reference=str(booking.id),
+        )
+
+        # Credit seller wallet
+        if seller:
+            seller_wallet, _ = Wallet.objects.get_or_create(user=seller)
+            seller_wallet.balance = round(seller_wallet.balance + booking.total_cost, 2)
+            seller_wallet.save()
+            WalletTransaction.objects.create(
+                wallet=seller_wallet, type='credit', amount=booking.total_cost,
+                reason='booking_payment',
+                description=f'Payment received for {meal_title}',
+                reference=str(booking.id),
+            )
+
+        booking.status = 'confirmed'
+        booking.payment_method = 'wallet'
+        booking.save()
+
+        if booking.meal:
+            create_notification(
+                request.user, 'booking_updates', 'Booking Confirmed',
+                f'Your booking for {meal_title} is confirmed. Pickup at {booking.meal.pickup_location}.'
+            )
+            create_notification(
+                seller, 'booking_updates', 'Payment Received 💰',
+                f'Rs.{int(booking.total_cost)} received for {meal_title} booking.'
+            )
+
+        return Response({'message': 'Payment successful', 'booking': BookingSerializer(booking).data})
+
+
+class WalletSubscriptionPayView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        action = request.data.get('action', 'upgrade')  # 'upgrade' or 'renew'
+        SUBSCRIPTION_COST = 199.0
+
+        wallet, _ = Wallet.objects.get_or_create(user=request.user)
+        if wallet.balance < SUBSCRIPTION_COST:
+            return Response({
+                'error': f'Insufficient wallet balance. You have Rs.{int(wallet.balance)}, need Rs.{int(SUBSCRIPTION_COST)}. Top up your wallet first.'
+            }, status=400)
+
+        # Deduct from wallet
+        wallet.balance = round(wallet.balance - SUBSCRIPTION_COST, 2)
+        wallet.save()
+
+        WalletTransaction.objects.create(
+            wallet=wallet, type='debit', amount=SUBSCRIPTION_COST,
+            reason='subscription',
+            description='Pro subscription payment',
+            reference=action,
+        )
+
+        # Activate / renew subscription
+        sub, _ = Subscription.objects.get_or_create(user=request.user)
+        now = timezone.now()
+        if action == 'renew':
+            base = sub.expires_at if (sub.expires_at and sub.expires_at > now) else now
+            sub.expires_at = base + timedelta(days=30)
+        else:
+            sub.expires_at = now + timedelta(days=30)
+
+        sub.plan = 'pro'
+        sub.status = 'approved'
+        sub.is_active = True
+        sub.started_at = now
+        sub.amount_paid = SUBSCRIPTION_COST
+        sub.save()
+
+        Meal.objects.filter(seller=request.user).update(is_featured=True)
+
+        create_notification(request.user, 'booking_updates', 'Pro Activated! 🎉',
+                            'Your Plato Pro plan is now active. Enjoy premium features!')
+
+        from .serializers import SubscriptionSerializer
+        return Response({
+            'message': 'Pro activated successfully',
+            'subscription': SubscriptionSerializer(sub).data,
+            'wallet_balance': wallet.balance,
+        })

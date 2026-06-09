@@ -3,37 +3,75 @@
     "name": "Plato",
     "slug": "plato",
     "scheme": "plato",
-    "icon": "./assets/branding/icon.png",
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
+    "icon": "./assets/branding/icon.png",
+    "splash": {
+      "image": "./assets/branding/icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#FF6B35"
+    },
     "assetBundlePatterns": [
       "**/*"
     ],
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.anonymous.plato"
+      "bundleIdentifier": "com.platofood.plato",
+      "buildNumber": "1",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Plato needs camera access to let you upload meal photos.",
+        "NSPhotoLibraryUsageDescription": "Plato needs photo library access to let you pick meal photos.",
+        "NSPhotoLibraryAddUsageDescription": "Plato needs photo library access to save meal photos."
+      }
     },
     "android": {
+      "package": "com.platofood.plato",
+      "versionCode": 1,
       "adaptiveIcon": {
         "foregroundImage": "./assets/branding/icon-foreground.png",
         "backgroundColor": "#FF6B35"
       },
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.INTERNET",
+        "android.permission.ACCESS_NETWORK_STATE",
+        "android.permission.RECORD_AUDIO"
+      ],
       "intentFilters": [
         {
           "action": "VIEW",
           "autoVerify": true,
           "data": [
-            { "scheme": "plato" }
+            {
+              "scheme": "plato"
+            }
           ],
-          "category": ["BROWSABLE", "DEFAULT"]
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
         }
       ]
     },
-    
     "plugins": [
       "expo-asset",
-      "expo-font"
-    ]
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Plato needs access to your photos to let you upload meal photos.",
+          "cameraPermission": "Plato needs camera access to let you take meal photos."
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "cbf07e69-f3d4-4749-bda3-5ef00e401f15"
+      }
+    },
+    "owner": "surajpatel01"
   }
 }

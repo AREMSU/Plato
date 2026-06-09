@@ -182,9 +182,22 @@ class AdminBookingCancelView(APIView):
         try: b = Booking.objects.get(pk=booking_id)
         except Booking.DoesNotExist: return Response({'error':'Not found'}, status=404)
         if b.status == 'cancelled': return Response({'error':'Already cancelled'}, status=400)
-        b.status = 'cancelled'; b.save(update_fields=['status'])
+        b.status = 'cancelled'
+        b.refund_status = 'pending' if b.payment_method == 'esewa' else 'none'
+        b.save(update_fields=['status', 'refund_status'])
         m = b.meal; m.available_portions += b.portions; m.bookings -= b.portions; m.save()
         return Response({'message':'Cancelled'})
+
+
+class AdminRefundCompleteView(APIView):
+    permission_classes = [IsAdminUser]
+    def post(self, request, booking_id):
+        try: b = Booking.objects.get(pk=booking_id, status='cancelled')
+        except Booking.DoesNotExist: return Response({'error':'Not found'}, status=404)
+        if b.refund_status != 'pending': return Response({'error':'No pending refund'}, status=400)
+        b.refund_status = 'completed'
+        b.save(update_fields=['refund_status'])
+        return Response({'message':'Refund marked as completed'})
 
 
 class AdminSubscriptionsView(APIView):

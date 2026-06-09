@@ -9,11 +9,9 @@ import {
   ActivityIndicator,
   Image,
   Platform,
-  Linking,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-const esewaLogo = require('../../assets/branding/esewa-logo.png');
 import apiCall from '../api/client';
 import { useApp } from '../context/AppContext';
 import {
@@ -24,9 +22,11 @@ import {
 
 export default function BookingScreen({ navigation, route }) {
   const { meal, portions } = route.params;
-  const { bookMeal } = useApp();
+  const { bookMeal, wallet, payWithWallet } = useApp();
   const [loading, setLoading] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState('esewa');
+  const [paymentMethod, setPaymentMethod] = useState('wallet');
+  const walletBalance = wallet?.balance ?? 0;
+  const hasEnoughWalletBalance = Math.round(walletBalance * 100) >= Math.round(meal.pricePerPortion * portions * 100);
 
   const totalCost = meal.pricePerPortion * portions;
   const cancellationFee = calculateCancellationFee(totalCost);
@@ -35,6 +35,10 @@ export default function BookingScreen({ navigation, route }) {
 
   const handleConfirmBooking = () => {
     if (loading) return;
+    if (paymentMethod === 'wallet' && !hasEnoughWalletBalance) {
+      Alert.alert('Insufficient Balance', `Your wallet has Rs.${Math.round(walletBalance)} but this booking costs Rs.${totalCost}.\n\nTop up your wallet from Profile → Plato Wallet.`);
+      return;
+    }
     Alert.alert(
       'Confirm Booking',
       `Book ${portions} portion${portions > 1 ? 's' : ''} of "${meal.title}" for ${formatCurrency(totalCost)}?`,
@@ -44,40 +48,34 @@ export default function BookingScreen({ navigation, route }) {
           text: 'Confirm & Pay',
           onPress: async () => {
             setLoading(true);
-            
-            // If eSewa, initiate eSewa UAT transaction
-            if (paymentMethod === 'esewa') {
-              try {
-                const data = await apiCall('/bookings/esewa/initiate/', 'POST', {
-                  meal_id: meal.id,
-                  portions,
-                }, true);
-                setLoading(false);
 
-                if (data.checkoutUrl) {
-                  Alert.alert(
-                    '🟢 eSewa UAT Payment',
-                    'You will be redirected to the eSewa Sandbox page in your browser. Log in using test credentials (9711111111 / Nepal@123) to complete the payment.',
-                    [
-                      {
-                        text: 'Proceed to Pay',
-                        onPress: () => {
-                          Linking.openURL(data.checkoutUrl);
-                          // Redirect user to MyMeals (Bookings list) screen in app
-                          navigation.navigate('Main', {
-                            screen: 'MyMeals',
-                          });
-                        }
-                      }
-                    ]
-                  );
-                } else {
-                  Alert.alert('Booking Failed', data.error || 'Failed to initiate eSewa payment.');
+            // Wallet payment — instant, no redirect
+            if (paymentMethod === 'wallet') {
+              try {
+                // Create booking as pending_payment for wallet
+                const bookingData = await apiCall('/bookings/', 'POST', {
+                  meal_id: meal.id, portions, payment_method: 'wallet',
+                }, true);
+                if (bookingData?.error) {
+                  setLoading(false);
+                  Alert.alert('Booking Failed', bookingData.error);
+                  return;
                 }
+                // Then pay from wallet
+                const payResult = await payWithWallet(bookingData.id);
+                setLoading(false);
+                if (payResult?.error) {
+                  Alert.alert('Payment Failed', payResult.error);
+                  return;
+                }
+                Alert.alert(
+                  '🎉 Paid from Wallet!',
+                  `Booking confirmed!\n\nRs.${totalCost} deducted from your Plato Wallet.\nPickup: ${meal.pickupTime} at ${meal.pickupLocation}`,
+                  [{ text: 'View My Bookings', onPress: () => navigation.navigate('Main', { screen: 'MyMeals' }) }]
+                );
               } catch (error) {
                 setLoading(false);
-                console.error('Booking error:', error.message);
-                Alert.alert('Booking Failed', 'Could not connect to server. Please try again.');
+                Alert.alert('Error', 'Something went wrong. Please try again.');
               }
               return;
             }
@@ -235,11 +233,13 @@ export default function BookingScreen({ navigation, route }) {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Payment Method</Text>
           <PaymentOption
-            id="esewa"
-            name="eSewa"
-            subtitle="Pay instantly via eSewa digital wallet"
-            logo={esewaLogo}
-            color="#60BB46"
+            id="wallet"
+            name={`Plato Wallet  (Rs.${Math.round(walletBalance)})`}
+            subtitle={hasEnoughWalletBalance
+              ? 'Instant payment — no redirect needed'
+              : 'Insufficient balance · Top up in Profile → Wallet'}
+            icon="wallet-outline"
+            color="#4CAF50"
           />
           <PaymentOption
             id="cash"

@@ -14,6 +14,7 @@ urlpatterns = [
     path('api/meals/<int:meal_id>/action/', views.AdminMealActionView.as_view(), name='meal_action'),
     path('api/bookings/', views.AdminBookingsView.as_view(), name='bookings'),
     path('api/bookings/<int:booking_id>/cancel/', views.AdminBookingCancelView.as_view(), name='booking_cancel'),
+    path('api/bookings/<int:booking_id>/refund-complete/', views.AdminRefundCompleteView.as_view(), name='booking_refund_complete'),
     path('api/subscriptions/', views.AdminSubscriptionsView.as_view(), name='subscriptions'),
     path('api/subscriptions/<int:subscription_id>/action/', views.AdminSubscriptionActionView.as_view(), name='subscription_action'),
     path('api/otps/', views.AdminOTPsView.as_view(), name='otps'),

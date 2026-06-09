@@ -22,8 +22,17 @@ export default function HomeScreen({ navigation }) {
   const firstName = displayName.split(' ')[0] || displayName;
   const isMealExpired = (meal) => {
     try {
-      const dateStr = meal?.mealDate || new Date().toISOString().split('T')[0];
-      const dt = new Date(`${dateStr} ${meal?.pickupTime}`);
+      const dateStr = meal?.mealDate;
+      const timeStr = meal?.pickupTime;
+      if (!dateStr || !timeStr) return false;
+      const m = timeStr.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+      if (!m) return false;
+      let h = parseInt(m[1], 10);
+      const min = parseInt(m[2], 10);
+      if (m[3].toUpperCase() === 'PM' && h < 12) h += 12;
+      if (m[3].toUpperCase() === 'AM' && h === 12) h = 0;
+      const [yr, mo, dy] = dateStr.split('-').map(Number);
+      const dt = new Date(yr, mo - 1, dy, h, min, 0);
       return !isNaN(dt.getTime()) && dt < new Date();
     } catch { return false; }
   };

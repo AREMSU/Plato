@@ -2,10 +2,46 @@
   "expo": {
     "name": "Plato Admin",
     "slug": "plato-admin",
+    "scheme": "platoadmin",
     "version": "1.0.0",
     "orientation": "portrait",
-    "scheme": "platoadmin",
-    "platforms": ["ios", "android"],
-    "newArchEnabled": true
+    "userInterfaceStyle": "light",
+    "platforms": [
+      "ios",
+      "android"
+    ],
+    "icon": "./assets/icon.png",
+    "splash": {
+      "image": "./assets/icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#FF6B35"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.platofood.admin",
+      "buildNumber": "1"
+    },
+    "android": {
+      "package": "com.platofood.admin",
+      "versionCode": 1,
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/icon-foreground.png",
+        "backgroundColor": "#FF6B35"
+      },
+      "permissions": [
+        "android.permission.INTERNET",
+        "android.permission.ACCESS_NETWORK_STATE"
+      ]
+    },
+    "plugins": [],
+    "extra": {
+      "eas": {
+        "projectId": "091bd76e-7990-4893-830c-8a23bdc12bc0"
+      }
+    },
+    "owner": "surajpatel01"
   }
 }

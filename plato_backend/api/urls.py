@@ -23,6 +23,7 @@ urlpatterns = [
     path('bookings/', views.BookingListCreateView.as_view(), name='bookings'),
     path('bookings/received/', views.BookingReceivedView.as_view(), name='bookings-received'),
     path('bookings/<int:pk>/cancel/', views.CancelBookingView.as_view(), name='cancel-booking'),
+    path('bookings/<int:pk>/received/', views.MarkBookingReceivedView.as_view(), name='booking-received'),
 
     # Reviews
     path('reviews/', views.ReviewListCreateView.as_view(), name='reviews'),
@@ -39,10 +40,14 @@ urlpatterns = [
     path('subscription/renew/', views.SubscriptionRenewView.as_view()),
 
     # eSewa UAT Payment Gateway Integration
-    path('subscription/esewa/initiate/', views.EsewaSubscriptionInitiateView.as_view()),
-    path('subscription/esewa/renew/', views.EsewaSubscriptionRenewView.as_view()),
-    path('bookings/esewa/initiate/', views.EsewaBookingInitiateView.as_view()),
+    path('subscription/wallet/pay/', views.WalletSubscriptionPayView.as_view()),
     path('payment/esewa/checkout/', views.EsewaCheckoutView.as_view()),
     path('payment/esewa/success/', views.EsewaSuccessView.as_view()),
     path('payment/esewa/failure/', views.EsewaFailureView.as_view()),
+
+    # Wallet
+    path('wallet/', views.WalletView.as_view()),
+    path('wallet/topup/initiate/', views.WalletTopupInitiateView.as_view()),
+    path('wallet/topup/success/', views.WalletTopupSuccessView.as_view()),
+    path('wallet/pay/', views.WalletPayView.as_view()),
 ]

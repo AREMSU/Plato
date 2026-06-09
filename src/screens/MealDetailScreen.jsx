@@ -31,7 +31,7 @@ const VegSymbol = ({ isVeg }) => (
 
 export default function MealDetailScreen({ navigation, route }) {
   const { meal } = route.params;
-  const { user } = useApp();
+  const { user, bookings } = useApp();
   const [portions, setPortions] = useState(1);
 
   const badge = getReliabilityBadge(meal.sellerRating ?? meal.seller_rating ?? 5.0);
@@ -61,6 +61,20 @@ export default function MealDetailScreen({ navigation, route }) {
     }
     if (portionsLeft === 0) {
       Alert.alert('Sold Out', 'No portions available.');
+      return;
+    }
+    const alreadyBooked = bookings?.some(
+      b => b.meal?.id === meal.id && b.status === 'confirmed'
+    );
+    if (alreadyBooked) {
+      Alert.alert(
+        'Already Booked',
+        "You already have an active booking for this meal. Do you want to book again?",
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Book Again', onPress: () => navigation.navigate('Booking', { meal, portions }) },
+        ]
+      );
       return;
     }
     navigation.navigate('Booking', { meal, portions });

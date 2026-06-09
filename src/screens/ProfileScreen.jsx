@@ -14,6 +14,7 @@ import {
   Platform,
   AppState,
   RefreshControl,
+  BackHandler,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -55,6 +56,10 @@ export default function ProfileScreen({ navigation, route }) {
     loadNotifications,
     markNotificationsRead,
     refreshUserData,
+    subscription,
+    getSubscription,
+    wallet,
+    paySubscriptionWithWallet,
   } = useApp();
 
   const [refreshing, setRefreshing] = useState(false);
@@ -65,7 +70,7 @@ export default function ProfileScreen({ navigation, route }) {
       if (typeof refreshUserData === 'function') {
         await refreshUserData();
       }
-      await loadSubscription();
+      await getSubscription();
     } catch (error) {
       console.error('Refresh profile error:', error.message);
     } finally {
@@ -87,8 +92,8 @@ export default function ProfileScreen({ navigation, route }) {
   const [privacyModalVisible, setPrivacyModalVisible] = useState(false);
   const [premiumModalVisible, setPremiumModalVisible] = useState(false);
   const [avatarLoading, setAvatarLoading] = useState(false);
-  const [subscription, setSubscription] = useState(null);
-  const [subscriptionLoading, setSubscriptionLoading] = useState(false);
+  const [avatarOptionsVisible, setAvatarOptionsVisible] = useState(false);
+  const [subscriptionLoading] = useState(false);
   const [subscriptionActionLoading, setSubscriptionActionLoading] = useState(false);
   const [renewalCancelled, setRenewalCancelled] = useState(false);
 
@@ -138,47 +143,25 @@ export default function ProfileScreen({ navigation, route }) {
     })
     : null;
 
-  const loadSubscription = async () => {
-    if (!user) return;
-    setSubscriptionLoading(true);
-    try {
-      const data = await apiCall('/subscription/', 'GET', null, true);
-      setSubscription(data);
-    } catch (error) {
-      console.log('Load subscription error:', error.message);
-    } finally {
-      setSubscriptionLoading(false);
-    }
-  };
-
-  // Re-fetch subscription on mount, on foreground return, and every 30s while pending
+  // Re-fetch subscription on foreground return, and every 30s while pending
   const appStateRef = useRef(AppState.currentState);
   const pollIntervalRef = useRef(null);
 
   useEffect(() => {
     if (!user?.id) return;
-
-    loadSubscription();
-
-    // AppState listener: re-fetch when app comes back to foreground
     const appStateSub = AppState.addEventListener('change', (nextState) => {
       if (appStateRef.current.match(/inactive|background/) && nextState === 'active') {
-        loadSubscription();
+        getSubscription();
       }
       appStateRef.current = nextState;
     });
-
-    return () => {
-      appStateSub.remove();
-    };
+    return () => appStateSub.remove();
   }, [user?.id]);
 
   // 30-second polling while subscription is pending
   useEffect(() => {
     if (subscription?.status === 'pending') {
-      pollIntervalRef.current = setInterval(() => {
-        loadSubscription();
-      }, 30000);
+      pollIntervalRef.current = setInterval(() => getSubscription(), 30000);
     } else {
       if (pollIntervalRef.current) {
         clearInterval(pollIntervalRef.current);
@@ -217,54 +200,63 @@ export default function ProfileScreen({ navigation, route }) {
     });
   }, [user]);
 
+  useEffect(() => {
+    if (!editModalVisible && !avatarOptionsVisible) return;
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (avatarOptionsVisible) setAvatarOptionsVisible(false);
+      else setEditModalVisible(false);
+      return true;
+    });
+    return () => sub.remove();
+  }, [editModalVisible, avatarOptionsVisible]);
+
   const handleUpgrade = () => {
+    const balance = wallet?.balance ?? 0;
+    const canAfford = balance >= 199;
     Alert.alert(
-      'Upgrade to Pro',
-      'You will be redirected to eSewa to complete your payment of NPR 199.',
-      [
-        { text: 'Cancel', style: 'cancel' },
+      'Upgrade to Pro — Rs.199/month',
+      canAfford
+        ? `Rs.199 will be deducted from your Plato Wallet (balance: Rs.${Math.round(balance)}). Your Pro badge activates instantly.`
+        : `Your wallet balance is Rs.${Math.round(balance)}. You need Rs.199. Top up your wallet first from Profile → Plato Wallet.`,
+      canAfford ? [
+        { text: 'Not Now', style: 'cancel' },
         {
-          text: 'Proceed',
+          text: 'Pay Rs.199 from Wallet',
           onPress: async () => {
             setSubscriptionActionLoading(true);
-            try {
-              const data = await apiCall('/subscription/esewa/initiate/', 'POST', null, true);
-              if (data.checkoutUrl) {
-                setPremiumModalVisible(false);
-                Linking.openURL(data.checkoutUrl);
-              } else {
-                Alert.alert('Error', 'Failed to retrieve payment redirect from server.');
-              }
-            } catch (error) {
-              console.error('Payment error:', error.message);
-              Alert.alert('Payment Error', 'Could not initiate payment. Please try again.');
-            } finally {
-              setSubscriptionActionLoading(false);
+            const result = await paySubscriptionWithWallet('upgrade');
+            setSubscriptionActionLoading(false);
+            if (result?.error) {
+              Alert.alert('Payment Failed', result.error);
+            } else {
+              setPremiumModalVisible(false);
+              Alert.alert('🎉 You\'re Pro!', 'Your Plato Pro plan is now active. Enjoy premium features!');
             }
-          }
-        }
+          },
+        },
+      ] : [
+        { text: 'OK' },
       ]
     );
   };
 
   const handleCancelSubscription = async () => {
     Alert.alert(
-      'Cancel Subscription',
-      'You will keep Pro benefits until the current period ends.',
+      'Turn Off Auto-Renew?',
+      `Your Pro benefits stay active until ${expiresLabel || 'the end of the period'}. After that your account returns to Free.`,
       [
         { text: 'Keep Pro', style: 'cancel' },
         {
-          text: 'Cancel Renewal',
+          text: 'Turn Off Auto-Renew',
           style: 'destructive',
           onPress: async () => {
             setSubscriptionActionLoading(true);
             try {
               await apiCall('/subscription/cancel/', 'POST', null, true);
               setRenewalCancelled(true);
-              Alert.alert('Cancelled', 'Auto-renew is turned off.');
+              Alert.alert('Auto-Renew Off', `Your Pro plan remains active until ${expiresLabel || 'expiry'} and won't renew after that.`);
             } catch (error) {
-              console.error('Cancel subscription error:', error.message);
-              Alert.alert('Cancel Failed', 'Something went wrong. Please try again.');
+              Alert.alert('Failed', 'Something went wrong. Please try again.');
             } finally {
               setSubscriptionActionLoading(false);
             }
@@ -275,34 +267,35 @@ export default function ProfileScreen({ navigation, route }) {
   };
 
   const handleRenewSubscription = () => {
+    const balance = wallet?.balance ?? 0;
+    const canAfford = balance >= 199;
     Alert.alert(
-      'Renew Pro Subscription',
-      'You will be redirected to eSewa to complete your renewal payment of NPR 199.',
-      [
-        { text: 'Cancel', style: 'cancel' },
+      'Renew Pro — Rs.199',
+      canAfford
+        ? `Rs.199 will be deducted from your Plato Wallet (balance: Rs.${Math.round(balance)}). Your plan extends by 30 days instantly.`
+        : `Your wallet balance is Rs.${Math.round(balance)}. You need Rs.199. Top up your wallet first from Profile → Plato Wallet.`,
+      canAfford ? [
+        { text: 'Not Now', style: 'cancel' },
         {
-          text: 'Proceed',
+          text: 'Pay Rs.199 from Wallet',
           onPress: async () => {
             setSubscriptionActionLoading(true);
-            try {
-              const data = await apiCall('/subscription/esewa/renew/', 'POST', null, true);
-              if (data.checkoutUrl) {
-                setPremiumModalVisible(false);
-                Linking.openURL(data.checkoutUrl);
-              } else {
-                Alert.alert('Error', 'Failed to initiate renewal payment.');
-              }
-            } catch (error) {
-              console.error('Renewal error:', error.message);
-              Alert.alert('Renewal Failed', 'Could not initiate payment. Please try again.');
-            } finally {
-              setSubscriptionActionLoading(false);
+            const result = await paySubscriptionWithWallet('renew');
+            setSubscriptionActionLoading(false);
+            if (result?.error) {
+              Alert.alert('Payment Failed', result.error);
+            } else {
+              setPremiumModalVisible(false);
+              Alert.alert('✅ Pro Renewed!', `Your Pro plan has been extended by 30 days.`);
             }
-          }
-        }
+          },
+        },
+      ] : [
+        { text: 'OK' },
       ]
     );
   };
+
 
   // ─────────────────────────────────────
   // AVATAR HELPERS
@@ -353,7 +346,7 @@ export default function ProfileScreen({ navigation, route }) {
     return true;
   };
 
-  const pickAvatarFromGallery = async () => {
+  const pickAvatarFromGallery = () => withModalDismissed(async () => {
     const ok = await requestPermission('gallery');
     if (!ok) return;
     setAvatarLoading(true);
@@ -365,12 +358,8 @@ export default function ProfileScreen({ navigation, route }) {
         quality: 0.8,
       });
       if (!result.canceled && result.assets?.length > 0) {
-        const localUri = result.assets[0].uri;
-        const url = await uploadImageToCloudinary(localUri);
-        if (!url) {
-          Alert.alert('Upload Failed', 'Could not upload image. Please try again.');
-          return;
-        }
+        const url = await uploadImageToCloudinary(result.assets[0].uri);
+        if (!url) { Alert.alert('Upload Failed', 'Could not upload image. Please try again.'); return; }
         await updateAvatar(url);
         Alert.alert('✅ Updated', 'Profile photo updated!');
       }
@@ -379,9 +368,23 @@ export default function ProfileScreen({ navigation, route }) {
     } finally {
       setAvatarLoading(false);
     }
+  });
+
+  // Temporarily hide any open modal before launching picker (Android requirement)
+  const withModalDismissed = async (fn) => {
+    const wasEditOpen = editModalVisible;
+    const wasOptionsOpen = avatarOptionsVisible;
+    if (wasOptionsOpen) setAvatarOptionsVisible(false);
+    if (wasEditOpen) setEditModalVisible(false);
+    await new Promise(r => setTimeout(r, 350));
+    try {
+      await fn();
+    } finally {
+      if (wasEditOpen) setEditModalVisible(true);
+    }
   };
 
-  const takeAvatarPhoto = async () => {
+  const takeAvatarPhoto = () => withModalDismissed(async () => {
     const ok = await requestPermission('camera');
     if (!ok) return;
     setAvatarLoading(true);
@@ -392,12 +395,8 @@ export default function ProfileScreen({ navigation, route }) {
         quality: 0.8,
       });
       if (!result.canceled && result.assets?.length > 0) {
-        const localUri = result.assets[0].uri;
-        const url = await uploadImageToCloudinary(localUri);
-        if (!url) {
-          Alert.alert('Upload Failed', 'Could not upload image. Please try again.');
-          return;
-        }
+        const url = await uploadImageToCloudinary(result.assets[0].uri);
+        if (!url) { Alert.alert('Upload Failed', 'Could not upload image. Please try again.'); return; }
         await updateAvatar(url);
         Alert.alert('✅ Updated', 'Profile photo updated!');
       }
@@ -406,7 +405,7 @@ export default function ProfileScreen({ navigation, route }) {
     } finally {
       setAvatarLoading(false);
     }
-  };
+  });
 
   const removeAvatar = () => {
     Alert.alert(
@@ -433,33 +432,28 @@ export default function ProfileScreen({ navigation, route }) {
     );
   };
 
-  const showAvatarOptions = () => {
-    const options = [
-      { text: 'Take Photo', onPress: takeAvatarPhoto },
-      { text: 'Choose from Gallery', onPress: pickAvatarFromGallery },
-    ];
-    if (user?.avatar) {
-      options.push({
-        text: 'Remove Photo',
-        style: 'destructive',
-        onPress: removeAvatar,
-      });
-    }
-    options.push({ text: 'Cancel', style: 'cancel' });
-    Alert.alert('Profile Photo', 'Choose an option', options);
-  };
+  const showAvatarOptions = () => setAvatarOptionsVisible(true);
 
   // ─────────────────────────────────────
   // PROFILE SAVE
   // ─────────────────────────────────────
-  const handleSaveProfile = () => {
+  const handleSaveProfile = async () => {
     if (!editForm.name.trim()) {
       Alert.alert('Error', 'Name cannot be empty.');
       return;
     }
-    setUser({ ...user, ...editForm });
-    setEditModalVisible(false);
-    Alert.alert('✅ Success', 'Profile updated successfully!');
+    try {
+      const updated = await apiCall('/users/me/', 'PATCH', {
+        name: editForm.name,
+        university: editForm.university,
+        bio: editForm.bio,
+      }, true);
+      await persistUser(updated);
+      setEditModalVisible(false);
+      Alert.alert('✅ Success', 'Profile updated successfully!');
+    } catch (error) {
+      Alert.alert('Error', 'Failed to update profile. Please try again.');
+    }
   };
 
   const handleLogout = () => {
@@ -612,6 +606,13 @@ export default function ProfileScreen({ navigation, route }) {
         <View style={styles.menuSection}>
           <Text style={styles.menuSectionTitle}>ACCOUNT</Text>
           <MenuItem
+            iconName="wallet-outline"
+            label="Plato Wallet"
+            value={`Rs.${Math.round(wallet?.balance ?? 0)}`}
+            color="#4CAF50"
+            onPress={() => navigation.navigate('Wallet')}
+          />
+          <MenuItem
             iconName="person-outline"
             label="Edit Profile"
             color="#2196F3"
@@ -727,6 +728,41 @@ export default function ProfileScreen({ navigation, route }) {
 
         <View style={{ height: 24 }} />
       </ScrollView >
+
+      {/* ── Avatar Options Sheet ── */}
+      <Modal
+        visible={avatarOptionsVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setAvatarOptionsVisible(false)}
+      >
+        <TouchableOpacity
+          style={styles.avatarOptionsOverlay}
+          activeOpacity={1}
+          onPress={() => setAvatarOptionsVisible(false)}
+        >
+          <View style={styles.avatarOptionsSheet}>
+            <View style={styles.avatarOptionsHandle} />
+            <TouchableOpacity style={styles.avatarOptionBtn} onPress={() => { setAvatarOptionsVisible(false); takeAvatarPhoto(); }}>
+              <Ionicons name="camera-outline" size={22} color="#FF6B35" />
+              <Text style={styles.avatarOptionText}>Take Photo</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.avatarOptionBtn} onPress={() => { setAvatarOptionsVisible(false); pickAvatarFromGallery(); }}>
+              <Ionicons name="images-outline" size={22} color="#FF6B35" />
+              <Text style={styles.avatarOptionText}>Choose from Gallery</Text>
+            </TouchableOpacity>
+            {user?.avatar && (
+              <TouchableOpacity style={styles.avatarOptionBtn} onPress={() => { setAvatarOptionsVisible(false); removeAvatar(); }}>
+                <Ionicons name="trash-outline" size={22} color="#FF5252" />
+                <Text style={[styles.avatarOptionText, { color: '#FF5252' }]}>Remove Photo</Text>
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity style={styles.avatarOptionCancelBtn} onPress={() => setAvatarOptionsVisible(false)}>
+              <Text style={styles.avatarOptionCancelText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
 
       {/* ══════════════════════════════════════
           EDIT PROFILE MODAL
@@ -1098,16 +1134,9 @@ export default function ProfileScreen({ navigation, route }) {
               style={styles.addPaymentButton}
               onPress={() =>
                 Alert.alert(
-                  'Add Payment Method',
-                  'Choose a method to add:',
-                  [
-                    {
-                      text: 'eSewa',
-                      onPress: () =>
-                        Alert.alert('eSewa', 'eSewa integration coming soon!'),
-                    },
-                    { text: 'Cancel', style: 'cancel' },
-                  ]
+                  'Payments via Plato Wallet',
+                  'All payments are handled through your Plato Wallet. Top up your wallet using eSewa from the Wallet screen.',
+                  [{ text: 'Got it' }]
                 )
               }
             >
@@ -2377,5 +2406,50 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: '700',
     fontSize: 14,
+  },
+  avatarOptionsOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  avatarOptionsSheet: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingTop: 12,
+    paddingBottom: 36,
+    paddingHorizontal: 24,
+  },
+  avatarOptionsHandle: {
+    width: 40,
+    height: 4,
+    backgroundColor: '#E0E0E0',
+    borderRadius: 2,
+    alignSelf: 'center',
+    marginBottom: 16,
+  },
+  avatarOptionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F5F5F5',
+    gap: 14,
+  },
+  avatarOptionText: {
+    fontSize: 16,
+    color: '#1A1A1A',
+    fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Medium' : 'sans-serif',
+  },
+  avatarOptionCancelBtn: {
+    alignItems: 'center',
+    paddingVertical: 16,
+    marginTop: 4,
+  },
+  avatarOptionCancelText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#64748B',
+    fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Bold' : 'sans-serif-medium',
   },
 });

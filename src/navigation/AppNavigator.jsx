@@ -2,6 +2,7 @@ import React from 'react';
 import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { View, Text, StyleSheet, Platform } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../context/AppContext';
 import OnboardingScreen from '../screens/OnboardingScreen';
@@ -16,6 +17,7 @@ import MealDetailScreen from '../screens/MealDetailScreen';
 import BookingScreen from '../screens/BookingScreen';
 import OTPScreen from '../screens/OTPScreen';
 import CookProfileScreen from '../screens/CookProfileScreen';
+import WalletScreen from '../screens/WalletScreen';
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -51,13 +53,17 @@ function TabIcon({ name, focused, label }) {
 }
 
 function MainTabs() {
+  const insets = useSafeAreaInsets();
+  const tabBarHeight = (Platform.OS === 'ios' ? 85 : 68) + insets.bottom;
+  const tabBarPaddingBottom = (Platform.OS === 'ios' ? 24 : 10) + insets.bottom;
+
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
         headerShown: false,
         tabBarActiveTintColor: ORANGE,
         tabBarInactiveTintColor: GRAY,
-        tabBarStyle: styles.tabBar,
+        tabBarStyle: [styles.tabBar, { height: tabBarHeight, paddingBottom: tabBarPaddingBottom }],
         tabBarLabelStyle: styles.tabLabel,
         tabBarIcon: ({ focused }) => (
           <TabIcon name={route.name} focused={focused} />
@@ -111,6 +117,7 @@ export default function AppNavigator() {
           <Stack.Screen name="MealDetail" component={MealDetailScreen} />
           <Stack.Screen name="Booking" component={BookingScreen} />
           <Stack.Screen name="CookProfile" component={CookProfileScreen} />
+          <Stack.Screen name="Wallet" component={WalletScreen} />
         </>
       )}
     </Stack.Navigator>
@@ -121,8 +128,6 @@ const styles = StyleSheet.create({
   tabBar: {
     backgroundColor: '#fff',
     borderTopWidth: 0,
-    height: Platform.OS === 'ios' ? 85 : 68,
-    paddingBottom: Platform.OS === 'ios' ? 24 : 10,
     paddingTop: 8,
     elevation: 20,
     shadowColor: '#1E293B',

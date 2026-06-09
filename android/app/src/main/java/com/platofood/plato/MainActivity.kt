@@ -1,4 +1,4 @@
-package com.anonymous.plato
+package com.platofood.plato
 
 import android.os.Build
 import android.os.Bundle

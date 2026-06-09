@@ -93,10 +93,17 @@ class Booking(models.Model):
     STATUS = [
         ('pending_payment', 'Pending Payment'),
         ('confirmed', 'Confirmed'),
+        ('received', 'Received'),
         ('cancelled', 'Cancelled'),
     ]
 
-    meal = models.ForeignKey(Meal, on_delete=models.CASCADE, related_name='meal_bookings')
+    REFUND_STATUS = [
+        ('none', 'None'),
+        ('pending', 'Pending'),
+        ('completed', 'Completed'),
+    ]
+
+    meal = models.ForeignKey(Meal, on_delete=models.SET_NULL, null=True, related_name='meal_bookings')
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='bookings')
     portions = models.IntegerField()
     total_cost = models.FloatField()
@@ -104,15 +111,17 @@ class Booking(models.Model):
     payment_reference = models.CharField(max_length=200, blank=True, null=True)
     payment_method = models.CharField(max_length=50, default='cash')
     booked_at = models.DateTimeField(auto_now_add=True)
+    refund_status = models.CharField(max_length=20, choices=REFUND_STATUS, default='none')
 
     def __str__(self):
-        return f"{self.user.email} booked {self.meal.title}"
+        meal_title = self.meal.title if self.meal else 'deleted meal'
+        return f"{self.user.email} booked {meal_title}"
 
 
 
 class Review(models.Model):
-    booking = models.OneToOneField(Booking, on_delete=models.CASCADE, related_name='review')
-    meal = models.ForeignKey(Meal, on_delete=models.CASCADE, related_name='reviews_list')
+    booking = models.OneToOneField(Booking, on_delete=models.SET_NULL, null=True, related_name='review')
+    meal = models.ForeignKey(Meal, on_delete=models.SET_NULL, null=True, related_name='reviews_list')
     reviewer = models.ForeignKey(User, on_delete=models.CASCADE, related_name='reviews_given')
     seller = models.ForeignKey(User, on_delete=models.CASCADE, related_name='reviews_received')
     rating = models.IntegerField()
@@ -240,3 +249,41 @@ def review_saved(sender, instance, **kwargs):
 @receiver(post_delete, sender=Review)
 def review_deleted(sender, instance, **kwargs):
     recalculate_ratings(instance.meal, instance.seller)
+
+
+# ─── WALLET ────────────────────────────────────────────────────────────────
+
+class Wallet(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='wallet')
+    balance = models.FloatField(default=0.0)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.user.email} — Rs.{self.balance}"
+
+
+class WalletTransaction(models.Model):
+    TYPE_CHOICES = [('credit', 'Credit'), ('debit', 'Debit')]
+    REASON_CHOICES = [
+        ('topup', 'Top Up'),
+        ('booking_payment', 'Booking Payment'),
+        ('refund', 'Refund'),
+        ('subscription', 'Subscription'),
+    ]
+
+    wallet = models.ForeignKey(Wallet, on_delete=models.CASCADE, related_name='transactions')
+    type = models.CharField(max_length=10, choices=TYPE_CHOICES)
+    amount = models.FloatField()
+    reason = models.CharField(max_length=20, choices=REASON_CHOICES)
+    description = models.CharField(max_length=200)
+    reference = models.CharField(max_length=200, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.wallet.user.email} {self.type} Rs.{self.amount} ({self.reason})"
+
+
+@receiver(post_save, sender=User)
+def create_wallet(sender, instance, created, **kwargs):
+    if created:
+        Wallet.objects.get_or_create(user=instance)

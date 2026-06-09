@@ -1,4 +1,5 @@
-import React, { createContext, useState, useContext } from 'react';
+import React, { createContext, useState, useContext, useEffect, useRef } from 'react';
+import { AppState } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import apiCall from '../api/client';
 import { isMealOwner } from '../utils/helpers';
@@ -18,6 +19,20 @@ export const AppProvider = ({ children }) => {
     const [loading, setLoading] = useState(false);
     const [loggingOut, setLoggingOut] = useState(false);
     const [subscription, setSubscription] = useState(null);
+    const [wallet, setWallet] = useState({ balance: 0, transactions: [] });
+    const appStateRef = useRef(AppState.currentState);
+
+    // Refresh subscription + wallet whenever app comes back to foreground
+    useEffect(() => {
+        const sub = AppState.addEventListener('change', (next) => {
+            if (appStateRef.current.match(/inactive|background/) && next === 'active') {
+                getSubscription();
+                loadWallet();
+            }
+            appStateRef.current = next;
+        });
+        return () => sub.remove();
+    }, []);
 
     // ─── AUTH ─────────────────────────────────────────────────
 
@@ -38,10 +53,11 @@ export const AppProvider = ({ children }) => {
             await loadNotifications();
             await loadAIRecommendations();
             await getSubscription();
+            await loadWallet();
             return { success: true };
         } catch (error) {
             console.error('Login error:', error.message);
-            return { success: false, error: 'Login failed. Please try again.' };
+            return { success: false, error: error.message || 'Invalid email or password.' };
         } finally {
             setLoading(false);
         }
@@ -60,6 +76,7 @@ export const AppProvider = ({ children }) => {
         await loadNotifications();
         await loadAIRecommendations();
         await getSubscription();
+        await loadWallet();
     };
 
     const logout = async () => {
@@ -182,13 +199,48 @@ export const AppProvider = ({ children }) => {
         }
     };
 
+    const markBookingReceived = async (bookingId) => {
+        try {
+            await apiCall(`/bookings/${bookingId}/received/`, 'POST', null, true);
+            setBookings(prev => prev.map(b =>
+                b.id === bookingId ? { ...b, status: 'received' } : b
+            ));
+            return { success: true };
+        } catch (error) {
+            return { error: error.message };
+        }
+    };
+
     const cancelBookingAction = async (bookingId) => {
         const existing = bookings.find(b => b.id === bookingId);
         try {
             const data = await apiCall(`/bookings/${bookingId}/cancel/`, 'POST', null, true);
             setBookings(prev => prev.map(b =>
-                b.id === bookingId ? { ...b, status: 'cancelled' } : b
+                b.id === bookingId
+                    ? { ...b, status: 'cancelled', refundStatus: existing?.paymentMethod === 'wallet' ? 'completed' : b.refundStatus }
+                    : b
             ));
+
+            // Instantly credit wallet if paid via wallet — no extra API call
+            if (existing?.paymentMethod === 'wallet' && existing?.totalCost) {
+                const refund = Math.round(existing.totalCost * 0.7 * 100) / 100;
+                setWallet(prev => ({
+                    ...prev,
+                    balance: Math.round((prev.balance + refund) * 100) / 100,
+                    transactions: [
+                        {
+                            id: Date.now(),
+                            type: 'credit',
+                            amount: refund,
+                            reason: 'refund',
+                            description: 'Refund for cancelled booking',
+                            reference: String(bookingId),
+                            created_at: new Date().toISOString(),
+                        },
+                        ...(prev.transactions || []),
+                    ],
+                }));
+            }
             setMeals(prev => prev.map(m => {
                 const mealId = data?.meal?.id ?? existing?.meal?.id;
                 if (!mealId || m.id !== mealId) return m;
@@ -297,6 +349,67 @@ export const AppProvider = ({ children }) => {
         return [...availableMeals].sort(() => 0.5 - Math.random()).slice(0, 3);
     };
 
+    // ─── WALLET ────────────────────────────────────────────────
+
+    const loadWallet = async () => {
+        try {
+            const data = await apiCall('/wallet/', 'GET', null, true);
+            if (data && !data.error) setWallet(data);
+        } catch (error) {
+            console.error('Load wallet error:', error.message);
+        }
+    };
+
+    const paySubscriptionWithWallet = async (action = 'upgrade') => {
+        try {
+            const data = await apiCall('/subscription/wallet/pay/', 'POST', { action }, true);
+            if (!data.error) {
+                setSubscription(data.subscription);
+                setWallet(prev => ({
+                    ...prev,
+                    balance: data.wallet_balance,
+                    transactions: [
+                        {
+                            id: Date.now(),
+                            type: 'debit',
+                            amount: 199,
+                            reason: 'subscription',
+                            description: 'Pro subscription payment',
+                            reference: action,
+                            created_at: new Date().toISOString(),
+                        },
+                        ...(prev.transactions || []),
+                    ],
+                }));
+            }
+            return data;
+        } catch (error) {
+            return { error: error.message };
+        }
+    };
+
+    const topupWallet = async (amount) => {
+        try {
+            const data = await apiCall('/wallet/topup/initiate/', 'POST', { amount }, true);
+            return data;
+        } catch (error) {
+            return { error: error.message };
+        }
+    };
+
+    const payWithWallet = async (bookingId) => {
+        try {
+            const data = await apiCall('/wallet/pay/', 'POST', { booking_id: bookingId }, true);
+            if (!data.error) {
+                await loadWallet();
+                await loadBookings();
+            }
+            return data;
+        } catch (error) {
+            return { error: error.message };
+        }
+    };
+
     // ─── SUBSCRIPTION ──────────────────────────────────────────
 
     const getSubscription = async () => {
@@ -377,6 +490,12 @@ export const AppProvider = ({ children }) => {
             cancelSubscription,
             renewSubscription,
             refreshUserData,
+            wallet,
+            loadWallet,
+            topupWallet,
+            payWithWallet,
+            paySubscriptionWithWallet,
+            markBookingReceived,
         }}>
             {children}
         </AppContext.Provider>

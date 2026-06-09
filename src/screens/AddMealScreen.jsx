@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -123,17 +123,80 @@ export default function AddMealScreen({ navigation }) {
   // ── Time Picker State ──
   const HOURS   = Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, '0'));
   const MINUTES = ['00', '05', '10', '15', '20', '25', '30', '35', '40', '45', '50', '55'];
-  const now = new Date();
-  const initH = now.getHours() % 12 || 12;
-  const initM = MINUTES.reduce((prev, cur) =>
-    Math.abs(Number(cur) - now.getMinutes()) < Math.abs(Number(prev) - now.getMinutes()) ? cur : prev
-  );
-  const initAP = now.getHours() >= 12 ? 'PM' : 'AM';
-  const [selHour,   setSelHour]   = useState(String(initH).padStart(2, '0'));
+  // Start at now + 5 min, rounded up to next 5-min slot so default is always in the future
+  const _initBase = new Date(Date.now() + 5 * 60 * 1000);
+  const _mRem = _initBase.getMinutes() % 5;
+  if (_mRem !== 0) _initBase.setMinutes(_initBase.getMinutes() + (5 - _mRem));
+  _initBase.setSeconds(0, 0);
+  const initH  = String(_initBase.getHours() % 12 || 12).padStart(2, '0');
+  const initM  = String(_initBase.getMinutes()).padStart(2, '0');
+  const initAP = _initBase.getHours() >= 12 ? 'PM' : 'AM';
+  const [selHour,   setSelHour]   = useState(initH);
   const [selMinute, setSelMinute] = useState(initM);
   const [selAmPm,   setSelAmPm]   = useState(initAP);
 
   const getPickupTimeString = () => `${selHour}:${selMinute} ${selAmPm}`;
+
+  const hourScrollRef   = useRef(null);
+  const minuteScrollRef = useRef(null);
+  const CHIP_SIZE = 60; // chip width (52) + gap (8)
+
+  const todayStr = toDateStr(DAYS[0]);
+  const isToday  = selDate === todayStr;
+
+  const to24h = (h, ap) => {
+    let h24 = parseInt(h, 10);
+    if (ap === 'PM' && h24 < 12) h24 += 12;
+    else if (ap === 'AM' && h24 === 12) h24 = 0;
+    return h24;
+  };
+
+  const isHourDisabled = (h, ap) => {
+    if (!isToday) return false;
+    const t = new Date();
+    t.setHours(to24h(h, ap), 55, 0, 0);
+    return t <= new Date();
+  };
+
+  const isMinuteDisabled = (m) => {
+    if (!isToday) return false;
+    const t = new Date();
+    t.setHours(to24h(selHour, selAmPm), parseInt(m, 10), 0, 0);
+    return t <= new Date();
+  };
+
+  const isAmPmDisabled = (ap) => isHourDisabled('11', ap);
+
+  // Auto-snap to next valid time when switching to Today or toggling AM/PM
+  useEffect(() => {
+    if (!isToday) return;
+    const h24 = to24h(selHour, selAmPm);
+    const selected = new Date();
+    selected.setHours(h24, parseInt(selMinute, 10), 0, 0);
+    if (selected <= new Date()) {
+      const next = new Date(Date.now() + 5 * 60 * 1000);
+      const mRem = next.getMinutes() % 5;
+      if (mRem !== 0) next.setMinutes(next.getMinutes() + (5 - mRem));
+      next.setSeconds(0, 0);
+      setSelHour(String(next.getHours() % 12 || 12).padStart(2, '0'));
+      setSelMinute(String(next.getMinutes()).padStart(2, '0'));
+      setSelAmPm(next.getHours() >= 12 ? 'PM' : 'AM');
+    }
+  }, [selDate, selAmPm]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Scroll hour list to first non-disabled hour
+  useEffect(() => {
+    const firstIdx = isToday ? HOURS.findIndex(h => !isHourDisabled(h, selAmPm)) : 0;
+    const x = Math.max(0, firstIdx) * CHIP_SIZE;
+    setTimeout(() => hourScrollRef.current?.scrollTo({ x, animated: true }), 100);
+  }, [selDate, selAmPm]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Scroll minute list to first non-disabled minute
+  useEffect(() => {
+    const firstIdx = isToday ? MINUTES.findIndex(m => !isMinuteDisabled(m)) : 0;
+    const x = Math.max(0, firstIdx) * CHIP_SIZE;
+    setTimeout(() => minuteScrollRef.current?.scrollTo({ x, animated: true }), 100);
+  }, [selDate, selAmPm, selHour]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const updateForm = useCallback((key, value) => {
     setForm(prev => ({ ...prev, [key]: value }));
@@ -701,59 +764,70 @@ export default function AddMealScreen({ navigation }) {
               </Text>
             </View>
             <View style={styles.amPmInlineButtons}>
-              {['AM', 'PM'].map((ap) => (
-                <TouchableOpacity
-                  key={ap}
-                  onPress={() => { setSelAmPm(ap); setErrors(p => ({...p, pickupTime: null})); }}
-                  style={[styles.amPmInlineBtn, selAmPm === ap && styles.amPmInlineBtnActive]}
-                  activeOpacity={0.7}
-                >
-                  <Text style={[styles.amPmInlineText, selAmPm === ap && styles.amPmInlineTextActive]}>{ap}</Text>
-                </TouchableOpacity>
-              ))}
+              {['AM', 'PM'].map((ap) => {
+                const apDisabled = isAmPmDisabled(ap);
+                return (
+                  <TouchableOpacity
+                    key={ap}
+                    onPress={() => { if (!apDisabled) { setSelAmPm(ap); setErrors(p => ({...p, pickupTime: null})); } }}
+                    style={[styles.amPmInlineBtn, selAmPm === ap && !apDisabled && styles.amPmInlineBtnActive, apDisabled && styles.timeChipDisabled]}
+                    activeOpacity={apDisabled ? 1 : 0.7}
+                  >
+                    <Text style={[styles.amPmInlineText, selAmPm === ap && !apDisabled && styles.amPmInlineTextActive, apDisabled && styles.timeChipTextDisabled]}>{ap}</Text>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
           </View>
 
           {/* Hour row — horizontal scroll, works inside vertical parent */}
           <Text style={styles.timeRowLabel}>Hour</Text>
           <ScrollView
+            ref={hourScrollRef}
             horizontal
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.timeChipRow}
             keyboardShouldPersistTaps="handled"
             nestedScrollEnabled
           >
-            {HOURS.map((h) => (
-              <TouchableOpacity
-                key={h}
-                onPress={() => { setSelHour(h); setErrors(p => ({...p, pickupTime: null})); }}
-                style={[styles.timeChip, selHour === h && styles.timeChipActive]}
-                activeOpacity={0.7}
-              >
-                <Text style={[styles.timeChipText, selHour === h && styles.timeChipTextActive]}>{h}</Text>
-              </TouchableOpacity>
-            ))}
+            {HOURS.map((h) => {
+              const hDisabled = isHourDisabled(h, selAmPm);
+              return (
+                <TouchableOpacity
+                  key={h}
+                  onPress={() => { if (!hDisabled) { setSelHour(h); setErrors(p => ({...p, pickupTime: null})); } }}
+                  style={[styles.timeChip, selHour === h && !hDisabled && styles.timeChipActive, hDisabled && styles.timeChipDisabled]}
+                  activeOpacity={hDisabled ? 1 : 0.7}
+                >
+                  <Text style={[styles.timeChipText, selHour === h && !hDisabled && styles.timeChipTextActive, hDisabled && styles.timeChipTextDisabled]}>{h}</Text>
+                </TouchableOpacity>
+              );
+            })}
           </ScrollView>
 
           {/* Minute row — horizontal scroll */}
           <Text style={[styles.timeRowLabel, { marginTop: 12 }]}>Minute</Text>
           <ScrollView
+            ref={minuteScrollRef}
             horizontal
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.timeChipRow}
             keyboardShouldPersistTaps="handled"
             nestedScrollEnabled
           >
-            {MINUTES.map((m) => (
-              <TouchableOpacity
-                key={m}
-                onPress={() => { setSelMinute(m); setErrors(p => ({...p, pickupTime: null})); }}
-                style={[styles.timeChip, selMinute === m && styles.timeChipActive]}
-                activeOpacity={0.7}
-              >
-                <Text style={[styles.timeChipText, selMinute === m && styles.timeChipTextActive]}>{m}</Text>
-              </TouchableOpacity>
-            ))}
+            {MINUTES.map((m) => {
+              const mDisabled = isMinuteDisabled(m);
+              return (
+                <TouchableOpacity
+                  key={m}
+                  onPress={() => { if (!mDisabled) { setSelMinute(m); setErrors(p => ({...p, pickupTime: null})); } }}
+                  style={[styles.timeChip, selMinute === m && !mDisabled && styles.timeChipActive, mDisabled && styles.timeChipDisabled]}
+                  activeOpacity={mDisabled ? 1 : 0.7}
+                >
+                  <Text style={[styles.timeChipText, selMinute === m && !mDisabled && styles.timeChipTextActive, mDisabled && styles.timeChipTextDisabled]}>{m}</Text>
+                </TouchableOpacity>
+              );
+            })}
           </ScrollView>
 
           {errors.pickupTime && (
@@ -1418,5 +1492,13 @@ const styles = StyleSheet.create({
   },
   timeChipTextActive: {
     color: '#fff',
+  },
+  timeChipDisabled: {
+    opacity: 0.3,
+    borderColor: '#E2E8F0',
+    backgroundColor: '#F5F5F5',
+  },
+  timeChipTextDisabled: {
+    color: '#BDBDBD',
   },
 });

@@ -3,6 +3,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { AppState, LogBox } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AppProvider } from './src/context/AppContext';
 import AppNavigator from './src/navigation/AppNavigator';
 import SplashScreen from './src/screens/SplashScreen';
@@ -22,6 +23,7 @@ const linking = {
           Home: 'home',
         },
       },
+      Wallet: 'wallet',
     },
   },
 };
@@ -41,11 +43,13 @@ export default function App() {
   }
 
   return (
-    <AppProvider>
-      <NavigationContainer linking={linking}>
-        <StatusBar style="light" backgroundColor="#FF6B35" />
-        <AppNavigator />
-      </NavigationContainer>
-    </AppProvider>
+    <SafeAreaProvider>
+      <AppProvider>
+        <NavigationContainer linking={linking}>
+          <StatusBar style="light" backgroundColor="#FF6B35" />
+          <AppNavigator />
+        </NavigationContainer>
+      </AppProvider>
+    </SafeAreaProvider>
   );
 }

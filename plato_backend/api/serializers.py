@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Subscription, User, Meal, Booking, OTP, Review, Notification
+from .models import Subscription, User, Meal, Booking, OTP, Review, Notification, Wallet, WalletTransaction
 from .validators import is_disposable_email, has_email_dns
 
 
@@ -127,9 +127,10 @@ class BookingSerializer(serializers.ModelSerializer):
             'id', 'meal', 'meal_id', 'portions',
             'total_cost', 'status', 'booked_at',
             'cancellation_fee', 'refund_amount', 'has_reviewed',
-            'buyer_name', 'buyer_avatar'
+            'buyer_name', 'buyer_avatar', 'refund_status',
+            'payment_method',
         ]
-        read_only_fields = ['total_cost', 'status', 'booked_at']
+        read_only_fields = ['total_cost', 'status', 'booked_at', 'refund_status']
 
     def get_cancellation_fee(self, obj):
         return round(obj.total_cost * 0.3)
@@ -190,3 +191,16 @@ class NotificationSerializer(serializers.ModelSerializer):
     class Meta:
         model = Notification
         fields = ['id', 'title', 'message', 'category', 'is_read', 'created_at']
+
+class WalletTransactionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = WalletTransaction
+        fields = ['id', 'type', 'amount', 'reason', 'description', 'reference', 'created_at']
+
+
+class WalletSerializer(serializers.ModelSerializer):
+    transactions = WalletTransactionSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Wallet
+        fields = ['balance', 'updated_at', 'transactions']

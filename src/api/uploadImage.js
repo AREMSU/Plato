@@ -6,8 +6,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import API_BASE_URL from './config';
 import * as ImagePicker from 'expo-image-picker';
 
-const CLOUDINARY_CLOUD_NAME = 'dy3zdsgxs';   
-const CLOUDINARY_UPLOAD_PRESET = 'plato_images';    
+const CLOUDINARY_CLOUD_NAME = process.env.EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME || 'dy3zdsgxs';
+const CLOUDINARY_UPLOAD_PRESET = process.env.EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET || 'plato_images';
 
 export const uploadImageToCloudinary = async (localUri) => {
     try {

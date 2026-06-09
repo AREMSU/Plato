@@ -18,7 +18,7 @@ export default function BookingCard({ booking, onCancel }) {
       <View style={styles.content}>
         <View style={styles.topRow}>
           <Text style={styles.title} numberOfLines={1}>
-            {booking.meal.title}
+            {booking.meal?.title ?? 'Meal no longer available'}
           </Text>
           <View style={[styles.statusChip, { backgroundColor: isConfirmed ? '#E8F5E9' : '#FFEBEE' }]}>
             <Text style={[styles.statusText, { color: isConfirmed ? '#4CAF50' : '#FF5252' }]}>
@@ -32,12 +32,12 @@ export default function BookingCard({ booking, onCancel }) {
         </Text>
         <View style={styles.metaItem}>
           <Ionicons name="time-outline" size={12} color="#9E9E9E" style={{ marginRight: 4 }} />
-          <Text style={styles.meta}>{booking.meal.pickupTime}</Text>
+          <Text style={styles.meta}>{booking.meal?.pickupTime ?? '—'}</Text>
         </View>
         <View style={styles.metaItem}>
           <Ionicons name="location-outline" size={12} color="#9E9E9E" style={{ marginRight: 4 }} />
           <Text style={styles.meta} numberOfLines={1}>
-            {booking.meal.pickupLocation}
+            {booking.meal?.pickupLocation ?? '—'}
           </Text>
         </View>
         {isConfirmed && onCancel && (

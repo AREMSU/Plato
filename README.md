@@ -1,486 +1,301 @@
-# Plato
+# Plato — Home Kitchen Food Sharing App
 
-Plato is a React Native + Expo mobile app for student-to-student meal sharing.
-Users can list home-cooked meals, discover nearby listings, book portions, and manage bookings.
+A full-stack mobile app where students can share and book home-cooked meals. Built with React Native (Expo), Django, and PostgreSQL.
 
-The current branch targets Expo SDK 54.
+---
 
-This README is written as both:
-- Product documentation for humans
-- A reconstruction blueprint for AI agents
+## Tech Stack
 
-## 1) Product Overview
+| Layer | Technology |
+|---|---|
+| Mobile App | React Native + Expo SDK 54 |
+| Admin Panel | React Native + Expo SDK 54 |
+| Backend API | Django 6 + Django REST Framework |
+| Database | PostgreSQL |
+| Auth | JWT (SimpleJWT) + OTP email verification |
+| Image Storage | Cloudinary |
+| Payments | eSewa UAT (wallet top-up only) |
+| Food AI | `nateraw/food` via HuggingFace Transformers (local GPU) |
+| Build | EAS Build (Expo Application Services) |
 
-### Core idea
-Students cook and share extra meals with other students on campus.
+---
 
-### Primary user flows
-1. App launch: Splash -> Onboarding -> Login/Register
-2. Buyer flow: Home/Explore -> Meal Detail -> Booking -> My Meals
-3. Seller flow: Add Meal -> Listing visible in feed -> Track own listings in My Meals
-4. Profile flow: Edit profile avatar/details, view reliability, logout
+## Project Structure
 
-### Demo login
-- Email: `aarnav@student.edu`
-- Password: `123456`
-
-## 2) Tech Stack
-
-- React `19.1.0`
-- React Native `0.81.5`
-- Expo `54.0.34`
-- React Navigation:
-  - `@react-navigation/native` `6.1.9`
-  - `@react-navigation/stack` `6.3.20`
-  - `@react-navigation/bottom-tabs` `6.5.11`
-- expo-image-picker `17.0.11`
-- expo-linear-gradient `15.0.8`
-- AsyncStorage `1.21.0` (installed, not actively used for persistence)
-- react-native-reanimated `4.1.1`
-- Babel + `react-native-reanimated/plugin`
-
-## 3) Scripts
-
-From `package.json`:
-
-```bash
-npm start
-npm run android
-npm run ios
+```
+plato/
+├── src/                    # React Native app source
+│   ├── screens/            # App screens
+│   ├── context/            # AppContext (global state)
+│   ├── api/                # API client + Cloudinary upload
+│   ├── navigation/         # React Navigation setup
+│   └── utils/              # Helpers
+├── admin/                  # Admin panel (separate Expo app)
+│   └── src/
+│       ├── screens/        # Admin screens
+│       ├── api/            # Admin API client
+│       └── context/        # AdminContext
+├── plato_backend/          # Django backend
+│   ├── api/                # Main app (models, views, serializers)
+│   ├── panel_api/          # Admin panel API
+│   └── plato/              # Django settings & URLs
+├── android/                # Android native code (prebuild)
+├── App.jsx                 # App entry point
+├── app.json                # Expo config
+└── eas.json                # EAS Build config
 ```
 
-No lint/test scripts are currently configured.
-
-## 4) Setup and Run
+---
 
 ## Prerequisites
-- Node.js 18+
-- npm
-- Expo tooling (`npx expo` works; global install optional)
-- Android Studio emulator or physical Android device for Android testing
 
-## Install
+- **Node.js** 18+ and npm
+- **Python** 3.11+
+- **PostgreSQL** 14+
+- **Expo Go** app on your phone (for development)
+- **ngrok** (to expose local backend to phone)
+- **NVIDIA GPU with CUDA** (optional, for AI food verification)
+
+---
+
+## 1. Backend Setup (Django)
+
+### Install dependencies
+
+```bash
+cd plato_backend
+python -m venv ../venv
+source ../venv/bin/activate        # Windows: ..\venv\Scripts\activate
+pip install -r requirements.txt
+```
+
+### Install AI model dependencies (requires CUDA GPU)
+
+```bash
+# Check your CUDA version first: nvidia-smi
+# For CUDA 12.4 (RTX 40xx series):
+pip install "torch==2.6.0+cu124" "torchvision==0.21.0+cu124" --index-url https://download.pytorch.org/whl/cu124
+# CPU-only (slower):
+pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+
+pip install "transformers==4.47.1"
+```
+
+### Create the database
+
+```bash
+psql -U postgres -c "CREATE DATABASE plato_db;"
+```
+
+### Configure environment variables
+
+Create `plato_backend/.env`:
+
+```env
+# Django
+SECRET_KEY="your-secret-key-here"
+
+# Database
+DB_NAME=plato_db
+DB_USER=postgres
+DB_PASSWORD=your_password
+DB_HOST=127.0.0.1
+DB_PORT=5432
+
+# Email (Gmail SMTP)
+EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend
+EMAIL_HOST=smtp.gmail.com
+EMAIL_PORT=587
+EMAIL_HOST_USER=your@gmail.com
+EMAIL_HOST_PASSWORD=your_app_password
+EMAIL_FROM=your@gmail.com
+
+# APIs
+RESEND_API_KEY=your_resend_key
+HUGGINGFACE_API_KEY=your_hf_key
+
+# eSewa UAT (replace with live credentials for production)
+ESEWA_SECRET_KEY="8gBm/:&EnhH.1/q"
+ESEWA_PRODUCT_CODE="EPAYTEST"
+
+# Backend public URL (update every time your ngrok URL changes)
+BACKEND_URL=https://your-ngrok-url.ngrok-free.dev
+```
+
+### Run migrations and start server
+
+```bash
+cd plato_backend
+source ../venv/bin/activate
+python manage.py migrate
+python manage.py runserver
+```
+
+### Expose backend to phone via ngrok
+
+```bash
+ngrok http 8000
+# Copy the https URL into BACKEND_URL in plato_backend/.env
+# and EXPO_PUBLIC_API_URL in the root .env
+```
+
+---
+
+## 2. Frontend App Setup
+
+### Install dependencies
 
 ```bash
 npm install
 ```
 
-## Start dev server
+### Configure environment variables
+
+Create `.env` in the root folder:
+
+```env
+EXPO_PUBLIC_API_URL=https://your-ngrok-url.ngrok-free.dev/api
+EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME=your_cloudinary_cloud_name
+EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET=your_upload_preset
+```
+
+### Run on device
 
 ```bash
-npm start
+npx expo start
 ```
 
-Then:
-- press `a` for Android emulator/device
-- or scan QR with Expo Go
+Scan the QR code with **Expo Go** on your phone. Make sure your phone and computer are on the same Wi-Fi network.
 
-## Android direct run shortcut
+---
+
+## 3. Admin Panel Setup
+
+### Install dependencies
 
 ```bash
-npm run android
+cd admin
+npm install
 ```
 
-## 5) Project Structure
+### Configure environment variables
 
-```text
-plato/
-  App.jsx
-  app.json
-  babel.config.js
-  package.json
-  android/
-  src/
-    components/
-      AIRecommendation.jsx
-      BookingCard.jsx
-      CategoryFilter.jsx
-      Header.jsx
-      MealCard.jsx
-      RatingStars.jsx
-      UserAvatar.jsx
-    context/
-      AppContext.jsx
-    data/
-      mockData.js
-    navigation/
-      AppNavigator.jsx
-    screens/
-      AddMealScreen.jsx
-      BookingScreen.jsx
-      ExploreScreen.jsx
-      HomeScreen.jsx
-      LoginScreen.jsx
-      MealDetailScreen.jsx
-      MyMealsScreen.jsx
-      OnboardingScreen.jsx
-      ProfileScreen.jsx
-      RegisterScreen.jsx
-      SplashScreen.jsx
-    utils/
-      helpers.js
+Create `admin/.env`:
+
+```env
+EXPO_PUBLIC_ADMIN_API_URL=https://your-ngrok-url.ngrok-free.dev/panel/api
 ```
 
-## 6) Runtime Architecture
+### Run admin panel
 
-## Root composition (`App.jsx`)
-1. Import `react-native-gesture-handler`
-2. Show `SplashScreen` for 2500ms with local `isLoading` state
-3. Wrap app with:
-   - `AppProvider` (global context)
-   - `NavigationContainer`
-   - `StatusBar` (light, orange background)
-4. Render `AppNavigator`
-
-## Global state (`src/context/AppContext.jsx`)
-State fields:
-- `user`
-- `meals` (initialized from `mockMeals`)
-- `bookings`
-- `isLoggedIn`
-- `cart` (placeholder)
-
-Actions exposed by context:
-- `login(email, password)`
-- `register(userData)`
-- `logout()`
-- `addMeal(mealData)`
-- `bookMeal(meal, portions)`
-- `cancelBooking(bookingId)`
-- `getAIRecommendations()`
-
-Behavior details:
-- `login` validates against `mockUsers`
-- `register` creates a new in-memory user and auto-logs in
-- `bookMeal`:
-  - creates a booking record
-  - decrements meal `availablePortions`
-  - increments meal `bookings`
-- `cancelBooking` only changes booking status to `cancelled`
-- `getAIRecommendations` is random shuffle + first 3 meals (not ML)
-
-## Navigation (`src/navigation/AppNavigator.jsx`)
-Navigation is Stack + Bottom Tabs.
-
-Unauthenticated stack:
-- `Onboarding`
-- `Login`
-- `Register`
-
-Authenticated stack:
-- `Main` (tabs)
-- `MealDetail`
-- `Booking`
-
-Main tab routes:
-- `Home`
-- `Explore`
-- `Add`
-- `MyMeals`
-- `Profile`
-
-## 7) Screen-by-Screen Functional Contract
-
-## `SplashScreen`
-- Visual splash with branding
-- Auto advances after 2.5s (handled by `App.jsx`)
-
-## `OnboardingScreen`
-- Multi-slide intro carousel
-- CTA routes to auth flow
-
-## `LoginScreen`
-- Email/password form
-- Validates input and calls `login`
-- Demo autofill path exists
-
-## `RegisterScreen`
-- Collects name, email, university, password, confirm password
-- Validates fields and password match
-- Calls `register`
-
-## `HomeScreen`
-- Greeting + user avatar
-- Search entry point to Explore
-- Displays stats + active bookings summary
-- Shows AI recommendation cards
-- Category filter + meal listing
-
-## `ExploreScreen`
-- Full browse/search interface
-- Filters:
-  - category
-  - diet (all/vegetarian/non-veg)
-- Sort:
-  - rating
-  - price
-  - newest
-
-## `AddMealScreen`
-- Form for creating meal listing
-- Required fields:
-  - image
-  - title
-  - description
-  - pricePerPortion
-  - totalPortions
-  - pickupTime
-  - pickupLocation
-- Category defaults to `Nepali`
-- Optional tags are comma-separated and normalized to lowercase array
-- On submit calls `addMeal(...)` with derived fields:
-  - `availablePortions = totalPortions`
-  - `rating = 0`
-  - `reviews = 0`
-  - `calories = 400`
-  - `protein = 15`
-  - `mealDate = today`
-
-## `MealDetailScreen`
-- Shows full meal details, nutrition, seller info
-- Portion selector for booking
-- If current user is seller: booking disabled with informational state
-- If sold out: disabled state
-- Otherwise allows booking route
-
-## `BookingScreen`
-- Booking confirmation UI
-- Payment option selection (UI-only): eSewa / Khalti / Cash
-- Shows cancellation policy (30% fee)
-- On confirm calls `bookMeal`
-
-## `MyMealsScreen`
-- Two modes:
-  - Bookings
-  - My meal listings
-- Booking cards show confirmed/cancelled status
-- Cancel booking path applies status update
-- Computes seller earnings from bookings on user-owned meals
-
-## `ProfileScreen`
-- Shows profile and reliability badge
-- Supports avatar pick/change/remove
-- Modal sections for:
-  - profile edit
-  - notifications
-  - dietary preferences
-  - payment methods
-  - reviews
-- Logout action calls `logout`
-
-## 8) Reusable Components Contract
-
-## `MealCard`
-Props:
-- `meal`
-- `onPress`
-
-Responsibilities:
-- Render compact meal details
-- Show sold-out and vegetarian badges
-- Display seller/rating/location info
-
-## `AIRecommendation`
-Props:
-- `meals`
-- `onMealPress`
-
-Responsibilities:
-- Horizontal card strip for highlighted meals
-
-## `CategoryFilter`
-Props:
-- `categories`
-- `selected`
-- `onSelect`
-
-Responsibilities:
-- Horizontal category chips with active/inactive state
-
-## `RatingStars`
-Props:
-- `rating`
-- `size`
-
-Responsibilities:
-- Renders 5-star representation with half-star character logic
-
-## `UserAvatar`
-Props:
-- `uri`
-- `name`
-- `size`
-- `loading`
-- `borderColor`
-- `borderWidth`
-
-Responsibilities:
-- Avatar image or fallback initial
-
-## `BookingCard`
-Props:
-- `booking`
-- `onCancel`
-
-Responsibilities:
-- Booking summary with status chip and optional cancel action
-
-## `Header`
-Props:
-- `title`
-- `subtitle`
-- `onBack`
-- `rightIcon`
-- `onRightPress`
-
-Responsibilities:
-- Gradient app header with optional back/right action buttons
-
-## 9) Data Contracts
-
-Source file: `src/data/mockData.js`
-
-### User shape
-```js
-{
-  id: string,
-  name: string,
-  email: string,
-  password: string,
-  avatar: string,
-  rating: number,
-  mealsShared: number,
-  university: string,
-  bio: string,
-  joinedDate: ISOString
-}
+```bash
+cd admin
+npx expo start
 ```
 
-### Meal shape
-```js
-{
-  id: string,
-  title: string,
-  description: string,
-  category: 'Nepali' | 'Continental' | 'Chinese' | 'Snacks' | 'Breakfast',
-  pricePerPortion: number,
-  totalPortions: number,
-  availablePortions: number,
-  bookings: number,
-  isVegetarian: boolean,
-  image: string,
-  sellerId: string,
-  sellerName: string,
-  sellerAvatar: string,
-  sellerRating: number,
-  pickupTime: string,
-  pickupLocation: string,
-  mealDate: string,
-  tags: string[],
-  rating: number,
-  reviews: number,
-  calories: number,
-  protein: number,
-  createdAt: ISOString
-}
+### Create an admin user (first time only)
+
+```bash
+cd plato_backend
+source ../venv/bin/activate
+python manage.py createsuperuser
 ```
 
-### Booking shape
-```js
-{
-  id: string,
-  meal: Meal,
-  portions: number,
-  totalCost: number,
-  status: 'confirmed' | 'cancelled',
-  bookedAt: ISOString,
-  userId: string
-}
+---
+
+## 4. Building for Production (EAS)
+
+### Install EAS CLI
+
+```bash
+npm install -g eas-cli
+eas login
 ```
 
-## 10) Utility Rules (`src/utils/helpers.js`)
+### Build the main app APK
 
-- Currency format: `Rs. <amount>`
-- Cancellation fee: `Math.round(total * 0.3)`
-- Refund: `total - fee`
-- Reliability badge thresholds:
-  - `>= 4.8` -> Top Chef
-  - `>= 4.5` -> Trusted
-  - `>= 4.0` -> Good
-  - else -> New
-- Greeting by local hour:
-  - morning `<12`
-  - afternoon `<17`
-  - evening otherwise
+```bash
+eas init          # first time only — links project to your Expo account
+eas build -p android --profile preview     # APK for testing
+eas build -p android --profile production  # AAB for Play Store
+```
 
-## 11) Android Build Notes
+### Build the admin app APK
 
-Key Android config from `android/`:
-- minSdkVersion: `23`
-- targetSdkVersion: `34`
-- compileSdkVersion: `34`
-- buildToolsVersion: `34.0.0`
-- Kotlin: `1.8.10`
-- Hermes: enabled (`hermesEnabled=true`)
-- Architectures: `armeabi-v7a, arm64-v8a, x86, x86_64`
+```bash
+cd admin
+eas init
+eas build -p android --profile preview
+```
 
-Manifest permissions currently include:
-- INTERNET
-- SYSTEM_ALERT_WINDOW
-- VIBRATE
-- READ_EXTERNAL_STORAGE
-- WRITE_EXTERNAL_STORAGE
+### Set production environment variables on EAS
 
-Note:
-- `newArchEnabled` differs by config source:
-  - `app.json`: true
-  - `android/gradle.properties`: false
-  This is common in evolving RN/Expo projects; align both values if you standardize native builds.
+```bash
+eas secret:create --name EXPO_PUBLIC_API_URL --value https://yourserver.com/api
+eas secret:create --name EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME --value your_cloud_name
+eas secret:create --name EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET --value your_preset
+```
 
-## 12) Known Limitations
+---
 
-- No backend/API (all in-memory)
-- No persisted app state on restart
-- No real payment integration
-- No true AI model for recommendations
-- No tests or linting configured
-- Mock authentication with plain-text passwords in local mock data
+## 5. AI Food Verification
 
-## 13) Reconstruction Blueprint (For AI Agents)
+The app uses `nateraw/food` (Food-101 classifier) running locally on your GPU to verify that uploaded meal images actually contain food. The model downloads automatically (~100 MB) on first use and is cached.
 
-Use this sequence to recreate the application with matching behavior.
+| Confidence | Verdict |
+|---|---|
+| < 0.30 | Rejected — not food |
+| 0.30 – 0.55 | Pending admin review |
+| > 0.55 | Approved automatically |
 
-1. Bootstrap Expo app with React Native 0.73 / Expo 50 compatible setup.
-2. Install navigation packages and required native dependencies.
-3. Create `AppContext` with exact state and actions listed above.
-4. Seed app with mock users/meals/categories/diet filters from data contracts.
-5. Implement navigation gates:
-   - pre-auth stack
-   - post-auth tabs + detail/booking stack screens
-6. Build auth screens with validation and context action wiring.
-7. Build home/explore with meal filtering/sorting and recommendation cards.
-8. Build add-meal form with image picker permission handling and required validations.
-9. Build meal detail + booking checkout flow and booking mutation logic.
-10. Build my-meals and profile management screens.
-11. Add helper utilities for formatting and reliability badges.
-12. Match orange-led visual style (`#FF6B35`) and emoji iconography from components.
-13. Verify user journeys manually:
-    - login/register
-    - add listing
-    - book listing
-    - cancel booking
-    - logout
+With an RTX 4050 GPU inference takes ~50ms per image.
 
-## 14) Suggested Next Engineering Steps
+---
 
-1. Add AsyncStorage persistence for user/session/meals/bookings.
-2. Add backend API (auth, meals, bookings, payments).
-3. Add ESLint + Prettier + Jest/React Native Testing Library.
-4. Replace mock AI with preference/ranking model.
-5. Add push notifications and deep links.
-6. Add robust error boundaries and offline states.
+## 6. Payment Flow
 
-## 15) License
+All in-app payments go through the **Plato Wallet**:
 
-No explicit license file is currently present in this repository.
-If this project is to be shared publicly, add a `LICENSE` file.
+1. **Top up wallet** via eSewa (test credentials: phone `9806074000`, password `Nepal@123`, MPIN `1122`)
+2. **Book food** → deducted from buyer wallet, credited to cook wallet instantly
+3. **Cancel booking** → 70% refunded to buyer wallet instantly; cook keeps 30% cancellation fee
+4. **Pro subscription** → Rs.199 deducted from wallet
+
+eSewa is used **only** for wallet top-up.
+
+---
+
+## 7. Key Features
+
+- OTP email verification on registration
+- In-app wallet with full transaction history
+- GPU-accelerated food image AI verification
+- Cook receives payment directly to their wallet on booking
+- Instant refunds for wallet-paid cancellations
+- Buyer "Mark as Received" confirmation flow
+- Pro subscription with featured meal listings
+- Admin panel: meal approval, refund management, user management, subscription management
+
+---
+
+## 8. Default Ports
+
+| Service | Port |
+|---|---|
+| Django backend | 8000 |
+| Expo Metro bundler | 8081 |
+| PostgreSQL | 5432 |
+
+---
+
+## 9. Common Issues
+
+**AI shows pending_review for everything** — Django is not running inside the venv. Always activate first: `source venv/bin/activate`
+
+**ngrok URL changed** — Update `BACKEND_URL` in `plato_backend/.env` AND `EXPO_PUBLIC_API_URL` in root `.env`, then restart both Django and Expo.
+
+**"Booking is not awaiting payment"** — Booking was created without wallet payment method. Force-close and reopen the app.
+
+**eSewa redirect not returning to app** — Make sure `scheme: "plato"` is in `app.json` and deep link paths (`mymeals`, `profile`, `wallet`) are in `App.jsx`.
+
+**Profile picture not changing** — Camera/gallery picker needs permissions. Go to phone Settings → Apps → Plato → Permissions and enable Camera and Storage.
