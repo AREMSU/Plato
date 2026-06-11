@@ -1,9 +1,20 @@
 import React, { createContext, useState, useContext, useEffect, useRef } from 'react';
-import { AppState } from 'react-native';
+import { AppState, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Notifications from 'expo-notifications';
+import * as Device from 'expo-device';
 import apiCall from '../api/client';
 import { isMealOwner } from '../utils/helpers';
 import API_BASE_URL from '../api/config';
+
+// Show notifications as banners even when the app is open
+Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+        shouldShowAlert: true,
+        shouldPlaySound: true,
+        shouldSetBadge: true,
+    }),
+});
 
 const AppContext = createContext();
 
@@ -21,6 +32,64 @@ export const AppProvider = ({ children }) => {
     const [subscription, setSubscription] = useState(null);
     const [wallet, setWallet] = useState({ balance: 0, transactions: [] });
     const appStateRef = useRef(AppState.currentState);
+    const notificationListener = useRef();
+    const responseListener = useRef();
+
+    // Register device for push notifications and send token to backend
+    const registerForPushNotifications = async () => {
+        try {
+            if (!Device.isDevice) return; // skip emulator
+
+            const { status: existing } = await Notifications.getPermissionsAsync();
+            let finalStatus = existing;
+            if (existing !== 'granted') {
+                const { status } = await Notifications.requestPermissionsAsync();
+                finalStatus = status;
+            }
+            if (finalStatus !== 'granted') return;
+
+            const tokenData = await Notifications.getExpoPushTokenAsync({
+                projectId: 'cbf07e69-f3d4-4749-bda3-5ef00e401f15',
+            });
+            const token = tokenData.data;
+            if (token) {
+                await apiCall('/users/push-token/', 'POST', { token }, true);
+            }
+
+            // Android requires a notification channel
+            if (Platform.OS === 'android') {
+                await Notifications.setNotificationChannelAsync('default', {
+                    name: 'Plato',
+                    importance: Notifications.AndroidImportance.MAX,
+                    vibrationPattern: [0, 250, 250, 250],
+                    lightColor: '#FF6B35',
+                    sound: true,
+                });
+            }
+        } catch (e) {
+            console.log('[Push] Registration error:', e.message);
+        }
+    };
+
+    // Push notification listeners — reload in-app notification list when a push arrives
+    useEffect(() => {
+        // Fires when a notification is received while app is in the foreground
+        notificationListener.current = Notifications.addNotificationReceivedListener(() => {
+            loadNotifications();
+        });
+
+        // Fires when user taps a notification
+        responseListener.current = Notifications.addNotificationResponseReceivedListener(() => {
+            loadNotifications();
+        });
+
+        return () => {
+            if (notificationListener.current)
+                Notifications.removeNotificationSubscription(notificationListener.current);
+            if (responseListener.current)
+                Notifications.removeNotificationSubscription(responseListener.current);
+        };
+    }, []);
 
     // Refresh subscription + wallet whenever app comes back to foreground
     useEffect(() => {
@@ -54,6 +123,7 @@ export const AppProvider = ({ children }) => {
             await loadAIRecommendations();
             await getSubscription();
             await loadWallet();
+            registerForPushNotifications();
             return { success: true };
         } catch (error) {
             console.error('Login error:', error.message);
@@ -77,6 +147,7 @@ export const AppProvider = ({ children }) => {
         await loadAIRecommendations();
         await getSubscription();
         await loadWallet();
+        registerForPushNotifications();
     };
 
     const logout = async () => {
@@ -196,6 +267,15 @@ export const AppProvider = ({ children }) => {
             return { error: 'Failed to book meal. Please try again.' };
         } finally {
             setLoading(false);
+        }
+    };
+
+    const markHandedOver = async (bookingId) => {
+        try {
+            await apiCall(`/bookings/${bookingId}/handover/`, 'POST', null, true);
+            return { success: true };
+        } catch (error) {
+            return { error: error.message };
         }
     };
 
@@ -496,6 +576,7 @@ export const AppProvider = ({ children }) => {
             payWithWallet,
             paySubscriptionWithWallet,
             markBookingReceived,
+            markHandedOver,
         }}>
             {children}
         </AppContext.Provider>

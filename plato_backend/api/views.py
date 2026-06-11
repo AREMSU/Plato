@@ -14,7 +14,7 @@ import uuid
 BACKEND_URL = os.getenv("BACKEND_URL", "https://lather-moonlit-plasma.ngrok-free.dev")
 
 from api import models
-from .models import Subscription, User, Meal, Booking, OTP, Review, Notification, Wallet, WalletTransaction
+from .models import Subscription, User, Meal, Booking, OTP, Review, Notification, Wallet, WalletTransaction, PushToken
 from .ai_views import classify_food_image
 from .serializers import (
     RegisterSerializer, SubscriptionSerializer, UserSerializer,
@@ -72,15 +72,45 @@ def should_notify(user, category):
     return False
 
 
+def send_push_notification(user, title, body):
+    """Send a real push notification to all devices registered for this user."""
+    tokens = list(PushToken.objects.filter(user=user).values_list('token', flat=True))
+    if not tokens:
+        return
+    messages = [
+        {
+            'to': token,
+            'title': title,
+            'body': body,
+            'sound': 'default',
+            'data': {'title': title, 'body': body},
+        }
+        for token in tokens
+    ]
+    try:
+        import httpx as _httpx
+        _httpx.post(
+            'https://exp.host/--/api/v2/push/send',
+            json=messages,
+            headers={'Accept': 'application/json', 'Content-Type': 'application/json'},
+            timeout=10,
+        )
+    except Exception as e:
+        print(f'[Push] Failed to send: {e}')
+
+
 def create_notification(user, category, title, message):
     if not should_notify(user, category):
         return None
-    return Notification.objects.create(
+    notif = Notification.objects.create(
         user=user,
         category=category,
         title=title,
         message=message,
     )
+    # Also send a real push notification to the device
+    send_push_notification(user, title, message)
+    return notif
 
 
 class RegisterView(APIView):
@@ -397,6 +427,22 @@ class LogoutView(APIView):
 
 # ─── USER VIEWS ───────────────────────────────────────────────
 
+class RegisterPushTokenView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        token = request.data.get('token', '').strip()
+        if not token:
+            return Response({'error': 'token is required'}, status=400)
+        PushToken.objects.get_or_create(user=request.user, token=token)
+        return Response({'message': 'Push token registered.'})
+
+    def delete(self, request):
+        token = request.data.get('token', '').strip()
+        PushToken.objects.filter(user=request.user, token=token).delete()
+        return Response({'message': 'Push token removed.'})
+
+
 class UserProfileView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -611,7 +657,10 @@ class CancelBookingView(APIView):
         cancellation_fee = round(booking.total_cost * 0.3, 2)
 
         if booking.payment_method == 'wallet':
-            # Refund 70% to buyer instantly
+            # Money was held (never reached seller) — split it now:
+            # Buyer gets 70% back, seller gets 30% cancellation fee
+
+            # 70% → buyer
             buyer_wallet, _ = Wallet.objects.get_or_create(user=request.user)
             buyer_wallet.balance = round(buyer_wallet.balance + refund_amount, 2)
             buyer_wallet.save()
@@ -622,15 +671,15 @@ class CancelBookingView(APIView):
                 reference=str(booking.id),
             )
 
-            # Deduct 70% from seller (they keep 30% cancellation fee)
+            # 30% → seller as cancellation fee
             if meal:
                 seller_wallet, _ = Wallet.objects.get_or_create(user=meal.seller)
-                seller_wallet.balance = round(seller_wallet.balance - refund_amount, 2)
+                seller_wallet.balance = round(seller_wallet.balance + cancellation_fee, 2)
                 seller_wallet.save()
                 WalletTransaction.objects.create(
-                    wallet=seller_wallet, type='debit', amount=refund_amount,
-                    reason='refund',
-                    description=f'Refund issued for cancelled booking — {meal_title}. You keep Rs.{int(cancellation_fee)} cancellation fee.',
+                    wallet=seller_wallet, type='credit', amount=cancellation_fee,
+                    reason='booking_payment',
+                    description=f'Cancellation fee for {meal_title} — buyer cancelled',
                     reference=str(booking.id),
                 )
             booking.refund_status = 'completed'
@@ -678,14 +727,61 @@ class MarkBookingReceivedView(APIView):
 
         meal = booking.meal
         if meal:
+            # Release held payment to seller's wallet
+            seller_wallet, _ = Wallet.objects.get_or_create(user=meal.seller)
+            seller_wallet.balance = round(seller_wallet.balance + booking.total_cost, 2)
+            seller_wallet.save()
+            WalletTransaction.objects.create(
+                wallet=seller_wallet,
+                type='credit',
+                amount=booking.total_cost,
+                reason='booking_payment',
+                description=f'Payment released — {meal.title} confirmed received',
+                reference=str(booking.id),
+            )
+
             create_notification(
                 meal.seller,
                 'booking_updates',
-                'Food Received ✅',
-                f'{request.user.first_name or request.user.email} confirmed they received {meal.title}.'
+                'Payment Released 💰',
+                f'Rs.{int(booking.total_cost)} added to your wallet — {request.user.first_name or request.user.email} confirmed they received {meal.title}.'
+            )
+            create_notification(
+                request.user,
+                'booking_updates',
+                'Thank you!',
+                f'Enjoy your {meal.title}! The cook has been paid.'
             )
 
         return Response(BookingSerializer(booking).data)
+
+
+class HandOverBookingView(APIView):
+    """Cook taps 'Handed Over' — notifies buyer to confirm receipt."""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, pk):
+        try:
+            booking = Booking.objects.get(pk=pk, meal__seller=request.user)
+        except Booking.DoesNotExist:
+            return Response({'error': 'Booking not found'}, status=404)
+
+        if booking.status != 'confirmed':
+            return Response({'error': 'Only confirmed bookings can be marked as handed over'}, status=400)
+
+        meal = booking.meal
+        cook_name = request.user.first_name or request.user.email
+
+        # Notify buyer to confirm receipt so payment is released
+        create_notification(
+            booking.user,
+            'booking_updates',
+            '🍽️ Food Ready — Confirm Receipt!',
+            f'{cook_name} has handed over your {meal.title if meal else "meal"}. '
+            f'Please tap "Mark as Received" in your Orders to release payment to the cook.'
+        )
+
+        return Response({'message': 'Buyer has been notified to confirm receipt.'})
 
 
 class BookingReceivedView(APIView):
@@ -1546,18 +1642,7 @@ class WalletPayView(APIView):
             reference=str(booking.id),
         )
 
-        # Credit seller wallet
-        if seller:
-            seller_wallet, _ = Wallet.objects.get_or_create(user=seller)
-            seller_wallet.balance = round(seller_wallet.balance + booking.total_cost, 2)
-            seller_wallet.save()
-            WalletTransaction.objects.create(
-                wallet=seller_wallet, type='credit', amount=booking.total_cost,
-                reason='booking_payment',
-                description=f'Payment received for {meal_title}',
-                reference=str(booking.id),
-            )
-
+        # Payment is HELD — seller gets paid only when buyer marks as received
         booking.status = 'confirmed'
         booking.payment_method = 'wallet'
         booking.save()
@@ -1565,12 +1650,15 @@ class WalletPayView(APIView):
         if booking.meal:
             create_notification(
                 request.user, 'booking_updates', 'Booking Confirmed',
-                f'Your booking for {meal_title} is confirmed. Pickup at {booking.meal.pickup_location}.'
+                f'Your booking for {meal_title} is confirmed. Pickup at {booking.meal.pickup_location}. '
+                f'Payment is held and released to the cook when you mark it as received.'
             )
-            create_notification(
-                seller, 'booking_updates', 'Payment Received 💰',
-                f'Rs.{int(booking.total_cost)} received for {meal_title} booking.'
-            )
+            if seller:
+                create_notification(
+                    seller, 'booking_updates', 'New Booking 🍽️',
+                    f'{request.user.first_name or request.user.email} booked {meal_title}. '
+                    f'Rs.{int(booking.total_cost)} will be released to your wallet once they confirm receipt.'
+                )
 
         return Response({'message': 'Payment successful', 'booking': BookingSerializer(booking).data})
 

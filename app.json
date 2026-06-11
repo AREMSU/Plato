@@ -65,6 +65,14 @@
           "photosPermission": "Plato needs access to your photos to let you upload meal photos.",
           "cameraPermission": "Plato needs camera access to let you take meal photos."
         }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/branding/icon.png",
+          "color": "#FF6B35",
+          "sounds": []
+        }
       ]
     ],
     "extra": {

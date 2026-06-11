@@ -112,7 +112,7 @@ function BookingDetailContent({ booking: b, styles, formatCurrency, getRefundAmo
 }
 
 export default function MyMealsScreen({ navigation, route }) {
-  const { bookings, bookingsReceived, cancelBooking, user, meals, createReview, markBookingReceived } = useApp();
+  const { bookings, bookingsReceived, cancelBooking, user, meals, createReview, markBookingReceived, markHandedOver } = useApp();
   const [activeTab, setActiveTab] = useState('bookings');
   useEffect(() => {
     const nextTab = route?.params?.initialTab;
@@ -379,6 +379,7 @@ export default function MyMealsScreen({ navigation, route }) {
     const isCancelledOrder = booking.status === 'cancelled';
 
     return (
+      <>
       <View style={[
         styles.bookingCard,
         { padding: 12, alignItems: 'center' },
@@ -430,10 +431,46 @@ export default function MyMealsScreen({ navigation, route }) {
             <Ionicons name="close-circle" size={12} color="#FF5252" style={{ marginRight: 3 }} />
             <Text style={styles.cancelledBadgeText}>Cancelled</Text>
           </View>
+        ) : booking.status === 'received' ? (
+          <View style={{ alignItems: 'flex-end' }}>
+            <Text style={{ fontSize: 15, fontWeight: '800', color: '#4CAF50' }}>+{formatCurrency(booking.totalCost)}</Text>
+            <Text style={{ fontSize: 10, color: '#4CAF50', fontWeight: '600' }}>Paid ✓</Text>
+          </View>
         ) : (
-          <Text style={{ fontSize: 15, fontWeight: '800', color: '#4CAF50' }}>+{formatCurrency(booking.totalCost)}</Text>
+          <View style={{ alignItems: 'flex-end' }}>
+            <Text style={{ fontSize: 15, fontWeight: '800', color: '#FF6B35' }}>{formatCurrency(booking.totalCost)}</Text>
+            <Text style={{ fontSize: 10, color: '#9E9E9E', fontWeight: '500' }}>On Hold</Text>
+          </View>
         )}
       </View>
+
+      {/* Cook action — only for confirmed orders */}
+      {!isCancelledOrder && booking.status === 'confirmed' && (
+        <TouchableOpacity
+          style={styles.handoverButton}
+          onPress={() =>
+            Alert.alert(
+              'Handed Over Food?',
+              'This will notify the buyer to confirm receipt so payment is released to you.',
+              [
+                { text: 'Not Yet', style: 'cancel' },
+                {
+                  text: 'Yes, Handed Over',
+                  onPress: async () => {
+                    const result = await markHandedOver(booking.id);
+                    if (result?.error) Alert.alert('Error', result.error);
+                    else Alert.alert('Buyer Notified!', 'The buyer has been asked to confirm receipt.');
+                  },
+                },
+              ]
+            )
+          }
+        >
+          <Ionicons name="bag-check-outline" size={15} color="#fff" />
+          <Text style={styles.handoverButtonText}>Mark as Handed Over</Text>
+        </TouchableOpacity>
+      )}
+      </>
     );
   };
 
@@ -959,6 +996,23 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     paddingVertical: 8,
     marginTop: 6,
+  },
+  handoverButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: '#FF6B35',
+    borderRadius: 10,
+    paddingVertical: 8,
+    marginTop: 6,
+    marginBottom: 4,
+  },
+  handoverButtonText: {
+    fontSize: 13,
+    color: '#fff',
+    fontWeight: '700',
+    fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Bold' : 'sans-serif-medium',
   },
   receivedButtonText: {
     fontSize: 13,

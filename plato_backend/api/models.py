@@ -287,3 +287,12 @@ class WalletTransaction(models.Model):
 def create_wallet(sender, instance, created, **kwargs):
     if created:
         Wallet.objects.get_or_create(user=instance)
+
+
+class PushToken(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='push_tokens')
+    token = models.CharField(max_length=300, unique=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.user.email} — {self.token[:30]}"

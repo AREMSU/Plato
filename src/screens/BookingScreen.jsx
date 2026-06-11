@@ -151,27 +151,27 @@ export default function BookingScreen({ navigation, route }) {
 
   return (
     <View style={styles.container}>
-      <LinearGradient
-        colors={['#FF6B35', '#FF8C42']}
-        style={styles.header}
-      >
-        <TouchableOpacity
-          onPress={() => navigation.goBack()}
-          style={styles.backButton}
-          activeOpacity={0.8}
-        >
-          <View style={styles.backButtonContent}>
-            <Ionicons name="chevron-back" size={20} color="#fff" />
-            <Text style={styles.backButtonText}>Back</Text>
-          </View>
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Confirm Booking</Text>
-      </LinearGradient>
-
       <ScrollView
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
       >
+        <LinearGradient
+          colors={['#FF6B35', '#FF8C42']}
+          style={styles.header}
+        >
+          <TouchableOpacity
+            onPress={() => navigation.goBack()}
+            style={styles.backButton}
+            activeOpacity={0.8}
+          >
+            <View style={styles.backButtonContent}>
+              <Ionicons name="chevron-back" size={20} color="#fff" />
+              <Text style={styles.backButtonText}>Back</Text>
+            </View>
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Confirm Booking</Text>
+        </LinearGradient>
+
         {/* Meal Summary */}
         <View style={styles.mealCard}>
           {mealImage ? (

@@ -17,6 +17,7 @@ urlpatterns = [
 
     # User
     path('users/me/', views.UserProfileView.as_view(), name='profile'),
+    path('users/push-token/', views.RegisterPushTokenView.as_view(), name='push-token'),
 
     # Meals — my/ MUST be before <int:pk>/
     path('meals/', views.MealListCreateView.as_view(), name='meals'),
@@ -28,6 +29,7 @@ urlpatterns = [
     path('bookings/received/', views.BookingReceivedView.as_view(), name='bookings-received'),
     path('bookings/<int:pk>/cancel/', views.CancelBookingView.as_view(), name='cancel-booking'),
     path('bookings/<int:pk>/received/', views.MarkBookingReceivedView.as_view(), name='booking-received'),
+    path('bookings/<int:pk>/handover/', views.HandOverBookingView.as_view(), name='booking-handover'),
 
     # Reviews
     path('reviews/', views.ReviewListCreateView.as_view(), name='reviews'),
