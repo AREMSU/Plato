@@ -99,6 +99,29 @@ def send_push_notification(user, title, body):
         print(f'[Push] Failed to send: {e}')
 
 
+def notify_new_meal(meal):
+    """Push 'new meal available' to all users at the same university as the cook."""
+    if not meal or not meal.seller:
+        return
+    university = meal.seller.university
+    if not university:
+        return
+    cook_name = meal.seller.first_name or meal.seller.email.split('@')[0]
+    title = f'🍽️ New Meal at {university}!'
+    message = (
+        f'{cook_name} just listed {meal.title} — '
+        f'Rs.{int(meal.price_per_portion)}/portion · {meal.pickup_location}'
+    )
+    # Notify users from same university excluding the cook
+    users = User.objects.filter(
+        university__iexact=university,
+        is_active=True,
+        notify_new_meals=True,
+    ).exclude(pk=meal.seller.pk)
+    for user in users:
+        create_notification(user, 'new_meals', title, message)
+
+
 def create_notification(user, category, title, message):
     if not should_notify(user, category):
         return None

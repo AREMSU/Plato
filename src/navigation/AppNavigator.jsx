@@ -19,6 +19,7 @@ import OTPScreen from '../screens/OTPScreen';
 import CookProfileScreen from '../screens/CookProfileScreen';
 import WalletScreen from '../screens/WalletScreen';
 import ForgotPasswordScreen from '../screens/ForgotPasswordScreen';
+import NotificationsScreen from '../screens/NotificationsScreen';
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -120,6 +121,7 @@ export default function AppNavigator() {
           <Stack.Screen name="Booking" component={BookingScreen} />
           <Stack.Screen name="CookProfile" component={CookProfileScreen} />
           <Stack.Screen name="Wallet" component={WalletScreen} />
+          <Stack.Screen name="Notifications" component={NotificationsScreen} />
         </>
       )}
     </Stack.Navigator>

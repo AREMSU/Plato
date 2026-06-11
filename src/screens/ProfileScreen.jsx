@@ -54,9 +54,6 @@ export default function ProfileScreen({ navigation, route }) {
     setUser,
     loggingOut,
     reviewsReceived,
-    notifications: notificationsList,
-    loadNotifications,
-    markNotificationsRead,
     refreshUserData,
     subscription,
     getSubscription,
@@ -185,18 +182,15 @@ export default function ProfileScreen({ navigation, route }) {
     };
   }, [subscription?.status]);
 
-  useEffect(() => {
-    if (!notifModalVisible) return;
-    loadNotifications();
-    markNotificationsRead();
-  }, [notifModalVisible]);
 
   useEffect(() => {
-    if (route?.params?.openReviews) {
-      setReviewsModalVisible(true);
-      navigation.setParams({ openReviews: undefined });
-    }
-  }, [route?.params?.openReviews, navigation]);
+    // unmountOnBlur: true means this runs fresh on every navigation to this tab
+    const p = route?.params || {};
+    if (p.openReviews)       { navigation.setParams({ openReviews: undefined });       setReviewsModalVisible(true); }
+    if (p.openNotifications) { navigation.setParams({ openNotifications: undefined }); setNotifModalVisible(true); }
+    if (p.openPremium)       { navigation.setParams({ openPremium: undefined });        setPremiumModalVisible(true); }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (!user) return;
@@ -714,7 +708,7 @@ export default function ProfileScreen({ navigation, route }) {
           />
           <MenuItem
             iconName="notifications-outline"
-            label="Notifications"
+            label="Notification Settings"
             color="#9C27B0"
             onPress={() => setNotifModalVisible(true)}
           />
@@ -1132,7 +1126,7 @@ export default function ProfileScreen({ navigation, route }) {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContainer}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Notifications</Text>
+              <Text style={styles.modalTitle}>Notification Settings</Text>
               <TouchableOpacity onPress={() => setNotifModalVisible(false)}>
                 <Ionicons name="close-circle" size={22} color="#9E9E9E" />
               </TouchableOpacity>
@@ -1164,41 +1158,6 @@ export default function ProfileScreen({ navigation, route }) {
                 />
               </View>
             ))}
-
-            <View style={styles.notifSectionHeader}>
-              <Text style={styles.notifSectionTitle}>Recent Notifications</Text>
-              <TouchableOpacity onPress={() => loadNotifications()}>
-                <Text style={styles.notifRefresh}>Refresh</Text>
-              </TouchableOpacity>
-            </View>
-
-            {notificationsList.length === 0 ? (
-              <View style={styles.notifEmptyState}>
-                <Ionicons name="notifications-outline" size={48} color="#BDBDBD" style={{ marginBottom: 12 }} />
-                <Text style={styles.notifEmptyTitle}>No notifications yet</Text>
-                <Text style={styles.notifEmptySubtitle}>
-                  Updates will appear here based on your preferences.
-                </Text>
-              </View>
-            ) : (
-              notificationsList.slice(0, 10).map((n) => (
-                <View key={n.id} style={styles.notifItem}>
-                  {!n.isRead && <View style={styles.notifDot} />}
-                  <View style={styles.notifContent}>
-                    <Text style={styles.notifTitle}>{n.title}</Text>
-                    <Text style={styles.notifMessage}>{n.message}</Text>
-                    <Text style={styles.notifTime}>
-                      {new Date(n.createdAt).toLocaleString('en-US', {
-                        month: 'short',
-                        day: 'numeric',
-                        hour: 'numeric',
-                        minute: '2-digit',
-                      })}
-                    </Text>
-                  </View>
-                </View>
-              ))
-            )}
 
             <TouchableOpacity
               style={styles.modalSaveButton}

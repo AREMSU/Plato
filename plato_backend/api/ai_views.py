@@ -221,6 +221,10 @@ class ImageFilterView(APIView):
 
             meal.save()
 
+            if meal.status == 'approved':
+                from .views import notify_new_meal
+                notify_new_meal(meal)
+
             return Response({
                 'verdict': result['verdict'],
                 'confidence': result['confidence'],
@@ -269,4 +273,7 @@ class QAReviewView(APIView):
 
         meal.status = new_status
         meal.save()
+        if new_status == 'approved':
+            from .views import notify_new_meal
+            notify_new_meal(meal)
         return Response(MealSerializer(meal).data)

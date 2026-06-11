@@ -13,8 +13,9 @@ import { getDisplayName, getGreeting, isMealOwner } from '../utils/helpers';
 import { categories } from '../utils/constants';
 
 export default function HomeScreen({ navigation }) {
-  const { user, meals, bookings, reviewsReceived, refreshUserData } = useApp();
+  const { user, meals, bookings, refreshUserData, notifications } = useApp();
   const [selectedCategory, setSelectedCategory] = useState('all');
+  const unreadCount = (notifications || []).filter(n => !n.isRead && !n.is_read).length;
   const [refreshing, setRefreshing] = useState(false);
 
   const greeting = getGreeting();
@@ -80,18 +81,41 @@ export default function HomeScreen({ navigation }) {
               <Text style={styles.greetingSub}>What would you like to eat today?</Text>
             </View>
 
-            <TouchableOpacity onPress={() => navigation.navigate('Profile')} style={styles.avatarWrapper}>
-              {user?.avatar ? (
-                <Image source={{ uri: user.avatar }} style={styles.avatar} />
-              ) : (
-                <View style={styles.avatarFallback}>
-                  <Text style={styles.avatarLetter}>
-                    {displayName.charAt(0)?.toUpperCase()}
-                  </Text>
-                </View>
-              )}
-              <View style={styles.onlineDot} />
-            </TouchableOpacity>
+            <View style={styles.headerActions}>
+              {/* Notification bell */}
+              <TouchableOpacity
+                style={styles.bellWrapper}
+                onPress={() => navigation.navigate('Notifications')}
+                activeOpacity={0.8}
+              >
+                <Ionicons
+                  name={unreadCount > 0 ? 'notifications' : 'notifications-outline'}
+                  size={24}
+                  color={unreadCount > 0 ? '#FF6B35' : '#64748B'}
+                />
+                {unreadCount > 0 && (
+                  <View style={styles.bellBadge}>
+                    <Text style={styles.bellBadgeText}>
+                      {unreadCount > 9 ? '9+' : unreadCount}
+                    </Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+
+              {/* Avatar */}
+              <TouchableOpacity onPress={() => navigation.navigate('Profile')} style={styles.avatarWrapper}>
+                {user?.avatar ? (
+                  <Image source={{ uri: user.avatar }} style={styles.avatar} />
+                ) : (
+                  <View style={styles.avatarFallback}>
+                    <Text style={styles.avatarLetter}>
+                      {displayName.charAt(0)?.toUpperCase()}
+                    </Text>
+                  </View>
+                )}
+                <View style={styles.onlineDot} />
+              </TouchableOpacity>
+            </View>
           </View>
 
           {/* Search bar */}
@@ -231,6 +255,41 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     marginTop: 2,
     fontFamily: Platform.OS === 'ios' ? 'Avenir Next' : 'sans-serif',
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  bellWrapper: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: '#F8F9FA',
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  bellBadge: {
+    position: 'absolute',
+    top: -2,
+    right: -2,
+    backgroundColor: '#FF3B30',
+    borderRadius: 10,
+    minWidth: 18,
+    height: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 4,
+    borderWidth: 2,
+    borderColor: '#fff',
+  },
+  bellBadgeText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: '800',
   },
   avatarWrapper: { position: 'relative' },
   avatar: {

@@ -157,6 +157,8 @@ class AdminMealActionView(APIView):
         elif action == 'approve':
             meal.status = 'approved'
             meal.save(update_fields=['status'])
+            from api.views import notify_new_meal
+            notify_new_meal(meal)
             return Response({'message':'Meal approved successfully','status':meal.status})
         elif action == 'reject':
             meal.status = 'rejected'
