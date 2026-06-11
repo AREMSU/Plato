@@ -15,13 +15,15 @@ import {
   AppState,
   RefreshControl,
   BackHandler,
+  ActivityIndicator,
+  ActionSheetIOS,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useApp } from '../context/AppContext';
-import { getDisplayName, getReliabilityBadge, isMealOwner } from '../utils/helpers';
+import { getDisplayName, getReliabilityBadge, isMealOwner, validatePassword, getPasswordStrength } from '../utils/helpers';
 import RatingStars from '../components/RatingStars';
 import UserAvatar from '../components/UserAvatar';
 import apiCall from '../api/client';
@@ -93,6 +95,13 @@ export default function ProfileScreen({ navigation, route }) {
   const [premiumModalVisible, setPremiumModalVisible] = useState(false);
   const [avatarLoading, setAvatarLoading] = useState(false);
   const [avatarOptionsVisible, setAvatarOptionsVisible] = useState(false);
+  const [pendingPickerType, setPendingPickerType] = useState(null); // 'camera' | 'gallery' | null
+  const [changePwVisible, setChangePwVisible] = useState(false);
+  const [pwForm, setPwForm] = useState({ current: '', newPw: '', confirm: '' });
+  const [showPw, setShowPw] = useState({ current: false, newPw: false, confirm: false });
+  const [pwLoading, setPwLoading] = useState(false);
+  const changePwValidation = React.useMemo(() => validatePassword(pwForm.newPw), [pwForm.newPw]);
+  const changePwStrength   = React.useMemo(() => getPasswordStrength(changePwValidation.passed), [changePwValidation.passed]);
   const [subscriptionLoading] = useState(false);
   const [subscriptionActionLoading, setSubscriptionActionLoading] = useState(false);
   const [renewalCancelled, setRenewalCancelled] = useState(false);
@@ -201,14 +210,15 @@ export default function ProfileScreen({ navigation, route }) {
   }, [user]);
 
   useEffect(() => {
-    if (!editModalVisible && !avatarOptionsVisible) return;
+    if (!editModalVisible && !avatarOptionsVisible && !changePwVisible) return;
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
       if (avatarOptionsVisible) setAvatarOptionsVisible(false);
+      else if (changePwVisible) setChangePwVisible(false);
       else setEditModalVisible(false);
       return true;
     });
     return () => sub.remove();
-  }, [editModalVisible, avatarOptionsVisible]);
+  }, [editModalVisible, avatarOptionsVisible, changePwVisible]);
 
   const handleUpgrade = () => {
     const balance = wallet?.balance ?? 0;
@@ -352,7 +362,7 @@ export default function ProfileScreen({ navigation, route }) {
     setAvatarLoading(true);
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: 'images',
         allowsEditing: true,
         aspect: [1, 1],
         quality: 0.8,
@@ -370,13 +380,21 @@ export default function ProfileScreen({ navigation, route }) {
     }
   });
 
-  // Temporarily hide any open modal before launching picker (Android requirement)
+  // Close any open modal before launching picker — required on both platforms.
+  // iOS needs InteractionManager to wait for the modal dismissal animation to fully
+  // complete before the image picker can present its view controller.
   const withModalDismissed = async (fn) => {
     const wasEditOpen = editModalVisible;
     const wasOptionsOpen = avatarOptionsVisible;
     if (wasOptionsOpen) setAvatarOptionsVisible(false);
     if (wasEditOpen) setEditModalVisible(false);
-    await new Promise(r => setTimeout(r, 350));
+
+    // Only wait if a modal was actually open (Android bottom sheet or Edit modal).
+    // On iOS, ActionSheetIOS is used so no modal is open — launch picker immediately.
+    const needsWait = wasOptionsOpen || wasEditOpen;
+    if (needsWait) {
+      await new Promise(r => setTimeout(r, Platform.OS === 'ios' ? 550 : 250));
+    }
     try {
       await fn();
     } finally {
@@ -432,7 +450,76 @@ export default function ProfileScreen({ navigation, route }) {
     );
   };
 
-  const showAvatarOptions = () => setAvatarOptionsVisible(true);
+  // iOS-only async handler — called OUTSIDE the ActionSheetIOS callback
+  const _iosPickImage = (isCamera) => {
+    setAvatarLoading(true);
+    const launch = isCamera
+      ? ImagePicker.launchCameraAsync({ allowsEditing: true, aspect: [1, 1], quality: 0.8 })
+      : ImagePicker.launchImageLibraryAsync({ allowsEditing: true, aspect: [1, 1], quality: 0.8 });
+
+    launch
+      .then((result) => {
+        if (!result.canceled && result.assets?.[0]?.uri) {
+          return uploadImageToCloudinary(result.assets[0].uri).then((url) => {
+            if (!url) { Alert.alert('Upload Failed', 'Could not upload. Try again.'); return; }
+            return updateAvatar(url).then(() => Alert.alert('✅ Updated', 'Profile photo updated!'));
+          });
+        }
+      })
+      .catch(() => Alert.alert('Error', isCamera ? 'Failed to take photo.' : 'Failed to pick image.'))
+      .finally(() => setAvatarLoading(false));
+  };
+
+  const showAvatarOptions = () => {
+    if (Platform.OS === 'ios') {
+      const hasAvatar = !!user?.avatar;
+      const options = ['Take Photo', 'Choose from Gallery'];
+      if (hasAvatar) options.push('Remove Photo');
+      options.push('Cancel');
+
+      ActionSheetIOS.showActionSheetWithOptions(
+        {
+          options,
+          cancelButtonIndex: options.length - 1,
+          destructiveButtonIndex: hasAvatar ? options.length - 2 : undefined,
+          title: 'Profile Photo',
+        },
+        (index) => {
+          // Synchronous callback — no async here to avoid silent failures
+          if (options[index] === 'Take Photo') _iosPickImage(true);
+          else if (options[index] === 'Choose from Gallery') _iosPickImage(false);
+          else if (options[index] === 'Remove Photo') removeAvatar();
+        },
+      );
+    } else {
+      setAvatarOptionsVisible(true);
+    }
+  };
+
+  const handleChangePassword = async () => {
+    if (!pwForm.current) { Alert.alert('Error', 'Current password is required.'); return; }
+    const { isValid, results } = validatePassword(pwForm.newPw);
+    if (!isValid) {
+      const firstFail = results.find(r => !r.passed);
+      Alert.alert('Weak Password', firstFail ? firstFail.label + ' required.' : 'Please meet all password requirements.');
+      return;
+    }
+    if (pwForm.newPw !== pwForm.confirm) { Alert.alert('Error', 'Passwords do not match.'); return; }
+    setPwLoading(true);
+    try {
+      await apiCall('/auth/change-password/', 'POST', {
+        current_password: pwForm.current,
+        new_password: pwForm.newPw,
+      }, true);
+      setChangePwVisible(false);
+      setPwForm({ current: '', newPw: '', confirm: '' });
+      Alert.alert('Password Changed', 'Your password has been updated successfully.');
+    } catch (error) {
+      Alert.alert('Failed', error.message || 'Could not change password.');
+    } finally {
+      setPwLoading(false);
+    }
+  };
 
   // ─────────────────────────────────────
   // PROFILE SAVE
@@ -729,6 +816,105 @@ export default function ProfileScreen({ navigation, route }) {
         <View style={{ height: 24 }} />
       </ScrollView >
 
+      {/* ── Change Password Modal ── */}
+      <Modal
+        visible={changePwVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setChangePwVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContainer, { maxHeight: '80%' }]}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Change Password</Text>
+              <TouchableOpacity onPress={() => setChangePwVisible(false)}>
+                <Ionicons name="close-circle" size={22} color="#9E9E9E" />
+              </TouchableOpacity>
+            </View>
+            {/* Current password */}
+            <View style={[styles.modalField, { marginBottom: 14 }]}>
+              <Text style={styles.modalLabel}>Current Password</Text>
+              <View style={styles.pwInputWrap}>
+                <TextInput
+                  style={[styles.modalInput, { flex: 1, marginBottom: 0, borderWidth: 0 }]}
+                  value={pwForm.current}
+                  onChangeText={v => setPwForm(p => ({ ...p, current: v }))}
+                  placeholder="Enter current password"
+                  placeholderTextColor="#BDBDBD"
+                  secureTextEntry={!showPw.current}
+                  autoCapitalize="none"
+                />
+                <TouchableOpacity onPress={() => setShowPw(p => ({ ...p, current: !p.current }))} style={{ padding: 4 }}>
+                  <Ionicons name={showPw.current ? 'eye-off-outline' : 'eye-outline'} size={18} color="#9E9E9E" />
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* New password + strength */}
+            <View style={[styles.modalField, { marginBottom: 4 }]}>
+              <Text style={styles.modalLabel}>New Password</Text>
+              <View style={styles.pwInputWrap}>
+                <TextInput
+                  style={[styles.modalInput, { flex: 1, marginBottom: 0, borderWidth: 0 }]}
+                  value={pwForm.newPw}
+                  onChangeText={v => setPwForm(p => ({ ...p, newPw: v }))}
+                  placeholder="8–16 characters"
+                  placeholderTextColor="#BDBDBD"
+                  secureTextEntry={!showPw.newPw}
+                  autoCapitalize="none"
+                  maxLength={16}
+                />
+                <TouchableOpacity onPress={() => setShowPw(p => ({ ...p, newPw: !p.newPw }))} style={{ padding: 4 }}>
+                  <Ionicons name={showPw.newPw ? 'eye-off-outline' : 'eye-outline'} size={18} color="#9E9E9E" />
+                </TouchableOpacity>
+              </View>
+            </View>
+            {pwForm.newPw.length > 0 && (
+              <View style={{ marginBottom: 12, paddingHorizontal: 2 }}>
+                <View style={styles.pwStrengthBg}>
+                  <View style={[styles.pwStrengthFill, { width: changePwStrength.width, backgroundColor: changePwStrength.color }]} />
+                </View>
+                <Text style={[styles.pwStrengthLabel, { color: changePwStrength.color }]}>{changePwStrength.label}</Text>
+                {changePwValidation.results.map(r => (
+                  <View key={r.id} style={styles.pwRuleRow}>
+                    <Ionicons name={r.passed ? 'checkmark-circle' : 'ellipse-outline'} size={13} color={r.passed ? '#4CAF50' : '#BDBDBD'} />
+                    <Text style={[styles.pwRuleText, r.passed && styles.pwRuleTextPassed]}>{r.label}</Text>
+                  </View>
+                ))}
+              </View>
+            )}
+
+            {/* Confirm password */}
+            <View style={[styles.modalField, { marginBottom: 14 }]}>
+              <Text style={styles.modalLabel}>Confirm New Password</Text>
+              <View style={styles.pwInputWrap}>
+                <TextInput
+                  style={[styles.modalInput, { flex: 1, marginBottom: 0, borderWidth: 0 }]}
+                  value={pwForm.confirm}
+                  onChangeText={v => setPwForm(p => ({ ...p, confirm: v }))}
+                  placeholder="Repeat new password"
+                  placeholderTextColor="#BDBDBD"
+                  secureTextEntry={!showPw.confirm}
+                  autoCapitalize="none"
+                  maxLength={16}
+                />
+                <TouchableOpacity onPress={() => setShowPw(p => ({ ...p, confirm: !p.confirm }))} style={{ padding: 4 }}>
+                  <Ionicons name={showPw.confirm ? 'eye-off-outline' : 'eye-outline'} size={18} color="#9E9E9E" />
+                </TouchableOpacity>
+              </View>
+            </View>
+            <TouchableOpacity style={styles.modalSaveButton} onPress={handleChangePassword} disabled={pwLoading}>
+              <LinearGradient colors={['#FF6B35', '#FF8C42']} style={styles.modalSaveGradient}>
+                {pwLoading
+                  ? <ActivityIndicator color="#fff" />
+                  : <Text style={styles.modalSaveText}>Update Password</Text>
+                }
+              </LinearGradient>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
       {/* ── Avatar Options Sheet ── */}
       <Modal
         visible={avatarOptionsVisible}
@@ -772,6 +958,14 @@ export default function ProfileScreen({ navigation, route }) {
         animationType="slide"
         transparent
         onRequestClose={() => setEditModalVisible(false)}
+        onDismiss={() => {
+          // iOS only: fires after modal animation completes — safe to launch picker
+          if (pendingPickerType) {
+            const type = pendingPickerType;
+            setPendingPickerType(null);
+            _iosPickImage(type === 'camera');
+          }
+        }}
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContainer}>
@@ -806,7 +1000,9 @@ export default function ProfileScreen({ navigation, route }) {
                 <View style={styles.modalAvatarButtons}>
                   <TouchableOpacity
                     style={styles.modalAvatarBtn}
-                    onPress={takeAvatarPhoto}
+                    onPress={Platform.OS === 'ios'
+                      ? () => { setPendingPickerType('camera'); setEditModalVisible(false); }
+                      : takeAvatarPhoto}
                   >
                     <View style={styles.modalAvatarBtnIconWrap}>
                       <Ionicons name="scan-outline" size={16} color="#FF6B35" />
@@ -816,7 +1012,9 @@ export default function ProfileScreen({ navigation, route }) {
 
                   <TouchableOpacity
                     style={styles.modalAvatarBtn}
-                    onPress={pickAvatarFromGallery}
+                    onPress={Platform.OS === 'ios'
+                      ? () => { setPendingPickerType('gallery'); setEditModalVisible(false); }
+                      : pickAvatarFromGallery}
                   >
                     <View style={styles.modalAvatarBtnIconWrap}>
                       <Ionicons name="images-outline" size={16} color="#FF6B35" />
@@ -899,7 +1097,15 @@ export default function ProfileScreen({ navigation, route }) {
               </View>
 
               <TouchableOpacity
-                style={styles.modalSaveButton}
+                style={styles.changePwButton}
+                onPress={() => { setEditModalVisible(false); setChangePwVisible(true); }}
+              >
+                <Ionicons name="lock-closed-outline" size={16} color="#FF6B35" />
+                <Text style={styles.changePwButtonText}>Change Password</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.modalSaveButton, { marginTop: 10 }]}
                 onPress={handleSaveProfile}
               >
                 <LinearGradient
@@ -2452,4 +2658,36 @@ const styles = StyleSheet.create({
     color: '#64748B',
     fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Bold' : 'sans-serif-medium',
   },
+  changePwButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    marginTop: 12,
+    paddingVertical: 12,
+    borderWidth: 1.5,
+    borderColor: '#FF6B35',
+    borderRadius: 14,
+  },
+  changePwButtonText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#FF6B35',
+    fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Bold' : 'sans-serif-medium',
+  },
+  pwInputWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    backgroundColor: '#FAFAFA',
+  },
+  pwStrengthBg: { height: 5, backgroundColor: '#E0E0E0', borderRadius: 3, marginTop: 8, marginBottom: 4 },
+  pwStrengthFill: { height: 5, borderRadius: 3 },
+  pwStrengthLabel: { fontSize: 11, fontWeight: '700', marginBottom: 6 },
+  pwRuleRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 3 },
+  pwRuleText: { fontSize: 11, color: '#BDBDBD' },
+  pwRuleTextPassed: { color: '#4CAF50' },
 });

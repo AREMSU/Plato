@@ -1,3 +1,37 @@
+// ── Password validation ────────────────────────────────────────────
+// Rules: 8–16 chars, at least one uppercase, one lowercase, one digit,
+//        one special character.
+export const PASSWORD_RULES = {
+  minLength: 8,
+  maxLength: 16,
+  checks: [
+    { id: 'length',  label: '8–16 characters',          test: (p) => p.length >= 8 && p.length <= 16 },
+    { id: 'upper',   label: 'One uppercase letter (A-Z)', test: (p) => /[A-Z]/.test(p) },
+    { id: 'lower',   label: 'One lowercase letter (a-z)', test: (p) => /[a-z]/.test(p) },
+    { id: 'digit',   label: 'One number (0-9)',           test: (p) => /\d/.test(p) },
+    { id: 'special', label: 'One special character (!@#…)', test: (p) => /[!@#$%^&*(),.?":{}|<>\-_+=\[\]\\\/~`]/.test(p) },
+  ],
+};
+
+export const validatePassword = (password) => {
+  const results = PASSWORD_RULES.checks.map(rule => ({
+    ...rule,
+    passed: rule.test(password),
+  }));
+  const passed = results.filter(r => r.passed).length;
+  const allPassed = results.every(r => r.passed);
+  return { results, passed, total: results.length, isValid: allPassed };
+};
+
+export const getPasswordStrength = (passed) => {
+  if (passed <= 1) return { label: 'Very Weak', color: '#FF5252', width: '20%' };
+  if (passed === 2) return { label: 'Weak',      color: '#FF9800', width: '40%' };
+  if (passed === 3) return { label: 'Fair',      color: '#FFC107', width: '60%' };
+  if (passed === 4) return { label: 'Strong',    color: '#8BC34A', width: '80%' };
+  return              { label: 'Very Strong', color: '#4CAF50', width: '100%' };
+};
+// ──────────────────────────────────────────────────────────────────
+
 export const formatCurrency = (amount) => {
   return `Rs. ${amount}`;
 };

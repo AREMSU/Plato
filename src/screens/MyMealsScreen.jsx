@@ -39,6 +39,78 @@ const isPickupPassed = (booking) => {
   }
 };
 
+function BookingDetailContent({ booking: b, styles, formatCurrency, getRefundAmount, isPickupPassed }) {
+  const isCan = b.status === 'cancelled';
+  const isRec = b.status === 'received';
+  const isPst = isPickupPassed(b);
+  const statusColor = isCan ? '#FF5252' : isRec ? '#4CAF50' : isPst ? '#607D8B' : '#2196F3';
+  const displayStatus = isCan ? 'Cancelled' : isRec ? 'Received' : isPst ? 'Completed' : 'Confirmed';
+  const refund = getRefundAmount(b.totalCost);
+
+  const rows = [
+    { icon: 'layers-outline',   label: 'Portions',        value: `${b.portions} portion${b.portions > 1 ? 's' : ''}` },
+    { icon: 'cash-outline',     label: 'Total Paid',      value: formatCurrency(b.totalCost) },
+    { icon: 'wallet-outline',   label: 'Payment',         value: b.paymentMethod === 'wallet' ? 'Plato Wallet' : b.paymentMethod === 'esewa' ? 'eSewa' : 'Cash on Pickup' },
+    { icon: 'time-outline',     label: 'Pickup Time',     value: b.meal?.pickupTime ?? '—' },
+    { icon: 'location-outline', label: 'Pickup Location', value: b.meal?.pickupLocation ?? '—' },
+    { icon: 'calendar-outline', label: 'Booked On',       value: b.bookedAt ? new Date(b.bookedAt.replace ? b.bookedAt.replace(/(\.\d{3})\d+/, '$1') : b.bookedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—' },
+  ];
+
+  return (
+    <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 20 }}>
+      {b.meal?.image ? (
+        <Image source={{ uri: b.meal.image }} style={styles.detailImage} />
+      ) : (
+        <View style={[styles.detailImage, { backgroundColor: '#FFF3EE', justifyContent: 'center', alignItems: 'center' }]}>
+          <Ionicons name="restaurant-outline" size={48} color="#FF6B35" />
+        </View>
+      )}
+
+      <View style={[styles.detailStatusBadge, { backgroundColor: statusColor + '20' }]}>
+        <Text style={[styles.detailStatusText, { color: statusColor }]}>{displayStatus}</Text>
+      </View>
+
+      {rows.map(({ icon, label, value }) => (
+        <View key={label} style={styles.detailRow}>
+          <View style={styles.detailRowIcon}>
+            <Ionicons name={icon} size={16} color="#FF6B35" />
+          </View>
+          <Text style={styles.detailRowLabel}>{label}</Text>
+          <Text style={styles.detailRowValue} numberOfLines={2}>{value}</Text>
+        </View>
+      ))}
+
+      {b.status === 'confirmed' && !isPst && (
+        <View style={styles.detailRow}>
+          <View style={styles.detailRowIcon}>
+            <Ionicons name="information-circle-outline" size={16} color="#FF6B35" />
+          </View>
+          <Text style={styles.detailRowLabel}>If Cancelled</Text>
+          <Text style={styles.detailRowValue}>30% fee · {formatCurrency(refund)} back</Text>
+        </View>
+      )}
+
+      {isCan && b.paymentMethod !== 'cash' && (
+        <View style={[styles.detailRow, {
+          backgroundColor: b.refundStatus === 'completed' ? '#E8F5E9' : '#FFF3EE',
+          borderRadius: 10, padding: 10, marginTop: 4,
+        }]}>
+          <Ionicons
+            name={b.refundStatus === 'completed' ? 'checkmark-circle' : 'time-outline'}
+            size={16}
+            color={b.refundStatus === 'completed' ? '#2E7D32' : '#FF6B35'}
+          />
+          <Text style={{ marginLeft: 8, flex: 1, fontSize: 13, fontWeight: '600', color: b.refundStatus === 'completed' ? '#2E7D32' : '#FF6B35' }}>
+            {b.refundStatus === 'completed'
+              ? `${formatCurrency(refund)} refunded ✓`
+              : `${formatCurrency(refund)} refund pending`}
+          </Text>
+        </View>
+      )}
+    </ScrollView>
+  );
+}
+
 export default function MyMealsScreen({ navigation, route }) {
   const { bookings, bookingsReceived, cancelBooking, user, meals, createReview, markBookingReceived } = useApp();
   const [activeTab, setActiveTab] = useState('bookings');
@@ -55,6 +127,7 @@ export default function MyMealsScreen({ navigation, route }) {
   const ordersCancelled = ordersReceived.filter((b) => b.status === 'cancelled');
   const [reviewModalVisible, setReviewModalVisible] = useState(false);
   const [reviewBooking, setReviewBooking] = useState(null);
+  const [detailBooking, setDetailBooking] = useState(null);
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewComment, setReviewComment] = useState('');
   const [reviewLoading, setReviewLoading] = useState(false);
@@ -142,7 +215,9 @@ export default function MyMealsScreen({ navigation, route }) {
     const statusIcon = isCancelled ? 'close-circle' : isReceived ? 'checkmark-done-circle' : isPast ? 'checkmark-done-circle' : 'checkmark-circle';
 
     return (
-    <View
+    <TouchableOpacity
+      activeOpacity={0.85}
+      onPress={() => setDetailBooking(booking)}
       style={[
         styles.bookingCard,
         (isCancelled || isPast) && styles.cancelledCard,
@@ -262,7 +337,7 @@ export default function MyMealsScreen({ navigation, route }) {
           </TouchableOpacity>
         )}
       </View>
-    </View>
+    </TouchableOpacity>
   )};
 
   const MyMealCard = ({ meal }) => (
@@ -558,6 +633,39 @@ export default function MyMealsScreen({ navigation, route }) {
         <View style={{ height: 100 }} />
         </View>
       </ScrollView>
+
+      {/* ── Booking Detail Modal ── */}
+      <Modal
+        visible={!!detailBooking}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setDetailBooking(null)}
+      >
+        <View style={styles.detailOverlay}>
+          <View style={styles.detailSheet}>
+            <View style={styles.detailHandle} />
+
+            <View style={styles.detailHeader}>
+              <Text style={styles.detailTitle} numberOfLines={1}>
+                {detailBooking?.meal?.title ?? 'Meal no longer available'}
+              </Text>
+              <TouchableOpacity onPress={() => setDetailBooking(null)} style={{ padding: 4 }}>
+                <Ionicons name="close-circle" size={24} color="#9E9E9E" />
+              </TouchableOpacity>
+            </View>
+
+            {detailBooking ? (
+              <BookingDetailContent
+                booking={detailBooking}
+                styles={styles}
+                formatCurrency={formatCurrency}
+                getRefundAmount={getRefundAmount}
+                isPickupPassed={isPickupPassed}
+              />
+            ) : null}
+          </View>
+        </View>
+      </Modal>
 
       <Modal
         visible={reviewModalVisible}
@@ -1023,5 +1131,64 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#fff',
     fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Bold' : 'sans-serif-medium',
+  },
+  detailOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  detailSheet: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    maxHeight: '88%',
+    paddingHorizontal: 20,
+    paddingBottom: 32,
+  },
+  detailHandle: {
+    width: 40, height: 4, borderRadius: 2,
+    backgroundColor: '#E0E0E0',
+    alignSelf: 'center',
+    marginTop: 12, marginBottom: 16,
+  },
+  detailHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 14,
+  },
+  detailTitle: {
+    fontSize: 17, fontWeight: '800', color: '#1A1A1A', flex: 1, marginRight: 8,
+    fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Bold' : 'sans-serif-medium',
+  },
+  detailImage: {
+    width: '100%', height: 180, borderRadius: 16, marginBottom: 14,
+  },
+  detailStatusBadge: {
+    alignSelf: 'flex-start', paddingHorizontal: 12, paddingVertical: 5,
+    borderRadius: 20, marginBottom: 16,
+  },
+  detailStatusText: {
+    fontSize: 13, fontWeight: '700',
+    fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Bold' : 'sans-serif-medium',
+  },
+  detailRow: {
+    flexDirection: 'row', alignItems: 'center',
+    paddingVertical: 11,
+    borderBottomWidth: 1, borderBottomColor: '#F5F5F5',
+    gap: 10,
+  },
+  detailRowIcon: {
+    width: 30, height: 30, borderRadius: 15,
+    backgroundColor: '#FFF3EE',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  detailRowLabel: {
+    fontSize: 13, color: '#757575', width: 110,
+    fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Medium' : 'sans-serif',
+  },
+  detailRowValue: {
+    fontSize: 13, fontWeight: '600', color: '#1A1A1A', flex: 1,
+    fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Medium' : 'sans-serif-medium',
   },
 });

@@ -55,6 +55,7 @@ AUTH_USER_MODEL = 'api.User'  # ← add this right here
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    "corsheaders.middleware.CorsMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -149,9 +150,10 @@ SIMPLE_JWT = {
     'USER_ID_CLAIM': 'user_id',
 }
 
-CSRF_TRUSTED_ORIGINS = [
-    'https://lather-moonlit-plasma.ngrok-free.dev',
-]
+BACKEND_URL = os.getenv('BACKEND_URL', 'https://lather-moonlit-plasma.ngrok-free.dev')
+CSRF_TRUSTED_ORIGINS = [BACKEND_URL]
+CORS_ALLOWED_ORIGINS = [BACKEND_URL]
+CORS_ALLOW_ALL_ORIGINS = True
 
 # Email configuration for development (using Resend)
 RESEND_API_KEY = os.getenv('RESEND_API_KEY')

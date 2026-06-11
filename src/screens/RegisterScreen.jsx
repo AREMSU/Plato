@@ -7,23 +7,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useApp } from '../context/AppContext';
 import apiCall from '../api/client';
-
-// ── Password strength helpers ─────────────────────────────────────────────────
-const PASSWORD_RULES = [
-  { key: 'length',  label: 'Between 8 and 16 characters',   test: (p) => p.length >= 8 && p.length <= 16 },
-  { key: 'upper',   label: 'One uppercase letter (A–Z)',    test: (p) => /[A-Z]/.test(p) },
-  { key: 'number',  label: 'One number (0–9)',              test: (p) => /\d/.test(p) },
-  { key: 'special', label: 'One special character (!@#…)',  test: (p) => /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>/?]/.test(p) },
-];
-
-const getStrength = (password) => {
-  const passed = PASSWORD_RULES.filter((r) => r.test(password)).length;
-  if (passed === 0) return { score: 0, label: '',        color: '#E0E0E0' };
-  if (passed === 1) return { score: 1, label: 'Weak',    color: '#FF5252' };
-  if (passed === 2) return { score: 2, label: 'Fair',    color: '#FF9800' };
-  if (passed === 3) return { score: 3, label: 'Good',    color: '#2196F3' };
-  return              { score: 4, label: 'Strong',       color: '#4CAF50' };
-};
+import { validatePassword, getPasswordStrength } from '../utils/helpers';
 
 export default function RegisterScreen({ navigation }) {
   const {} = useApp();
@@ -36,7 +20,8 @@ export default function RegisterScreen({ navigation }) {
   const [errors, setErrors] = useState({});
   const [passwordFocused, setPasswordFocused] = useState(false);
 
-  const strength = useMemo(() => getStrength(form.password), [form.password]);
+  const pwValidation = useMemo(() => validatePassword(form.password), [form.password]);
+  const strength = useMemo(() => getPasswordStrength(pwValidation.passed), [pwValidation.passed]);
 
   const updateForm = (key, value) => {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -57,11 +42,10 @@ export default function RegisterScreen({ navigation }) {
 
     if (!form.password) {
       e.password = 'Password is required';
-    } else if (form.password.length > 16) {
-      e.password = 'Password must be at most 16 characters';
     } else {
-      const failed = PASSWORD_RULES.filter((r) => !r.test(form.password));
-      if (failed.length > 0) e.password = failed[0].label + ' required';
+      const { results } = validatePassword(form.password);
+      const firstFail = results.find(r => !r.passed);
+      if (firstFail) e.password = firstFail.label + ' required';
     }
 
     if (!form.confirmPassword) {
@@ -216,12 +200,12 @@ export default function RegisterScreen({ navigation }) {
               <View style={styles.strengthContainer}>
                 {/* Segmented bar */}
                 <View style={styles.strengthBarRow}>
-                  {[1, 2, 3, 4].map((i) => (
+                  {[1, 2, 3, 4, 5].map((i) => (
                     <View
                       key={i}
                       style={[
                         styles.strengthSegment,
-                        { backgroundColor: i <= strength.score ? strength.color : '#E0E0E0' },
+                        { backgroundColor: i <= pwValidation.passed ? strength.color : '#E0E0E0' },
                       ]}
                     />
                   ))}
@@ -235,22 +219,19 @@ export default function RegisterScreen({ navigation }) {
                 {/* Rule checklist */}
                 {(passwordFocused || form.password.length > 0) && (
                   <View style={styles.rulesContainer}>
-                    {PASSWORD_RULES.map((rule) => {
-                      const passed = rule.test(form.password);
-                      return (
-                        <View key={rule.key} style={styles.ruleRow}>
-                          <Ionicons
-                            name={passed ? 'checkmark-circle' : 'ellipse-outline'}
-                            size={14}
-                            color={passed ? '#4CAF50' : '#BDBDBD'}
-                            style={{ marginRight: 6 }}
-                          />
-                          <Text style={[styles.ruleText, passed && styles.ruleTextPassed]}>
-                            {rule.label}
-                          </Text>
-                        </View>
-                      );
-                    })}
+                    {pwValidation.results.map((rule) => (
+                      <View key={rule.id} style={styles.ruleRow}>
+                        <Ionicons
+                          name={rule.passed ? 'checkmark-circle' : 'ellipse-outline'}
+                          size={14}
+                          color={rule.passed ? '#4CAF50' : '#BDBDBD'}
+                          style={{ marginRight: 6 }}
+                        />
+                        <Text style={[styles.ruleText, rule.passed && styles.ruleTextPassed]}>
+                          {rule.label}
+                        </Text>
+                      </View>
+                    ))}
                   </View>
                 )}
               </View>

@@ -243,6 +243,112 @@ class ResendOTPView(APIView):
         return Response({'message': 'New OTP sent to your email!'})
 
 
+class ForgotPasswordView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        email = request.data.get('email', '').strip().lower()
+        if not email:
+            return Response({'error': 'Email is required'}, status=400)
+
+        try:
+            user = User.objects.get(email=email, is_active=True)
+        except User.DoesNotExist:
+            # Don't reveal whether the email exists
+            return Response({'message': 'If that email is registered, an OTP has been sent.'})
+
+        # Invalidate old password-reset OTPs
+        OTP.objects.filter(email=email, is_used=False).update(is_used=True)
+
+        otp_code = OTP.generate_otp()
+        OTP.objects.create(email=email, code=otp_code)
+
+        from .email_service import send_otp_email
+        result = send_otp_email(email, otp_code, user.first_name, subject='Reset your Plato password')
+        if not result.get('success'):
+            return Response({'error': 'Failed to send OTP. Please try again.'}, status=500)
+
+        return Response({'message': 'OTP sent to your email. Enter it to reset your password.'})
+
+
+class VerifyResetOTPView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        email = request.data.get('email', '').strip().lower()
+        code = request.data.get('code', '').strip()
+
+        if not email or not code:
+            return Response({'error': 'Email and OTP are required'}, status=400)
+
+        try:
+            otp = OTP.objects.filter(email=email, code=code, is_used=False).latest('created_at')
+        except OTP.DoesNotExist:
+            return Response({'error': 'Invalid OTP. Please check and try again.'}, status=400)
+
+        if not otp.is_valid():
+            return Response({'error': 'OTP has expired. Please request a new one.'}, status=400)
+
+        return Response({'valid': True, 'message': 'OTP verified. Set your new password.'})
+
+
+class ResetPasswordView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        email = request.data.get('email', '').strip().lower()
+        code = request.data.get('code', '').strip()
+        new_password = request.data.get('new_password', '')
+
+        if not email or not code or not new_password:
+            return Response({'error': 'Email, OTP, and new password are required'}, status=400)
+        if len(new_password) < 8:
+            return Response({'error': 'Password must be at least 8 characters'}, status=400)
+
+        try:
+            otp = OTP.objects.filter(email=email, code=code, is_used=False).latest('created_at')
+        except OTP.DoesNotExist:
+            return Response({'error': 'Invalid or expired OTP'}, status=400)
+
+        if not otp.is_valid():
+            return Response({'error': 'OTP has expired. Please request a new one.'}, status=400)
+
+        try:
+            user = User.objects.get(email=email, is_active=True)
+        except User.DoesNotExist:
+            return Response({'error': 'User not found'}, status=404)
+
+        otp.is_used = True
+        otp.save()
+
+        user.set_password(new_password)
+        user.save()
+
+        return Response({'message': 'Password reset successfully. You can now log in.'})
+
+
+class ChangePasswordView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        current_password = request.data.get('current_password', '')
+        new_password = request.data.get('new_password', '')
+
+        if not current_password or not new_password:
+            return Response({'error': 'Current and new password are required'}, status=400)
+        if len(new_password) < 8:
+            return Response({'error': 'New password must be at least 8 characters'}, status=400)
+        if not request.user.check_password(current_password):
+            return Response({'error': 'Current password is incorrect'}, status=400)
+        if current_password == new_password:
+            return Response({'error': 'New password must be different from current password'}, status=400)
+
+        request.user.set_password(new_password)
+        request.user.save()
+
+        return Response({'message': 'Password changed successfully.'})
+
+
 class LoginView(APIView):
     permission_classes = [AllowAny]
 
@@ -1166,7 +1272,8 @@ class EsewaSuccessView(APIView):
                 h2 {{ font-size: 22px; font-weight: 800; color: #0F172A; margin-bottom: 10px; }}
                 .subtitle {{ color: #475569; font-size: 15px; line-height: 1.6; margin-bottom: 8px; }}
                 .hint {{ color: #94A3B8; font-size: 13px; line-height: 1.5; margin-bottom: 28px; }}
-                .btn-primary {{ background: linear-gradient(135deg, #FF6B35, #FF8C42); color: white; padding: 15px 32px; text-decoration: none; border-radius: 16px; font-weight: 700; font-size: 15px; display: inline-block; box-shadow: 0 6px 20px rgba(255,107,53,0.3); margin-bottom: 12px; width: 100%; }}
+                .btn-primary {{ background: linear-gradient(135deg, #FF6B35, #FF8C42); color: white; padding: 15px 32px; text-decoration: none; border-radius: 16px; font-weight: 700; font-size: 15px; display: block; box-shadow: 0 6px 20px rgba(255,107,53,0.3); margin-bottom: 10px; width: 100%; text-align: center; }}
+                .btn-secondary {{ background: #F1F5F9; color: #475569; padding: 12px 32px; text-decoration: none; border-radius: 16px; font-weight: 600; font-size: 14px; display: block; margin-bottom: 12px; width: 100%; text-align: center; }}
                 .countdown {{ color: #94A3B8; font-size: 13px; margin-top: 16px; }}
                 #timer {{ font-weight: 700; color: #FF6B35; }}
             </style>
@@ -1176,18 +1283,26 @@ class EsewaSuccessView(APIView):
                 <div class="icon">✅</div>
                 <h2>{payment_title}</h2>
                 <p class="subtitle">{payment_msg}</p>
-                <p class="hint">Tap the button below to return to Plato.</p>
-                <a href="exp+plato://mymeals" class="btn-primary" id="returnBtn">↩ Return to Plato</a>
+                <p class="hint">Open the Plato app to see your update.</p>
+                <a href="plato://mymeals" class="btn-primary" id="returnBtnApp">↩ Open Plato App</a>
+                <a href="exp+plato://mymeals" class="btn-secondary" id="returnBtnExpo">↩ Open in Expo Go</a>
                 <div class="countdown" id="countdownEl">Auto-redirecting in <span id="timer">3</span>s...</div>
             </div>
             <script>
                 var returnPath = '{"wallet" if transaction_uuid.startswith("WLT-") else "profile" if transaction_uuid.startswith(("SUB-","RNW-")) else "mymeals"}';
                 var isAndroid = /Android/i.test(navigator.userAgent);
-                var androidIntent = 'intent://' + returnPath + '#Intent;scheme=exp+plato;package=host.exp.exponent;S.browser_fallback_url=intent%3A%2F%2F' + returnPath + '%23Intent%3Bscheme%3Dplato%3Bpackage%3Dcom.platofood.plato%3Bend;end';
-                var iosLink = 'exp+plato://' + returnPath;
+
+                // APK intent — tries production app first, falls back to Expo Go
+                var apkIntent = 'intent://' + returnPath + '#Intent;scheme=plato;package=com.platofood.plato;S.browser_fallback_url=intent%3A%2F%2F' + returnPath + '%23Intent%3Bscheme%3Dexp%2Bplato%3Bpackage%3Dhost.exp.exponent%3Bend;end';
+                // Expo Go intent — targets Expo Go only
+                var expoIntent = 'intent://' + returnPath + '#Intent;scheme=exp+plato;package=host.exp.exponent;end';
+
+                var appBtn = document.getElementById('returnBtnApp');
+                var expoBtn = document.getElementById('returnBtnExpo');
 
                 if (isAndroid) {{
-                    document.getElementById('returnBtn').href = androidIntent;
+                    appBtn.href = apkIntent;
+                    expoBtn.href = expoIntent;
                     var count = 3;
                     var t = setInterval(function() {{
                         count--;
@@ -1195,11 +1310,12 @@ class EsewaSuccessView(APIView):
                         if (el) el.textContent = count;
                         if (count <= 0) {{
                             clearInterval(t);
-                            window.location.href = androidIntent;
+                            window.location.href = apkIntent;
                         }}
                     }}, 1000);
                 }} else {{
-                    document.getElementById('returnBtn').href = iosLink;
+                    appBtn.href = 'plato://' + returnPath;
+                    expoBtn.href = 'exp+plato://' + returnPath;
                     var cd = document.getElementById('countdownEl');
                     if (cd) cd.style.display = 'none';
                 }}
@@ -1254,7 +1370,8 @@ class EsewaFailureView(APIView):
                 h2 { font-size: 22px; font-weight: 800; color: #0F172A; margin-bottom: 10px; }
                 .subtitle { color: #475569; font-size: 15px; line-height: 1.6; margin-bottom: 8px; }
                 .hint { color: #94A3B8; font-size: 13px; line-height: 1.5; margin-bottom: 28px; }
-                .btn-primary { background: #64748B; color: white; padding: 15px 32px; text-decoration: none; border-radius: 16px; font-weight: 700; font-size: 15px; display: inline-block; width: 100%; margin-bottom: 12px; }
+                .btn-primary { background: #64748B; color: white; padding: 15px 32px; text-decoration: none; border-radius: 16px; font-weight: 700; font-size: 15px; display: block; width: 100%; margin-bottom: 10px; text-align: center; }
+                .btn-secondary { background: #F1F5F9; color: #475569; padding: 12px 32px; text-decoration: none; border-radius: 16px; font-weight: 600; font-size: 14px; display: block; margin-bottom: 12px; text-align: center; }
                 .countdown { color: #94A3B8; font-size: 13px; margin-top: 16px; }
                 #timer { font-weight: 700; color: #64748B; }
             </style>
@@ -1265,16 +1382,18 @@ class EsewaFailureView(APIView):
                 <h2>Payment Cancelled</h2>
                 <p class="subtitle">The transaction was cancelled or could not be completed.</p>
                 <p class="hint">You have not been charged. Tap below to return to Plato and try again.</p>
-                <a href="exp+plato://mymeals" class="btn-primary" id="returnBtn">↩ Return to Plato</a>
+                <a href="plato://mymeals" class="btn-primary" id="returnBtnApp">↩ Open Plato App</a>
+                <a href="exp+plato://mymeals" class="btn-secondary" id="returnBtnExpo">↩ Open in Expo Go</a>
                 <div class="countdown" id="countdownEl">Auto-redirecting in <span id="timer">3</span>s...</div>
             </div>
             <script>
                 var isAndroid = /Android/i.test(navigator.userAgent);
-                var androidIntent = 'intent://mymeals#Intent;scheme=exp+plato;package=host.exp.exponent;S.browser_fallback_url=intent%3A%2F%2Fmymeals%23Intent%3Bscheme%3Dplato%3Bpackage%3Dcom.platofood.plato%3Bend;end';
-                var iosLink = 'exp+plato://mymeals';
+                var apkIntent = 'intent://mymeals#Intent;scheme=plato;package=com.platofood.plato;S.browser_fallback_url=intent%3A%2F%2Fmymeals%23Intent%3Bscheme%3Dexp%2Bplato%3Bpackage%3Dhost.exp.exponent%3Bend;end';
+                var expoIntent = 'intent://mymeals#Intent;scheme=exp+plato;package=host.exp.exponent;end';
 
                 if (isAndroid) {
-                    document.getElementById('returnBtn').href = androidIntent;
+                    document.getElementById('returnBtnApp').href = apkIntent;
+                    document.getElementById('returnBtnExpo').href = expoIntent;
                     var count = 3;
                     var t = setInterval(function() {
                         count--;
@@ -1282,11 +1401,12 @@ class EsewaFailureView(APIView):
                         if (el) el.textContent = count;
                         if (count <= 0) {
                             clearInterval(t);
-                            window.location.href = androidIntent;
+                            window.location.href = apkIntent;
                         }
                     }, 1000);
                 } else {
-                    document.getElementById('returnBtn').href = iosLink;
+                    document.getElementById('returnBtnApp').href = 'plato://mymeals';
+                    document.getElementById('returnBtnExpo').href = 'exp+plato://mymeals';
                     var cd = document.getElementById('countdownEl');
                     if (cd) cd.style.display = 'none';
                 }
@@ -1378,8 +1498,16 @@ class WalletTopupSuccessView(APIView):
         <meta name="viewport" content="width=device-width,initial-scale=1">
         <style>*{{box-sizing:border-box;margin:0;padding:0}}body{{font-family:-apple-system,sans-serif;background:#FFF8F5;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}}.card{{background:#fff;padding:40px 30px;border-radius:28px;box-shadow:0 20px 60px rgba(0,0,0,.08);max-width:380px;width:100%;text-align:center}}.icon{{font-size:64px;margin-bottom:20px}}h2{{font-size:22px;font-weight:800;color:#0F172A;margin-bottom:10px}}.sub{{color:#475569;font-size:15px;margin-bottom:24px}}.amt{{font-size:32px;font-weight:800;color:#FF6B35;margin-bottom:24px}}.btn{{background:linear-gradient(135deg,#FF6B35,#FF8C42);color:#fff;padding:15px 32px;text-decoration:none;border-radius:16px;font-weight:700;font-size:15px;display:inline-block;width:100%}}</style></head>
         <body><div class="card"><div class="icon">💰</div><h2>Wallet Topped Up!</h2><p class="sub">Successfully added</p><div class="amt">Rs.{int(amount)}</div>
-        <a href="exp+plato://wallet" class="btn" id="btn">↩ Return to Plato</a></div>
-        <script>var isAndroid=/Android/i.test(navigator.userAgent);var link=isAndroid?'intent://wallet#Intent;scheme=exp+plato;package=host.exp.exponent;S.browser_fallback_url=intent%3A%2F%2Fwallet%23Intent%3Bscheme%3Dplato%3Bpackage%3Dcom.platofood.plato%3Bend;end':'exp+plato://wallet';document.getElementById('btn').href=link;var c=3,t=setInterval(function(){{c--;if(c<=0){{clearInterval(t);window.location.href=link;}}}},1000);</script>
+        <a href="plato://wallet" class="btn" id="btnApp">↩ Open Plato App</a>
+        <a href="exp+plato://wallet" style="display:block;margin-top:8px;color:#94A3B8;font-size:13px;text-decoration:none;text-align:center;" id="btnExpo">Open in Expo Go</a></div>
+        <script>
+        var isAndroid=/Android/i.test(navigator.userAgent);
+        var apkLink=isAndroid?'intent://wallet#Intent;scheme=plato;package=com.platofood.plato;S.browser_fallback_url=intent%3A%2F%2Fwallet%23Intent%3Bscheme%3Dexp%2Bplato%3Bpackage%3Dhost.exp.exponent%3Bend;end':'plato://wallet';
+        var expoLink=isAndroid?'intent://wallet#Intent;scheme=exp+plato;package=host.exp.exponent;end':'exp+plato://wallet';
+        document.getElementById('btnApp').href=apkLink;
+        document.getElementById('btnExpo').href=expoLink;
+        var c=3,t=setInterval(function(){{c--;if(c<=0){{clearInterval(t);window.location.href=apkLink;}}}},1000);
+        </script>
         </body></html>"""
         return HttpResponse(html)
 

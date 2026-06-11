@@ -18,6 +18,7 @@ import BookingScreen from '../screens/BookingScreen';
 import OTPScreen from '../screens/OTPScreen';
 import CookProfileScreen from '../screens/CookProfileScreen';
 import WalletScreen from '../screens/WalletScreen';
+import ForgotPasswordScreen from '../screens/ForgotPasswordScreen';
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -110,6 +111,7 @@ export default function AppNavigator() {
           <Stack.Screen name="Login" component={LoginScreen} />
           <Stack.Screen name="Register" component={RegisterScreen} />
           <Stack.Screen name="OTP" component={OTPScreen} />
+          <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
         </>
       ) : (
         <>

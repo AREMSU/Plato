@@ -101,6 +101,13 @@ const handleLogin = async () => {
             {errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
           </View>
 
+          <TouchableOpacity
+            onPress={() => navigation.navigate('ForgotPassword')}
+            style={{ alignSelf: 'flex-end', marginBottom: 16, marginTop: -8 }}
+          >
+            <Text style={styles.forgotText}>Forgot Password?</Text>
+          </TouchableOpacity>
+
           <TouchableOpacity onPress={handleLogin} style={styles.loginButton} disabled={loading}>
             <LinearGradient colors={['#FF6B35', '#FF8C42']} style={styles.loginGradient}>
               {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.loginText}>Sign In</Text>}
@@ -202,5 +209,11 @@ const styles = StyleSheet.create({
     color: '#FF6B35',
     fontWeight: '700',
     fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Bold' : 'sans-serif-medium',
+  },
+  forgotText: {
+    fontSize: 13,
+    color: '#FF6B35',
+    fontWeight: '600',
+    fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Medium' : 'sans-serif-medium',
   },
 });
