@@ -1,7 +1,8 @@
 import React from 'react';
 import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Text, View, StyleSheet } from 'react-native';
+import { StyleSheet } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 
 import { useAdmin } from '../context/AdminContext';
 import { COLORS } from '../utils/helpers';
@@ -26,7 +27,6 @@ const MainTabs = () => (
       tabBarActiveTintColor: COLORS.accent,
       tabBarInactiveTintColor: COLORS.textSecondary,
       tabBarLabelStyle: styles.tabLabel,
-      tabBarIconStyle: styles.tabIconWrap,
     }}
   >
     <Tab.Screen
@@ -34,7 +34,9 @@ const MainTabs = () => (
       component={DashboardScreen}
       options={{
         tabBarLabel: 'Dashboard',
-        tabBarIcon: ({ focused }) => <Text style={[styles.tabIcon, focused && styles.tabIconActive]}>📊</Text>,
+        tabBarIcon: ({ focused, color }) => (
+          <Ionicons name={focused ? 'grid' : 'grid-outline'} size={22} color={color} />
+        ),
       }}
     />
     <Tab.Screen
@@ -42,7 +44,9 @@ const MainTabs = () => (
       component={UsersScreen}
       options={{
         tabBarLabel: 'Users',
-        tabBarIcon: ({ focused }) => <Text style={[styles.tabIcon, focused && styles.tabIconActive]}>👥</Text>,
+        tabBarIcon: ({ focused, color }) => (
+          <Ionicons name={focused ? 'people' : 'people-outline'} size={22} color={color} />
+        ),
       }}
     />
     <Tab.Screen
@@ -50,7 +54,9 @@ const MainTabs = () => (
       component={MealsScreen}
       options={{
         tabBarLabel: 'Meals',
-        tabBarIcon: ({ focused }) => <Text style={[styles.tabIcon, focused && styles.tabIconActive]}>🍛</Text>,
+        tabBarIcon: ({ focused, color }) => (
+          <Ionicons name={focused ? 'restaurant' : 'restaurant-outline'} size={22} color={color} />
+        ),
       }}
     />
     <Tab.Screen
@@ -58,7 +64,9 @@ const MainTabs = () => (
       component={BookingsScreen}
       options={{
         tabBarLabel: 'Bookings',
-        tabBarIcon: ({ focused }) => <Text style={[styles.tabIcon, focused && styles.tabIconActive]}>📋</Text>,
+        tabBarIcon: ({ focused, color }) => (
+          <Ionicons name={focused ? 'receipt' : 'receipt-outline'} size={22} color={color} />
+        ),
       }}
     />
     <Tab.Screen
@@ -66,7 +74,9 @@ const MainTabs = () => (
       component={SubscriptionsScreen}
       options={{
         tabBarLabel: 'Subs',
-        tabBarIcon: ({ focused }) => <Text style={[styles.tabIcon, focused && styles.tabIconActive]}>💎</Text>,
+        tabBarIcon: ({ focused, color }) => (
+          <Ionicons name={focused ? 'ribbon' : 'ribbon-outline'} size={22} color={color} />
+        ),
       }}
     />
   </Tab.Navigator>
@@ -103,16 +113,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.04,
     shadowRadius: 16,
     elevation: 8,
-  },
-  tabIconWrap: {
-    marginTop: 4,
-  },
-  tabIcon: {
-    fontSize: 20,
-    opacity: 0.5,
-  },
-  tabIconActive: {
-    opacity: 1,
   },
   tabLabel: {
     fontSize: 10,
