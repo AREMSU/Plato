@@ -273,6 +273,10 @@ export const AppProvider = ({ children }) => {
     const markHandedOver = async (bookingId) => {
         try {
             await apiCall(`/bookings/${bookingId}/handover/`, 'POST', null, true);
+            // Optimistically set isHandedOver so buyer's button appears immediately
+            setBookings(prev => prev.map(b =>
+                b.id === bookingId ? { ...b, isHandedOver: true } : b
+            ));
             return { success: true };
         } catch (error) {
             return { error: error.message };

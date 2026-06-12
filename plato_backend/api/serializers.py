@@ -128,9 +128,9 @@ class BookingSerializer(serializers.ModelSerializer):
             'total_cost', 'status', 'booked_at',
             'cancellation_fee', 'refund_amount', 'has_reviewed',
             'buyer_name', 'buyer_avatar', 'refund_status',
-            'payment_method',
+            'payment_method', 'is_handed_over',
         ]
-        read_only_fields = ['total_cost', 'status', 'booked_at', 'refund_status']
+        read_only_fields = ['total_cost', 'status', 'booked_at', 'refund_status', 'is_handed_over']
 
     def get_cancellation_fee(self, obj):
         return round(obj.total_cost * 0.3)

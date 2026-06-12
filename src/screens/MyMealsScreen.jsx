@@ -281,7 +281,7 @@ export default function MyMealsScreen({ navigation, route }) {
             </Text>
           </View>
         )}
-        {booking.status === 'confirmed' && (
+        {booking.status === 'confirmed' && booking.isHandedOver && (
           <TouchableOpacity
             style={styles.receivedButton}
             onPress={() => {
@@ -297,7 +297,7 @@ export default function MyMealsScreen({ navigation, route }) {
                       if (result?.error) {
                         Alert.alert('Error', result.error);
                       } else {
-                        Alert.alert('Enjoy your meal! 🍽️', 'Marked as received. The seller has been notified.');
+                        Alert.alert('Enjoy your meal! 🍽️', 'Marked as received. The cook has been paid.');
                       }
                     },
                   },
@@ -308,6 +308,12 @@ export default function MyMealsScreen({ navigation, route }) {
             <Ionicons name="checkmark-done-outline" size={15} color="#fff" />
             <Text style={styles.receivedButtonText}>Mark as Received</Text>
           </TouchableOpacity>
+        )}
+        {booking.status === 'confirmed' && !booking.isHandedOver && (
+          <View style={styles.waitingBanner}>
+            <Ionicons name="time-outline" size={13} color="#64748B" />
+            <Text style={styles.waitingBannerText}>Waiting for cook to hand over food</Text>
+          </View>
         )}
         {booking.status === 'confirmed' && !isPast && (
           <>
@@ -996,6 +1002,25 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     paddingVertical: 8,
     marginTop: 6,
+  },
+  waitingBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#F1F5F9',
+    borderRadius: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    marginTop: 6,
+    flexWrap: 'wrap',
+  },
+  waitingBannerText: {
+    fontSize: 12,
+    color: '#64748B',
+    fontWeight: '500',
+    flex: 1,
+    flexShrink: 1,
+    fontFamily: Platform.OS === 'ios' ? 'AvenirNext-Medium' : 'sans-serif',
   },
   handoverButton: {
     flexDirection: 'row',

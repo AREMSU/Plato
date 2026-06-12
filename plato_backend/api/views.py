@@ -744,6 +744,8 @@ class MarkBookingReceivedView(APIView):
 
         if booking.status != 'confirmed':
             return Response({'error': 'Only confirmed bookings can be marked as received'}, status=400)
+        if not booking.is_handed_over:
+            return Response({'error': 'The cook has not handed over the food yet'}, status=400)
 
         booking.status = 'received'
         booking.save(update_fields=['status'])
@@ -791,6 +793,13 @@ class HandOverBookingView(APIView):
 
         if booking.status != 'confirmed':
             return Response({'error': 'Only confirmed bookings can be marked as handed over'}, status=400)
+
+        if booking.is_handed_over:
+            return Response({'error': 'Already marked as handed over'}, status=400)
+
+        # Set the flag — this unlocks the buyer's "Mark as Received" button
+        booking.is_handed_over = True
+        booking.save(update_fields=['is_handed_over'])
 
         meal = booking.meal
         cook_name = request.user.first_name or request.user.email

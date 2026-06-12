@@ -112,6 +112,7 @@ class Booking(models.Model):
     payment_method = models.CharField(max_length=50, default='cash')
     booked_at = models.DateTimeField(auto_now_add=True)
     refund_status = models.CharField(max_length=20, choices=REFUND_STATUS, default='none')
+    is_handed_over = models.BooleanField(default=False)
 
     def __str__(self):
         meal_title = self.meal.title if self.meal else 'deleted meal'
