@@ -4,6 +4,7 @@ import { StatusBar } from 'expo-status-bar';
 import { NavigationContainer } from '@react-navigation/native';
 import { View, Text, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { AdminProvider } from './src/context/AdminContext';
 import AppNavigator from './src/navigation/AppNavigator';
@@ -34,11 +35,13 @@ export default function App() {
   if (isLoading) return <SplashView />;
 
   return (
-    <AdminProvider>
-      <NavigationContainer>
-        <StatusBar style="light" backgroundColor="#0a0a0f" />
-        <AppNavigator />
-      </NavigationContainer>
-    </AdminProvider>
+    <SafeAreaProvider>
+      <AdminProvider>
+        <NavigationContainer>
+          <StatusBar style="light" backgroundColor="#0a0a0f" />
+          <AppNavigator />
+        </NavigationContainer>
+      </AdminProvider>
+    </SafeAreaProvider>
   );
 }
