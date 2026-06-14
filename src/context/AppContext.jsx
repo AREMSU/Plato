@@ -27,6 +27,8 @@ export const AppProvider = ({ children }) => {
     const [reviewsReceived, setReviewsReceived] = useState([]);
     const [aiRecommendations, setAiRecommendations] = useState([]);
     const [isLoggedIn, setIsLoggedIn] = useState(false);
+    const [hasOnboarded, setHasOnboarded] = useState(false);
+    const [isInitializing, setIsInitializing] = useState(true);
     const [loading, setLoading] = useState(false);
     const [loggingOut, setLoggingOut] = useState(false);
     const [subscription, setSubscription] = useState(null);
@@ -101,6 +103,35 @@ export const AppProvider = ({ children }) => {
             appStateRef.current = next;
         });
         return () => sub.remove();
+    }, []);
+
+    // ─── RESTORE SESSION ON APP START ─────────────────────────
+    useEffect(() => {
+        const restoreSession = async () => {
+            try {
+                const [token, storedUser, onboarded] = await AsyncStorage.multiGet([
+                    'access_token', 'user', 'has_onboarded'
+                ]);
+                if (onboarded[1] === 'true') setHasOnboarded(true);
+                if (token[1] && storedUser[1]) {
+                    setUser(JSON.parse(storedUser[1]));
+                    setIsLoggedIn(true);
+                    loadMeals();
+                    loadBookings();
+                    loadBookingsReceived();
+                    loadReviewsReceived();
+                    loadNotifications();
+                    loadAIRecommendations();
+                    getSubscription();
+                    loadWallet();
+                }
+            } catch (e) {
+                console.log('Session restore error:', e.message);
+            } finally {
+                setIsInitializing(false);
+            }
+        };
+        restoreSession();
     }, []);
 
     // ─── AUTH ─────────────────────────────────────────────────
@@ -547,6 +578,9 @@ export const AppProvider = ({ children }) => {
             meals,
             bookings,
             isLoggedIn,
+            isInitializing,
+            hasOnboarded,
+            setHasOnboarded,
             loading,
             login,
             loginAfterVerification,

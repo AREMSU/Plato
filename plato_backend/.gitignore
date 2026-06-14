@@ -24,3 +24,20 @@ db.sqlite3
 
 # VS Code
 .vscode/
+
+# Virtual environment
+.venv/
+
+# Uploaded media & collected static
+media/
+staticfiles/
+
+# HuggingFace model cache
+.cache/
+
+# ngrok binary
+ngrok.exe
+ngrok
+
+# Modal
+modal_app.py

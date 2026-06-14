@@ -50,3 +50,10 @@ eas-build-local-nodejs/
 
 # VS Code
 .vscode/
+
+# Database dumps
+*.sql
+backup.sql
+
+# Modal
+modal_app.py

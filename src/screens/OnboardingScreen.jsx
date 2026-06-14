@@ -11,6 +11,8 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useApp } from '../context/AppContext';
 
 const { width, height } = Dimensions.get('window');
 
@@ -53,18 +55,25 @@ export default function OnboardingScreen({ navigation }) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const flatListRef = useRef(null);
   const scrollX = useRef(new Animated.Value(0)).current;
+  const { setHasOnboarded } = useApp();
+
+  const completeOnboarding = async () => {
+    await AsyncStorage.setItem('has_onboarded', 'true');
+    setHasOnboarded(true);
+    navigation.navigate('Login');
+  };
 
   const goToNext = () => {
     if (currentIndex < slides.length - 1) {
       flatListRef.current?.scrollToIndex({ index: currentIndex + 1 });
       setCurrentIndex(currentIndex + 1);
     } else {
-      navigation.navigate('Login');
+      completeOnboarding();
     }
   };
 
   const goToLogin = () => {
-    navigation.navigate('Login');
+    completeOnboarding();
   };
 
   const renderSlide = ({ item }) => (
