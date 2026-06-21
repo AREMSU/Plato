@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -22,8 +22,10 @@ import {
 
 export default function BookingScreen({ navigation, route }) {
   const { meal, portions } = route.params;
-  const { bookMeal, wallet, payWithWallet } = useApp();
+  const { bookMeal, wallet, payWithWallet, loadWallet } = useApp();
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => { loadWallet(); }, []);
   const [paymentMethod, setPaymentMethod] = useState('wallet');
   const walletBalance = wallet?.balance ?? 0;
   const hasEnoughWalletBalance = Math.round(walletBalance * 100) >= Math.round(meal.pricePerPortion * portions * 100);
@@ -109,14 +111,15 @@ export default function BookingScreen({ navigation, route }) {
     );
   };
 
-  const PaymentOption = ({ id, name, subtitle, icon, color, logo }) => (
+  const PaymentOption = ({ id, name, subtitle, icon, color, logo, disabled }) => (
     <TouchableOpacity
       style={[
         styles.paymentOption,
         paymentMethod === id && styles.paymentOptionActive,
+        disabled && { opacity: 0.45 },
       ]}
-      onPress={() => setPaymentMethod(id)}
-      activeOpacity={0.75}
+      onPress={() => !disabled && setPaymentMethod(id)}
+      activeOpacity={disabled ? 1 : 0.75}
     >
       <View
         style={[
@@ -240,13 +243,7 @@ export default function BookingScreen({ navigation, route }) {
               : 'Insufficient balance · Top up in Profile → Wallet'}
             icon="wallet-outline"
             color="#4CAF50"
-          />
-          <PaymentOption
-            id="cash"
-            name="Cash on Pickup"
-            subtitle="Pay in person during meal collection"
-            icon="cash-outline"
-            color="#FF6B35"
+            disabled={!hasEnoughWalletBalance}
           />
         </View>
 

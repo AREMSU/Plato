@@ -40,11 +40,16 @@ export default function WalletScreen({ navigation }) {
   const [loading, setLoading] = useState(false);
   const appStateRef = useRef(AppState.currentState);
 
-  // Refresh when screen gets focus (e.g. navigating back from eSewa browser)
+  // Refresh on focus and poll every 5s while on this screen
   useEffect(() => {
+    loadWallet();
+    const interval = setInterval(loadWallet, 5000);
     const unsub = navigation.addListener('focus', loadWallet);
-    return unsub;
-  }, [navigation, loadWallet]);
+    return () => {
+      clearInterval(interval);
+      unsub();
+    };
+  }, [navigation]);
 
   // Refresh when app comes back to foreground after eSewa browser
   useEffect(() => {

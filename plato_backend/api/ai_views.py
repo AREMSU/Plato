@@ -64,19 +64,34 @@ def classify_food_bytes(image_bytes):
         }
 
     try:
+        import numpy as np
         from PIL import Image as PILImage
         image = PILImage.open(io.BytesIO(image_bytes)).convert('RGB')
+
+        # Reject blank/black/solid-color images before running model
+        arr = np.array(image, dtype=np.float32)
+        if arr.mean() < 15 or arr.var() < 50:
+            return {
+                'verdict': 'rejected',
+                'confidence': 0.0,
+                'reason': 'Image appears to be blank or too dark. Please upload a clear photo of your meal.',
+                'labels_detected': [],
+            }
+
         # Return top-5 results for better label info
         results = clf(image, top_k=5)
 
         # nateraw/food is a Food-101 classifier (101 food categories).
         # Real food images → high top score; non-food images → all scores very low.
         top = results[0]
-        confidence = round(top['score'], 4)
         top_label = top['label'].replace('_', ' ').title()
         labels = [r['label'].replace('_', ' ') for r in results]
+        # Sum of top-5 is a much better food/non-food signal than top-1 alone,
+        # since food models spread probability across many food categories for
+        # regional dishes (Nepali food, etc.) but non-food images score very low.
+        confidence = round(sum(r['score'] for r in results), 4)
 
-        if confidence < 0.3:
+        if confidence < 0.35:
             return {
                 'verdict': 'rejected',
                 'confidence': confidence,

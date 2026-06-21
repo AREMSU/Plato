@@ -36,18 +36,25 @@ export default function NotificationsScreen({ navigation }) {
   const { notifications: notifList, loadNotifications, markNotificationsRead } = useApp();
 
   useEffect(() => {
-    loadNotifications();
-    markNotificationsRead();
-  }, []);
+    const unsub = navigation.addListener('focus', () => {
+      loadNotifications();
+      markNotificationsRead();
+    });
+    return unsub;
+  }, [navigation]);
 
   const getDestination = (n) => {
     const title = (n.title || '').toLowerCase();
     const msg   = (n.message || '').toLowerCase();
     const both  = title + ' ' + msg;
 
-    // Wallet/payment — stack screen, back returns to Notifications ✓
-    if (both.match(/wallet|topped up|top.up|refund|payment released|rs\.\d/)) {
+    // Wallet/payment — check first so "Wallet Topped Up" never gets swallowed by booking_updates category
+    if (both.match(/wallet|topped up|top.up|payment released/)) {
       return { type: 'stack', screen: 'Wallet' };
+    }
+    // Booking / order
+    if (n.category === 'booking_updates' || both.match(/booking|order|pickup|confirmed|cancelled|received|handed over|food ready|payment hold|refund|rs\.\d/)) {
+      return { type: 'tab', tab: 'MyMeals' };
     }
     // Pro/subscription — tab, open via profile param
     if (both.match(/pro activated|subscription|upgraded|renewed/)) {
@@ -61,10 +68,6 @@ export default function NotificationsScreen({ navigation }) {
     if (n.category === 'new_meals' || both.match(/new meal|listed|available at/)) {
       return { type: 'tab', tab: 'Explore' };
     }
-    // Booking / order
-    if (both.match(/booking|order|pickup|confirmed|cancelled|received|handed over|food ready|payment hold/)) {
-      return { type: 'tab', tab: 'MyMeals' };
-    }
     return null;
   };
 
@@ -73,6 +76,7 @@ export default function NotificationsScreen({ navigation }) {
 
   const handlePress = (n) => {
     const dest = getDestination(n);
+    if (!n.isRead && !n.is_read) markNotificationsRead(n.id);
     if (!dest) return;
 
     if (dest.type === 'stack') {
@@ -147,6 +151,14 @@ export default function NotificationsScreen({ navigation }) {
             <Text style={styles.headerSub}>{unreadCount} unread</Text>
           )}
         </View>
+        {unreadCount > 0 && (
+          <TouchableOpacity
+            style={styles.markAllBtn}
+            onPress={() => markNotificationsRead()}
+          >
+            <Text style={styles.markAllText}>Mark all read</Text>
+          </TouchableOpacity>
+        )}
         <TouchableOpacity
           style={styles.settingsBtn}
           onPress={() => navigation.navigate('Profile', { openNotifications: true })}
@@ -256,6 +268,17 @@ const styles = StyleSheet.create({
   unreadDot: {
     width: 8, height: 8, borderRadius: 4,
     backgroundColor: '#FF6B35',
+  },
+  markAllBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 10,
+    backgroundColor: '#FFF3EE',
+  },
+  markAllText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#FF6B35',
   },
   separator: { height: 0 },
   empty: { alignItems: 'center', paddingTop: 80, paddingHorizontal: 32 },

@@ -77,24 +77,23 @@ def send_push_notification(user, title, body):
     tokens = list(PushToken.objects.filter(user=user).values_list('token', flat=True))
     if not tokens:
         return
-    messages = [
-        {
-            'to': token,
-            'title': title,
-            'body': body,
-            'sound': 'default',
-            'data': {'title': title, 'body': body},
-        }
-        for token in tokens
-    ]
     try:
         import httpx as _httpx
-        _httpx.post(
-            'https://exp.host/--/api/v2/push/send',
-            json=messages,
-            headers={'Accept': 'application/json', 'Content-Type': 'application/json'},
-            timeout=10,
-        )
+        for token in tokens:
+            _httpx.post(
+                'https://exp.host/--/api/v2/push/send',
+                json={
+                    'to': token,
+                    'title': title,
+                    'body': body,
+                    'sound': 'default',
+                    'priority': 'high',
+                    'channelId': 'default',
+                    'data': {'title': title, 'body': body},
+                },
+                headers={'Accept': 'application/json', 'Content-Type': 'application/json'},
+                timeout=10,
+            )
     except Exception as e:
         print(f'[Push] Failed to send: {e}')
 
@@ -1379,7 +1378,7 @@ class EsewaSuccessView(APIView):
                 reason='topup', description='Wallet top-up via eSewa',
                 reference=transaction_uuid,
             )
-            create_notification(user, 'booking_updates', 'Wallet Topped Up',
+            create_notification(user, 'promotions', 'Wallet Topped Up',
                                 f'Rs.{int(amount_credited)} added to your Plato Wallet.')
             payment_title = "Wallet Topped Up!"
             payment_msg = f"Rs.{int(amount_credited)} has been added to your Plato Wallet."
@@ -1618,7 +1617,7 @@ class WalletTopupSuccessView(APIView):
             reference=transaction_uuid,
         )
 
-        create_notification(user, 'booking_updates', 'Wallet Topped Up',
+        create_notification(user, 'promotions', 'Wallet Topped Up',
                             f'Rs.{int(amount)} added to your Plato Wallet.')
 
         html = f"""<!DOCTYPE html><html>

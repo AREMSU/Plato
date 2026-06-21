@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, Image,
   RefreshControl, Platform, StatusBar,
@@ -13,10 +13,19 @@ import { getDisplayName, getGreeting, isMealOwner } from '../utils/helpers';
 import { categories } from '../utils/constants';
 
 export default function HomeScreen({ navigation }) {
-  const { user, meals, bookings, refreshUserData, notifications } = useApp();
+  const { user, meals, bookings, refreshUserData, notifications, loadMeals, loadBookings, loadNotifications } = useApp();
   const [selectedCategory, setSelectedCategory] = useState('all');
   const unreadCount = (notifications || []).filter(n => !n.isRead && !n.is_read).length;
   const [refreshing, setRefreshing] = useState(false);
+
+  useEffect(() => {
+    const unsub = navigation.addListener('focus', () => {
+      loadMeals();
+      loadBookings();
+      loadNotifications();
+    });
+    return unsub;
+  }, [navigation]);
 
   const greeting = getGreeting();
   const displayName = getDisplayName(user);
@@ -119,7 +128,7 @@ export default function HomeScreen({ navigation }) {
           </View>
 
           {/* Search bar */}
-          <TouchableOpacity style={styles.searchBar} onPress={() => navigation.navigate('Explore')} activeOpacity={0.9}>
+          <TouchableOpacity style={styles.searchBar} onPress={() => navigation.navigate('Explore', { focusSearch: true })} activeOpacity={0.9}>
             <Ionicons name="search-outline" size={18} color="#FC8019" style={{ marginRight: 6 }} />
             <Text style={styles.searchPlaceholder}>Search for dishes, home chefs or cuisines...</Text>
             <View style={styles.filterBtn}>

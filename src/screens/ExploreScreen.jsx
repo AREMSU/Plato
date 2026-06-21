@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -28,14 +28,26 @@ const CATEGORY_ICONS = {
 };
 const getCategoryIcon = (id) => CATEGORY_ICONS[id] || 'grid-outline';
 
-export default function ExploreScreen({ navigation }) {
-  const { meals, user } = useApp();
+export default function ExploreScreen({ navigation, route }) {
+  const { meals, user, loadMeals } = useApp();
+
+  useEffect(() => {
+    const unsub = navigation.addListener('focus', () => loadMeals());
+    return unsub;
+  }, [navigation]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [selectedDiet, setSelectedDiet] = useState('all');
   const [sortBy, setSortBy] = useState('rating');
   const [isFocused, setIsFocused] = useState(false);
   const inputRef = useRef(null);
+
+  useEffect(() => {
+    if (route?.params?.focusSearch) {
+      setTimeout(() => inputRef.current?.focus(), 300);
+      navigation.setParams({ focusSearch: undefined });
+    }
+  }, [route?.params?.focusSearch]);
 
   const isMealExpired = (meal) => {
     try {

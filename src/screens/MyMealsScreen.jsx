@@ -112,8 +112,18 @@ function BookingDetailContent({ booking: b, styles, formatCurrency, getRefundAmo
 }
 
 export default function MyMealsScreen({ navigation, route }) {
-  const { bookings, bookingsReceived, cancelBooking, user, meals, createReview, markBookingReceived, markHandedOver } = useApp();
+  const { bookings, bookingsReceived, cancelBooking, user, meals, createReview, markBookingReceived, markHandedOver, loadBookings, loadBookingsReceived, loadMeals } = useApp();
   const [activeTab, setActiveTab] = useState('bookings');
+
+  useEffect(() => {
+    const unsub = navigation.addListener('focus', () => {
+      loadBookings();
+      loadBookingsReceived();
+      loadMeals();
+    });
+    return unsub;
+  }, [navigation]);
+
   useEffect(() => {
     const nextTab = route?.params?.initialTab;
     if (nextTab) {
@@ -450,8 +460,8 @@ export default function MyMealsScreen({ navigation, route }) {
         )}
       </View>
 
-      {/* Cook action — only for confirmed orders */}
-      {!isCancelledOrder && booking.status === 'confirmed' && (
+      {/* Cook action — only for confirmed, not yet handed over orders */}
+      {!isCancelledOrder && booking.status === 'confirmed' && !booking.isHandedOver && (
         <TouchableOpacity
           style={styles.handoverButton}
           onPress={() =>

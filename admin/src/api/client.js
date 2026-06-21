@@ -15,6 +15,7 @@ export const getToken = () => authToken;
 
 const headers = () => ({
   'Content-Type': 'application/json',
+  'ngrok-skip-browser-warning': 'true',
   ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
 });
 

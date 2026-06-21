@@ -6,15 +6,31 @@ import * as Device from 'expo-device';
 import apiCall from '../api/client';
 import { isMealOwner } from '../utils/helpers';
 import API_BASE_URL from '../api/config';
+import { navigationRef } from '../navigation/navigationRef';
 
 // Show notifications as banners even when the app is open
 Notifications.setNotificationHandler({
     handleNotification: async () => ({
         shouldShowAlert: true,
+        shouldShowBanner: true,
+        shouldShowList: true,
         shouldPlaySound: true,
         shouldSetBadge: true,
     }),
 });
+
+// Create Android channel immediately on app start (not waiting for login)
+if (Platform.OS === 'android') {
+    Notifications.setNotificationChannelAsync('default', {
+        name: 'Plato',
+        importance: Notifications.AndroidImportance.MAX,
+        vibrationPattern: [0, 250, 250, 250],
+        lightColor: '#FF6B35',
+        sound: true,
+        enableVibrate: true,
+        showBadge: true,
+    });
+}
 
 const AppContext = createContext();
 
@@ -51,7 +67,7 @@ export const AppProvider = ({ children }) => {
             if (finalStatus !== 'granted') return;
 
             const tokenData = await Notifications.getExpoPushTokenAsync({
-                projectId: 'cbf07e69-f3d4-4749-bda3-5ef00e401f15',
+                projectId: 'd7d42e76-4e5e-4acd-b329-1b1c45b0796b',
             });
             const token = tokenData.data;
             if (token) {
@@ -81,29 +97,58 @@ export const AppProvider = ({ children }) => {
         });
 
         // Fires when user taps a notification
-        responseListener.current = Notifications.addNotificationResponseReceivedListener(() => {
+        responseListener.current = Notifications.addNotificationResponseReceivedListener((response) => {
             loadNotifications();
+            if (!navigationRef.isReady()) return;
+            const content = response.notification.request.content;
+            const both = ((content.title || '') + ' ' + (content.body || '')).toLowerCase();
+            if (both.match(/wallet|topped up|top.up|refund|payment released/)) {
+                navigationRef.navigate('Wallet');
+            } else if (both.match(/booking|order|pickup|confirmed|cancelled|received|handed over|food ready/)) {
+                navigationRef.navigate('Main', { screen: 'MyMeals' });
+            } else if (both.match(/new meal|listed|available at/)) {
+                navigationRef.navigate('Main', { screen: 'Explore' });
+            } else if (both.match(/review|rated|feedback/)) {
+                navigationRef.navigate('Main', { screen: 'Profile' });
+            }
         });
 
         return () => {
-            if (notificationListener.current)
-                Notifications.removeNotificationSubscription(notificationListener.current);
-            if (responseListener.current)
-                Notifications.removeNotificationSubscription(responseListener.current);
+            notificationListener.current?.remove();
+            responseListener.current?.remove();
         };
     }, []);
 
-    // Refresh subscription + wallet whenever app comes back to foreground
+    // Refresh everything when app comes back to foreground
     useEffect(() => {
         const sub = AppState.addEventListener('change', (next) => {
             if (appStateRef.current.match(/inactive|background/) && next === 'active') {
                 getSubscription();
                 loadWallet();
+                loadBookings();
+                loadBookingsReceived();
+                loadMeals();
+                loadNotifications();
             }
             appStateRef.current = next;
         });
         return () => sub.remove();
     }, []);
+
+    // Poll every 30s while app is active and user is logged in
+    useEffect(() => {
+        if (!isLoggedIn) return;
+        const interval = setInterval(() => {
+            if (AppState.currentState === 'active') {
+                loadBookings();
+                loadBookingsReceived();
+                loadNotifications();
+                loadWallet();
+                loadMeals();
+            }
+        }, 30000);
+        return () => clearInterval(interval);
+    }, [isLoggedIn]);
 
     // ─── RESTORE SESSION ON APP START ─────────────────────────
     useEffect(() => {
@@ -286,12 +331,12 @@ export const AppProvider = ({ children }) => {
             }, true);
 
             setBookings(prev => [data, ...prev]);
-            // Update available portions locally
             setMeals(prev => prev.map(m =>
                 m.id === meal.id
                     ? { ...m, availablePortions: (m.availablePortions || 0) - portions }
                     : m
             ));
+            loadMeals();
             return { success: true, booking: data };
         } catch (error) {
             console.error('Book meal error:', error.message);
@@ -304,10 +349,11 @@ export const AppProvider = ({ children }) => {
     const markHandedOver = async (bookingId) => {
         try {
             await apiCall(`/bookings/${bookingId}/handover/`, 'POST', null, true);
-            // Optimistically set isHandedOver so buyer's button appears immediately
             setBookings(prev => prev.map(b =>
                 b.id === bookingId ? { ...b, isHandedOver: true } : b
             ));
+            loadBookings();
+            loadBookingsReceived();
             return { success: true };
         } catch (error) {
             return { error: error.message };
@@ -320,6 +366,9 @@ export const AppProvider = ({ children }) => {
             setBookings(prev => prev.map(b =>
                 b.id === bookingId ? { ...b, status: 'received' } : b
             ));
+            loadBookings();
+            loadBookingsReceived();
+            loadWallet();
             return { success: true };
         } catch (error) {
             return { error: error.message };
@@ -376,6 +425,10 @@ export const AppProvider = ({ children }) => {
 
                 return updated;
             }));
+            loadBookings();
+            loadBookingsReceived();
+            loadMeals();
+            if (existing?.paymentMethod === 'wallet') loadWallet();
             return { success: true };
         } catch (error) {
             console.error('Cancel booking error:', error.message);

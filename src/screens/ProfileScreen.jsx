@@ -63,6 +63,14 @@ export default function ProfileScreen({ navigation, route }) {
 
   const [refreshing, setRefreshing] = useState(false);
 
+  useEffect(() => {
+    const unsub = navigation.addListener('focus', () => {
+      refreshUserData();
+      getSubscription();
+    });
+    return unsub;
+  }, [navigation]);
+
   const onRefresh = async () => {
     setRefreshing(true);
     try {
@@ -126,6 +134,12 @@ export default function ProfileScreen({ navigation, route }) {
     nutFree: false,
     halal: false,
   });
+
+  useEffect(() => {
+    AsyncStorage.getItem('dietary_preferences').then(val => {
+      if (val) setDietary(JSON.parse(val));
+    });
+  }, []);
 
   const savedPayments = [
     { id: '1', type: 'eSewa', number: '98XXXXXXXX', logo: PROFILE_ICONS.esewaLogo, color: '#4CAF50' },
@@ -1231,12 +1245,10 @@ export default function ProfileScreen({ navigation, route }) {
 
             <TouchableOpacity
               style={styles.modalSaveButton}
-              onPress={() => {
+              onPress={async () => {
+                await AsyncStorage.setItem('dietary_preferences', JSON.stringify(dietary));
                 setDietModalVisible(false);
-                Alert.alert(
-                  '✅ Saved',
-                  'Dietary preferences updated! AI will now recommend better meals.'
-                );
+                Alert.alert('✅ Saved', 'Dietary preferences updated! AI will now recommend better meals.');
               }}
             >
               <LinearGradient

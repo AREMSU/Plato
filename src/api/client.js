@@ -92,7 +92,13 @@ const apiCall = async (endpoint, method = 'GET', body = null, requiresAuth = fal
         }
 
         const data = await response.json();
-        console.log('API RESPONSE:', response.status, JSON.stringify(redactSensitive(data)));
+        const _summary = (d) => {
+            if (Array.isArray(d)) return `[${d.length} items]`;
+            if (d !== null && typeof d === 'object')
+                return Object.fromEntries(Object.entries(d).map(([k, v]) => [k, Array.isArray(v) ? `[${v.length} items]` : v]));
+            return d;
+        };
+        console.log('API RESPONSE:', response.status, JSON.stringify(_summary(redactSensitive(data))));
 
         if (!response.ok) {
             console.log('API ERROR:', response.status, JSON.stringify(redactSensitive(data)));

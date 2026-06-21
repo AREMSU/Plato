@@ -6,6 +6,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AppProvider } from './src/context/AppContext';
 import AppNavigator from './src/navigation/AppNavigator';
+import { navigationRef } from './src/navigation/navigationRef';
 import SplashScreen from './src/screens/SplashScreen';
 
 // Suppress all yellow/red warning boxes in the app UI — errors only appear in terminal
@@ -45,7 +46,7 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <AppProvider>
-        <NavigationContainer linking={linking}>
+        <NavigationContainer ref={navigationRef} linking={linking}>
           <StatusBar style="light" backgroundColor="#FF6B35" />
           <AppNavigator />
         </NavigationContainer>
