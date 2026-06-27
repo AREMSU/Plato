@@ -15,6 +15,7 @@ import MealsScreen from '../screens/MealsScreen';
 import MealDetailScreen from '../screens/MealDetailScreen';
 import BookingsScreen from '../screens/BookingsScreen';
 import SubscriptionsScreen from '../screens/SubscriptionsScreen';
+import CommissionScreen from '../screens/CommissionScreen';
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -76,6 +77,16 @@ const MainTabs = () => (
         tabBarLabel: 'Subs',
         tabBarIcon: ({ focused, color }) => (
           <Ionicons name={focused ? 'ribbon' : 'ribbon-outline'} size={22} color={color} />
+        ),
+      }}
+    />
+    <Tab.Screen
+      name="Commission"
+      component={CommissionScreen}
+      options={{
+        tabBarLabel: 'Wallet',
+        tabBarIcon: ({ focused, color }) => (
+          <Ionicons name={focused ? 'wallet' : 'wallet-outline'} size={22} color={color} />
         ),
       }}
     />

@@ -418,9 +418,9 @@ export default function AddMealScreen({ navigation }) {
             ? 'We are not sure the image is of food, so admin will review that and we will reply shortly.'
             : 'Your meal has been successfully added to the platform.',
           [{
-            text: 'View Home',
+            text: 'View My Listings',
             onPress: () => {
-              navigation.navigate('Home');
+              navigation.navigate('Main', { screen: 'MyMeals', params: { initialTab: 'listings' } });
               setForm({
                 title: '', description: '', category: 'Nepali',
                 pricePerPortion: '', totalPortions: '',

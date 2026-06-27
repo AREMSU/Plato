@@ -14,7 +14,7 @@ import uuid
 BACKEND_URL = os.getenv("BACKEND_URL", "https://lather-moonlit-plasma.ngrok-free.dev")
 
 from api import models
-from .models import Subscription, User, Meal, Booking, OTP, Review, Notification, Wallet, WalletTransaction, PushToken
+from .models import Subscription, User, Meal, Booking, OTP, Review, Notification, Wallet, WalletTransaction, PushToken, PlatformWallet, PlatformTransaction
 from .ai_views import classify_food_image
 from .serializers import (
     RegisterSerializer, SubscriptionSerializer, UserSerializer,
@@ -72,28 +72,33 @@ def should_notify(user, category):
     return False
 
 
-def send_push_notification(user, title, body):
+def send_push_notification(user, title, body, category=''):
     """Send a real push notification to all devices registered for this user."""
     tokens = list(PushToken.objects.filter(user=user).values_list('token', flat=True))
     if not tokens:
+        print(f'[Push] No tokens for user {user.pk}')
         return
+    messages = [
+        {
+            'to': token,
+            'title': title,
+            'body': body,
+            'sound': 'default',
+            'priority': 'high',
+            'channelId': 'default',
+            'data': {'title': title, 'body': body, 'category': category},
+        }
+        for token in tokens
+    ]
     try:
         import httpx as _httpx
-        for token in tokens:
-            _httpx.post(
-                'https://exp.host/--/api/v2/push/send',
-                json={
-                    'to': token,
-                    'title': title,
-                    'body': body,
-                    'sound': 'default',
-                    'priority': 'high',
-                    'channelId': 'default',
-                    'data': {'title': title, 'body': body},
-                },
-                headers={'Accept': 'application/json', 'Content-Type': 'application/json'},
-                timeout=10,
-            )
+        resp = _httpx.post(
+            'https://exp.host/--/api/v2/push/send',
+            json=messages,
+            headers={'Accept': 'application/json', 'Content-Type': 'application/json'},
+            timeout=10,
+        )
+        print(f'[Push] Sent to {len(tokens)} token(s), status={resp.status_code}')
     except Exception as e:
         print(f'[Push] Failed to send: {e}')
 
@@ -106,7 +111,7 @@ def notify_new_meal(meal):
     if not university:
         return
     cook_name = meal.seller.first_name or meal.seller.email.split('@')[0]
-    title = f'🍽️ New Meal at {university}!'
+    title = f'New Meal at {university}!'
     message = (
         f'{cook_name} just listed {meal.title} — '
         f'Rs.{int(meal.price_per_portion)}/portion · {meal.pickup_location}'
@@ -131,7 +136,7 @@ def create_notification(user, category, title, message):
         message=message,
     )
     # Also send a real push notification to the device
-    send_push_notification(user, title, message)
+    send_push_notification(user, title, message, category=category)
     return notif
 
 
@@ -538,11 +543,6 @@ class MealListCreateView(APIView):
                     status = 'pending_review'
 
             is_featured = False
-            try:
-                subscription = request.user.subscription
-                is_featured = subscription.is_pro()
-            except Exception:
-                is_featured = False
 
             serializer.save(
                 seller=request.user,
@@ -693,16 +693,30 @@ class CancelBookingView(APIView):
                 reference=str(booking.id),
             )
 
-            # 30% → seller as cancellation fee
+            # 30% → seller as cancellation fee (less 5% platform commission)
             if meal:
+                cancellation_commission = round(cancellation_fee * 0.05, 2)
+                net_cancellation_fee = round(cancellation_fee - cancellation_commission, 2)
                 seller_wallet, _ = Wallet.objects.get_or_create(user=meal.seller)
-                seller_wallet.balance = round(seller_wallet.balance + cancellation_fee, 2)
+                seller_wallet.balance = round(seller_wallet.balance + net_cancellation_fee, 2)
                 seller_wallet.save()
                 WalletTransaction.objects.create(
-                    wallet=seller_wallet, type='credit', amount=cancellation_fee,
+                    wallet=seller_wallet, type='credit', amount=net_cancellation_fee,
                     reason='booking_payment',
-                    description=f'Cancellation fee for {meal_title} — buyer cancelled',
+                    description=f'Cancellation fee for {meal_title} (after 5% platform commission of Rs.{cancellation_commission}) — buyer cancelled',
                     reference=str(booking.id),
+                )
+                # Credit commission into platform wallet
+                platform_wallet = PlatformWallet.get()
+                platform_wallet.balance = round(platform_wallet.balance + cancellation_commission, 2)
+                platform_wallet.total_earned = round(platform_wallet.total_earned + cancellation_commission, 2)
+                platform_wallet.save()
+                PlatformTransaction.objects.create(
+                    wallet=platform_wallet,
+                    amount=cancellation_commission,
+                    reason='cancellation_commission',
+                    description=f'5% commission on cancellation fee — {meal_title} (buyer cancelled)',
+                    booking_id=str(booking.id),
                 )
             booking.refund_status = 'completed'
         elif booking.payment_method == 'esewa':
@@ -723,11 +737,26 @@ class CancelBookingView(APIView):
             + (f'Rs.{int(refund_amount)} refunded to your wallet.' if booking.payment_method == 'wallet' else '')
         )
         if meal:
+            cancellation_commission = round(cancellation_fee * 0.05, 2)
+            net_cancellation_fee = round(cancellation_fee - cancellation_commission, 2)
             create_notification(
                 meal.seller, 'booking_updates', 'Booking Cancelled',
                 f'A booking for {meal_title} was cancelled. '
-                + (f'You keep Rs.{int(cancellation_fee)} cancellation fee.' if booking.payment_method == 'wallet' else '')
+                + (f'You keep Rs.{int(net_cancellation_fee)} cancellation fee (after 5% platform commission).' if booking.payment_method == 'wallet' else '')
             )
+            # Credit commission into platform wallet (seller cancellation, buyer keeps full)
+            if booking.payment_method == 'wallet':
+                platform_wallet = PlatformWallet.get()
+                platform_wallet.balance = round(platform_wallet.balance + cancellation_commission, 2)
+                platform_wallet.total_earned = round(platform_wallet.total_earned + cancellation_commission, 2)
+                platform_wallet.save()
+                PlatformTransaction.objects.create(
+                    wallet=platform_wallet,
+                    amount=cancellation_commission,
+                    reason='cancellation_commission',
+                    description=f'5% commission on cancellation fee — {meal_title} (seller cancelled)',
+                    booking_id=str(booking.id),
+                )
 
         return Response(BookingSerializer(booking).data)
 
@@ -751,24 +780,37 @@ class MarkBookingReceivedView(APIView):
 
         meal = booking.meal
         if meal:
-            # Release held payment to seller's wallet
+            # Release held payment to seller's wallet (less 5% commission)
+            commission = round(booking.total_cost * 0.05, 2)
+            net_amount = round(booking.total_cost - commission, 2)
             seller_wallet, _ = Wallet.objects.get_or_create(user=meal.seller)
-            seller_wallet.balance = round(seller_wallet.balance + booking.total_cost, 2)
+            seller_wallet.balance = round(seller_wallet.balance + net_amount, 2)
             seller_wallet.save()
             WalletTransaction.objects.create(
                 wallet=seller_wallet,
                 type='credit',
-                amount=booking.total_cost,
+                amount=net_amount,
                 reason='booking_payment',
-                description=f'Payment released — {meal.title} confirmed received',
+                description=f'Payment released (after 5% platform commission of Rs.{commission}) — {meal.title} confirmed received',
                 reference=str(booking.id),
             )
-
+            # Credit commission into platform wallet
+            platform_wallet = PlatformWallet.get()
+            platform_wallet.balance = round(platform_wallet.balance + commission, 2)
+            platform_wallet.total_earned = round(platform_wallet.total_earned + commission, 2)
+            platform_wallet.save()
+            PlatformTransaction.objects.create(
+                wallet=platform_wallet,
+                amount=commission,
+                reason='booking_commission',
+                description=f'5% commission on booking — {meal.title} (Rs.{booking.total_cost} total)',
+                booking_id=str(booking.id),
+            )
             create_notification(
                 meal.seller,
                 'booking_updates',
-                'Payment Released 💰',
-                f'Rs.{int(booking.total_cost)} added to your wallet — {request.user.first_name or request.user.email} confirmed they received {meal.title}.'
+                'Payment Released',
+                f'Rs.{int(net_amount)} added to your wallet (after 5% platform commission) — {request.user.first_name or request.user.email} confirmed they received {meal.title}.'
             )
             create_notification(
                 request.user,
@@ -807,7 +849,7 @@ class HandOverBookingView(APIView):
         create_notification(
             booking.user,
             'booking_updates',
-            '🍽️ Food Ready — Confirm Receipt!',
+            'Food Ready — Confirm Receipt!',
             f'{cook_name} has handed over your {meal.title if meal else "meal"}. '
             f'Please tap "Mark as Received" in your Orders to release payment to the cook.'
         )
@@ -831,12 +873,12 @@ class MyMealsView(APIView):
         meals = Meal.objects.filter(seller=request.user)
         serializer = MealSerializer(meals, many=True)
 
-        # Calculate earnings
+        # Calculate earnings (after 5% platform commission)
         my_bookings = Booking.objects.filter(
             meal__seller=request.user,
             status='confirmed'
         )
-        total_earnings = sum(b.total_cost for b in my_bookings)
+        total_earnings = round(sum(b.total_cost * 0.95 for b in my_bookings), 2)
 
         return Response({
             'meals': serializer.data,
@@ -995,12 +1037,15 @@ class SubscriptionStatusView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        subscription, created = Subscription.objects.get_or_create(
-            user=request.user,
-            defaults={'plan': 'free', 'is_active': False}
-        )
-        serializer = SubscriptionSerializer(subscription)
-        return Response(serializer.data)
+        return Response({
+            'plan': 'free',
+            'status': 'none',
+            'is_active': False,
+            'is_pro': False,
+            'days_remaining': 0,
+            'payment_reference': '',
+            'amount_paid': 0.0
+        })
 
 
 class SubscriptionUpgradeView(APIView):
@@ -1008,48 +1053,7 @@ class SubscriptionUpgradeView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        payment_reference = request.data.get('payment_reference', '').strip()
-        if not payment_reference:
-            return Response({'error': 'Payment reference / Transaction ID is required.'}, status=400)
-
-        subscription, created = Subscription.objects.get_or_create(
-            user=request.user,
-            defaults={'plan': 'free', 'is_active': False, 'status': 'none'}
-        )
-
-        if subscription.is_pro():
-            if subscription.status == 'pending':
-                return Response({'error': 'You already have a pending renewal request.'}, status=400)
-            
-            # Submitting renewal request. Keep current Pro status active.
-            subscription.status = 'pending'
-            subscription.payment_reference = payment_reference
-            subscription.save()
-            
-            serializer = SubscriptionSerializer(subscription)
-            return Response({
-                'message': 'Renewal request submitted successfully! Waiting for admin approval.',
-                'subscription': serializer.data,
-            })
-
-        if subscription.status == 'pending':
-            return Response({'error': 'You already have a pending upgrade request.'}, status=400)
-
-        # Set request as pending, require admin approval
-        subscription.plan = 'pro'
-        subscription.status = 'pending'
-        subscription.is_active = False
-        subscription.started_at = None
-        subscription.expires_at = None
-        subscription.amount_paid = 199.00
-        subscription.payment_reference = payment_reference
-        subscription.save()
-
-        serializer = SubscriptionSerializer(subscription)
-        return Response({
-            'message': 'Upgrade request submitted successfully! Waiting for admin approval.',
-            'subscription': serializer.data,
-        })
+        return Response({'error': 'Premium subscriptions are no longer available.'}, status=400)
 
 
 class SubscriptionCancelView(APIView):
@@ -1057,21 +1061,7 @@ class SubscriptionCancelView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        try:
-            subscription = Subscription.objects.get(user=request.user)
-        except Subscription.DoesNotExist:
-            return Response({'error': 'No subscription found'}, status=404)
-
-        if not subscription.is_pro():
-            return Response({'error': 'No active Pro subscription'}, status=400)
-
-        # Keep pro benefits until expiry; expiration job will downgrade later
-        subscription.save()
-
-        return Response({
-            'message': 'Subscription cancelled. Pro benefits remain until expiry.',
-            'expires_at': subscription.expires_at,
-        })
+        return Response({'error': 'Premium subscriptions are no longer available.'}, status=400)
 
 #This is subscription renew view for testing purposes, not linked in frontend yet
 class SubscriptionRenewView(APIView):
@@ -1079,33 +1069,7 @@ class SubscriptionRenewView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        try:
-            subscription = Subscription.objects.get(user=request.user)
-        except Subscription.DoesNotExist:
-            return Response({'error': 'No subscription found'}, status=404)
-
-        now = timezone.now()
-
-        # If still active, extend from current expiry
-        # If expired, start fresh from now
-        base = subscription.expires_at if (subscription.expires_at and subscription.expires_at > now) else now
-
-        subscription.plan = 'pro'
-        subscription.is_active = True
-        subscription.started_at = now
-        subscription.expires_at = base + timedelta(days=30)
-        subscription.amount_paid = 199.00
-        subscription.payment_reference = f"MOCK-{uuid.uuid4().hex[:12].upper()}"
-        subscription.save()
-
-        # Re-feature meals
-        Meal.objects.filter(seller=request.user).update(is_featured=True)
-
-        serializer = SubscriptionSerializer(subscription)
-        return Response({
-            'message': 'Subscription renewed for 30 days!',
-            'subscription': serializer.data,
-        })
+        return Response({'error': 'Premium subscriptions are no longer available.'}, status=400)
 
 
 from django.http import HttpResponse
@@ -1117,28 +1081,7 @@ class EsewaSubscriptionInitiateView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        subscription, created = Subscription.objects.get_or_create(
-            user=request.user,
-            defaults={'plan': 'free', 'is_active': False, 'status': 'none'}
-        )
-
-        if subscription.is_pro():
-            return Response({'error': 'Already on Pro plan'}, status=400)
-
-        # Generate transaction UUID
-        transaction_uuid = f"SUB-{subscription.id}-{int(time.time())}"
-        subscription.payment_reference = transaction_uuid
-        subscription.plan = 'pro'
-        subscription.status = 'pending'
-        subscription.save()
-
-        # Generate checkout URL
-        checkout_url = f"{BACKEND_URL}/api/payment/esewa/checkout/?uuid={transaction_uuid}&type=subscription"
-
-        return Response({
-            'checkout_url': checkout_url,
-            'transaction_uuid': transaction_uuid
-        })
+        return Response({'error': 'Premium subscriptions are no longer available.'}, status=400)
 
 
 class EsewaSubscriptionRenewView(APIView):
@@ -1146,22 +1089,7 @@ class EsewaSubscriptionRenewView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        subscription, created = Subscription.objects.get_or_create(
-            user=request.user,
-            defaults={'plan': 'free', 'is_active': False, 'status': 'none'}
-        )
-
-        # Generate renewal transaction UUID (RNW- prefix so success handler extends expiry)
-        transaction_uuid = f"RNW-{subscription.id}-{int(time.time())}"
-        subscription.payment_reference = transaction_uuid
-        subscription.save()
-
-        checkout_url = f"{BACKEND_URL}/api/payment/esewa/checkout/?uuid={transaction_uuid}&type=subscription"
-
-        return Response({
-            'checkout_url': checkout_url,
-            'transaction_uuid': transaction_uuid
-        })
+        return Response({'error': 'Premium subscriptions are no longer available.'}, status=400)
 
 class EsewaBookingInitiateView(APIView):
     permission_classes = [IsAuthenticated]
@@ -1378,7 +1306,7 @@ class EsewaSuccessView(APIView):
                 reason='topup', description='Wallet top-up via eSewa',
                 reference=transaction_uuid,
             )
-            create_notification(user, 'promotions', 'Wallet Topped Up',
+            create_notification(user, 'booking_updates', 'Wallet Topped Up',
                                 f'Rs.{int(amount_credited)} added to your Plato Wallet.')
             payment_title = "Wallet Topped Up!"
             payment_msg = f"Rs.{int(amount_credited)} has been added to your Plato Wallet."
@@ -1617,7 +1545,7 @@ class WalletTopupSuccessView(APIView):
             reference=transaction_uuid,
         )
 
-        create_notification(user, 'promotions', 'Wallet Topped Up',
+        create_notification(user, 'booking_updates', 'Wallet Topped Up',
                             f'Rs.{int(amount)} added to your Plato Wallet.')
 
         html = f"""<!DOCTYPE html><html>
@@ -1686,7 +1614,7 @@ class WalletPayView(APIView):
             )
             if seller:
                 create_notification(
-                    seller, 'booking_updates', 'New Booking 🍽️',
+                    seller, 'booking_updates', 'New Booking',
                     f'{request.user.first_name or request.user.email} booked {meal_title}. '
                     f'Rs.{int(booking.total_cost)} will be released to your wallet once they confirm receipt.'
                 )
@@ -1698,50 +1626,4 @@ class WalletSubscriptionPayView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        action = request.data.get('action', 'upgrade')  # 'upgrade' or 'renew'
-        SUBSCRIPTION_COST = 199.0
-
-        wallet, _ = Wallet.objects.get_or_create(user=request.user)
-        if wallet.balance < SUBSCRIPTION_COST:
-            return Response({
-                'error': f'Insufficient wallet balance. You have Rs.{int(wallet.balance)}, need Rs.{int(SUBSCRIPTION_COST)}. Top up your wallet first.'
-            }, status=400)
-
-        # Deduct from wallet
-        wallet.balance = round(wallet.balance - SUBSCRIPTION_COST, 2)
-        wallet.save()
-
-        WalletTransaction.objects.create(
-            wallet=wallet, type='debit', amount=SUBSCRIPTION_COST,
-            reason='subscription',
-            description='Pro subscription payment',
-            reference=action,
-        )
-
-        # Activate / renew subscription
-        sub, _ = Subscription.objects.get_or_create(user=request.user)
-        now = timezone.now()
-        if action == 'renew':
-            base = sub.expires_at if (sub.expires_at and sub.expires_at > now) else now
-            sub.expires_at = base + timedelta(days=30)
-        else:
-            sub.expires_at = now + timedelta(days=30)
-
-        sub.plan = 'pro'
-        sub.status = 'approved'
-        sub.is_active = True
-        sub.started_at = now
-        sub.amount_paid = SUBSCRIPTION_COST
-        sub.save()
-
-        Meal.objects.filter(seller=request.user).update(is_featured=True)
-
-        create_notification(request.user, 'booking_updates', 'Pro Activated! 🎉',
-                            'Your Plato Pro plan is now active. Enjoy premium features!')
-
-        from .serializers import SubscriptionSerializer
-        return Response({
-            'message': 'Pro activated successfully',
-            'subscription': SubscriptionSerializer(sub).data,
-            'wallet_balance': wallet.balance,
-        })
+        return Response({'error': 'Premium subscriptions are no longer available.'}, status=400)

@@ -18,4 +18,5 @@ urlpatterns = [
     path('api/subscriptions/', views.AdminSubscriptionsView.as_view(), name='subscriptions'),
     path('api/subscriptions/<int:subscription_id>/action/', views.AdminSubscriptionActionView.as_view(), name='subscription_action'),
     path('api/otps/', views.AdminOTPsView.as_view(), name='otps'),
+    path('api/commission/', views.AdminCommissionView.as_view(), name='commission'),
 ]

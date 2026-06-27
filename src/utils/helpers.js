@@ -81,9 +81,9 @@ export const getDisplayName = (user) => {
 };
 
 export const getReliabilityBadge = (rating) => {
-  if (rating >= 4.8) return { label: 'Top Chef', color: '#FFD700' };
-  if (rating >= 4.5) return { label: 'Trusted', color: '#4CAF50' };
-  if (rating >= 4.0) return { label: 'Good', color: '#2196F3' };
+  if (rating >= 4.5) return { label: 'Top Chef', color: '#FFD700' };
+  if (rating >= 4.0) return { label: 'Trusted', color: '#4CAF50' };
+  if (rating >= 3.0) return { label: 'Good', color: '#2196F3' };
   return { label: 'New', color: '#9E9E9E' };
 };
 

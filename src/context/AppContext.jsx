@@ -47,7 +47,7 @@ export const AppProvider = ({ children }) => {
     const [isInitializing, setIsInitializing] = useState(true);
     const [loading, setLoading] = useState(false);
     const [loggingOut, setLoggingOut] = useState(false);
-    const [subscription, setSubscription] = useState(null);
+
     const [wallet, setWallet] = useState({ balance: 0, transactions: [] });
     const appStateRef = useRef(AppState.currentState);
     const notificationListener = useRef();
@@ -101,15 +101,24 @@ export const AppProvider = ({ children }) => {
             loadNotifications();
             if (!navigationRef.isReady()) return;
             const content = response.notification.request.content;
-            const both = ((content.title || '') + ' ' + (content.body || '')).toLowerCase();
-            if (both.match(/wallet|topped up|top.up|refund|payment released/)) {
-                navigationRef.navigate('Wallet');
-            } else if (both.match(/booking|order|pickup|confirmed|cancelled|received|handed over|food ready/)) {
-                navigationRef.navigate('Main', { screen: 'MyMeals' });
-            } else if (both.match(/new meal|listed|available at/)) {
+            const category = content.data?.category;
+            const title = (content.title || '').toLowerCase();
+
+            // Route by category sent from backend; wallet-specific titles override booking_updates
+            if (category === 'new_meals') {
                 navigationRef.navigate('Main', { screen: 'Explore' });
-            } else if (both.match(/review|rated|feedback/)) {
+            } else if (category === 'reviews') {
                 navigationRef.navigate('Main', { screen: 'Profile' });
+            } else if (category === 'promotions') {
+                navigationRef.navigate('Wallet');
+            } else if (category === 'booking_updates') {
+                if (title.match(/payment released|wallet topped up|topped up/)) {
+                    navigationRef.navigate('Wallet');
+                } else {
+                    navigationRef.navigate('Main', { screen: 'MyMeals' });
+                }
+            } else if (category === 'reminders') {
+                navigationRef.navigate('Main', { screen: 'MyMeals' });
             }
         });
 
@@ -123,7 +132,6 @@ export const AppProvider = ({ children }) => {
     useEffect(() => {
         const sub = AppState.addEventListener('change', (next) => {
             if (appStateRef.current.match(/inactive|background/) && next === 'active') {
-                getSubscription();
                 loadWallet();
                 loadBookings();
                 loadBookingsReceived();
@@ -167,7 +175,6 @@ export const AppProvider = ({ children }) => {
                     loadReviewsReceived();
                     loadNotifications();
                     loadAIRecommendations();
-                    getSubscription();
                     loadWallet();
                 }
             } catch (e) {
@@ -197,7 +204,7 @@ export const AppProvider = ({ children }) => {
             await loadReviewsReceived();
             await loadNotifications();
             await loadAIRecommendations();
-            await getSubscription();
+
             await loadWallet();
             registerForPushNotifications();
             return { success: true };
@@ -221,7 +228,7 @@ export const AppProvider = ({ children }) => {
         await loadReviewsReceived();
         await loadNotifications();
         await loadAIRecommendations();
-        await getSubscription();
+
         await loadWallet();
         registerForPushNotifications();
     };
@@ -271,7 +278,6 @@ export const AppProvider = ({ children }) => {
                 loadReviewsReceived(),
                 loadNotifications(),
                 loadAIRecommendations(),
-                getSubscription()
             ]);
         } catch (error) {
             console.log('Refresh user data error:', error.message);
@@ -528,33 +534,7 @@ export const AppProvider = ({ children }) => {
         }
     };
 
-    const paySubscriptionWithWallet = async (action = 'upgrade') => {
-        try {
-            const data = await apiCall('/subscription/wallet/pay/', 'POST', { action }, true);
-            if (!data.error) {
-                setSubscription(data.subscription);
-                setWallet(prev => ({
-                    ...prev,
-                    balance: data.wallet_balance,
-                    transactions: [
-                        {
-                            id: Date.now(),
-                            type: 'debit',
-                            amount: 199,
-                            reason: 'subscription',
-                            description: 'Pro subscription payment',
-                            reference: action,
-                            created_at: new Date().toISOString(),
-                        },
-                        ...(prev.transactions || []),
-                    ],
-                }));
-            }
-            return data;
-        } catch (error) {
-            return { error: error.message };
-        }
-    };
+
 
     const topupWallet = async (amount) => {
         try {
@@ -578,51 +558,7 @@ export const AppProvider = ({ children }) => {
         }
     };
 
-    // ─── SUBSCRIPTION ──────────────────────────────────────────
 
-    const getSubscription = async () => {
-        try {
-            const data = await apiCall('/subscription/', 'GET', null, true);
-            if (!data?.error) setSubscription(data);
-            return data;
-        } catch (error) {
-            console.error('Get subscription error:', error.message);
-            return { error: 'Something went wrong. Please try again.' };
-        }
-    };
-
-    const upgradeSubscription = async () => {
-        try {
-            const data = await apiCall('/subscription/upgrade/', 'POST', null, true);
-            if (!data?.error) await getSubscription();
-            return data;
-        } catch (error) {
-            console.error('Upgrade subscription error:', error.message);
-            return { error: 'Something went wrong. Please try again.' };
-        }
-    };
-
-    const cancelSubscription = async () => {
-        try {
-            const data = await apiCall('/subscription/cancel/', 'POST', null, true);
-            if (!data?.error) await getSubscription();
-            return data;
-        } catch (error) {
-            console.error('Cancel subscription error:', error.message);
-            return { error: 'Something went wrong. Please try again.' };
-        }
-    };
-
-    const renewSubscription = async () => {
-        try {
-            const data = await apiCall('/subscription/renew/', 'POST', null, true);
-            if (!data?.error) await getSubscription();
-            return data;
-        } catch (error) {
-            console.error('Renew subscription error:', error.message);
-            return { error: 'Something went wrong. Please try again.' };
-        }
-    };
 
     return (
         <AppContext.Provider value={{
@@ -655,17 +591,11 @@ export const AppProvider = ({ children }) => {
             markNotificationsRead,
             loadAIRecommendations,
             getAIRecommendations,
-            subscription,
-            getSubscription,
-            upgradeSubscription,
-            cancelSubscription,
-            renewSubscription,
             refreshUserData,
             wallet,
             loadWallet,
             topupWallet,
             payWithWallet,
-            paySubscriptionWithWallet,
             markBookingReceived,
             markHandedOver,
         }}>

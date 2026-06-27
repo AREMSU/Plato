@@ -45,28 +45,26 @@ export default function NotificationsScreen({ navigation }) {
 
   const getDestination = (n) => {
     const title = (n.title || '').toLowerCase();
-    const msg   = (n.message || '').toLowerCase();
-    const both  = title + ' ' + msg;
 
-    // Wallet/payment — check first so "Wallet Topped Up" never gets swallowed by booking_updates category
-    if (both.match(/wallet|topped up|top.up|payment released/)) {
-      return { type: 'stack', screen: 'Wallet' };
+    // Route by category — never let body keywords override the category
+    if (n.category === 'new_meals') {
+      return { type: 'tab', tab: 'Explore' };
     }
-    // Booking / order
-    if (n.category === 'booking_updates' || both.match(/booking|order|pickup|confirmed|cancelled|received|handed over|food ready|payment hold|refund|rs\.\d/)) {
-      return { type: 'tab', tab: 'MyMeals' };
-    }
-    // Pro/subscription — tab, open via profile param
-    if (both.match(/pro activated|subscription|upgraded|renewed/)) {
-      return { type: 'tab', tab: 'Profile', params: { openPremium: true } };
-    }
-    // Reviews — open reviews modal in Profile
-    if (n.category === 'reviews' || both.match(/review|rated|feedback|new review/)) {
+    if (n.category === 'reviews') {
       return { type: 'tab', tab: 'Profile', params: { openReviews: true } };
     }
-    // New meal nearby
-    if (n.category === 'new_meals' || both.match(/new meal|listed|available at/)) {
-      return { type: 'tab', tab: 'Explore' };
+    if (n.category === 'promotions') {
+      return { type: 'stack', screen: 'Wallet' };
+    }
+    if (n.category === 'booking_updates') {
+      // Only wallet-titled notifications go to Wallet; everything else → MyMeals
+      if (title.match(/payment released|wallet topped up|topped up/)) {
+        return { type: 'stack', screen: 'Wallet' };
+      }
+      return { type: 'tab', tab: 'MyMeals' };
+    }
+    if (n.category === 'reminders') {
+      return { type: 'tab', tab: 'MyMeals' };
     }
     return null;
   };

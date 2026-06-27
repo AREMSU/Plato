@@ -16,6 +16,31 @@ from .serializers import MealSerializer
 # ──────────────────────────────────────────────────────────────────────
 
 _pipeline = None
+_clip_pipeline = None
+
+
+def _get_clip_pipeline():
+    global _clip_pipeline
+    if _clip_pipeline is not None:
+        return _clip_pipeline
+    try:
+        import torch
+        from transformers import pipeline as hf_pipeline
+
+        device = 0 if torch.cuda.is_available() else -1
+        device_label = torch.cuda.get_device_name(0) if device == 0 else 'CPU'
+        print(f'[FoodAI] Loading CLIP on {device_label}...')
+
+        _clip_pipeline = hf_pipeline(
+            'zero-shot-image-classification',
+            model='openai/clip-vit-base-patch32',
+            device=device,
+        )
+        print(f'[FoodAI] CLIP Ready on {device_label}')
+        return _clip_pipeline
+    except Exception as e:
+        print(f'[FoodAI] CLIP load error: {e}')
+        return None
 
 
 def _get_pipeline():
@@ -106,6 +131,23 @@ def classify_food_bytes(image_bytes):
                 'labels_detected': labels,
             }
         else:
+            clip_clf = _get_clip_pipeline()
+            if clip_clf is not None:
+                clip_results = clip_clf(image, candidate_labels=[
+                    "a fresh, whole, untouched meal",
+                    "a partially eaten, messy meal with bites taken out",
+                    "an empty plate with crumbs"
+                ])
+                
+                top_clip_label = clip_results[0]['label']
+                if top_clip_label in ["a partially eaten, messy meal with bites taken out", "an empty plate with crumbs"]:
+                    return {
+                        'verdict': 'rejected',
+                        'confidence': confidence,
+                        'reason': 'The meal appears to be partially eaten or the plate is empty. Please upload a photo of a fresh, untouched meal.',
+                        'labels_detected': labels,
+                    }
+
             return {
                 'verdict': 'approved',
                 'confidence': confidence,

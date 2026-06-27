@@ -65,16 +65,10 @@ class UserSerializer(serializers.ModelSerializer):
         return 'New'
 
     def get_is_pro(self, obj):
-        try:
-            return obj.subscription.is_pro()
-        except Exception:
-            return False
+        return False
 
     def get_subscription_expires(self, obj):
-        try:
-            return obj.subscription.expires_at
-        except Exception:
-            return None
+        return None
 
     def get_meals_shared(self, obj):
         return obj.meals.filter(status='approved').count()

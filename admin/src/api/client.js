@@ -113,3 +113,10 @@ export const subscriptionAction = (id, action) =>
 // OTPs
 export const getOTPs = () =>
   customFetch('/otps/').then(handleResponse);
+
+// Platform Commission Wallet
+export const getCommission = () =>
+  customFetch('/commission/').then(handleResponse);
+
+export const recordWithdrawal = (note = '') =>
+  customFetch('/commission/', { method: 'POST', body: JSON.stringify({ note }) }).then(handleResponse);

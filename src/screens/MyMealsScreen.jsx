@@ -395,98 +395,99 @@ export default function MyMealsScreen({ navigation, route }) {
     const isCancelledOrder = booking.status === 'cancelled';
 
     return (
-      <>
       <View style={[
         styles.bookingCard,
-        { padding: 12, alignItems: 'center' },
+        { flexDirection: 'column', padding: 12 },
         isCancelledOrder && styles.cancelledOrderCard,
       ]}>
-        {/* Avatar */}
-        <View style={{ position: 'relative' }}>
-          {buyerAvatar ? (
-            <Image source={{ uri: buyerAvatar }} style={{ width: 44, height: 44, borderRadius: 22, opacity: isCancelledOrder ? 0.5 : 1 }} />
-          ) : (
-            <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: isCancelledOrder ? '#FFEBEB' : '#E0E0E0', justifyContent: 'center', alignItems: 'center' }}>
-              <Ionicons name="person" size={20} color={isCancelledOrder ? '#FF5252' : '#757575'} />
-            </View>
-          )}
-          {isCancelledOrder && (
-            <View style={styles.cancelledAvatarBadge}>
-              <Ionicons name="close" size={8} color="#fff" />
-            </View>
-          )}
-        </View>
+        {/* Row: avatar + info + amount */}
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          {/* Avatar */}
+          <View style={{ position: 'relative' }}>
+            {buyerAvatar ? (
+              <Image source={{ uri: buyerAvatar }} style={{ width: 44, height: 44, borderRadius: 22, opacity: isCancelledOrder ? 0.5 : 1 }} />
+            ) : (
+              <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: isCancelledOrder ? '#FFEBEB' : '#E0E0E0', justifyContent: 'center', alignItems: 'center' }}>
+                <Ionicons name="person" size={20} color={isCancelledOrder ? '#FF5252' : '#757575'} />
+              </View>
+            )}
+            {isCancelledOrder && (
+              <View style={styles.cancelledAvatarBadge}>
+                <Ionicons name="close" size={8} color="#fff" />
+              </View>
+            )}
+          </View>
 
-        {/* Info */}
-        <View style={{ flex: 1, marginLeft: 12 }}>
+          {/* Info */}
+          <View style={{ flex: 1, marginLeft: 12 }}>
+            {isCancelledOrder ? (
+              <Text style={{ fontSize: 14, color: '#9E9E9E', fontWeight: '500' }}>
+                <Text style={{ fontWeight: '800', color: '#FF5252' }}>{buyerName}</Text>
+                {' cancelled their booking of '}
+                <Text style={{ fontWeight: '700', color: '#757575' }}>{booking.portions}</Text>
+                {' portion'}{booking.portions > 1 ? 's' : ''}
+                {' of '}{mealTitle}
+              </Text>
+            ) : (
+              <Text style={{ fontSize: 14, color: '#424242', fontWeight: '500' }}>
+                <Text style={{ fontWeight: '800', color: '#1A1A1A' }}>{buyerName}</Text>
+                {' booked '}
+                <Text style={{ fontWeight: '700' }}>{booking.portions}</Text>
+                {' portion'}{booking.portions > 1 ? 's' : ''}
+                {' of '}{mealTitle}
+              </Text>
+            )}
+            <Text style={{ fontSize: 12, color: '#9E9E9E', marginTop: 4 }}>
+              {new Date(booking.bookedAt || booking.booked_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
+            </Text>
+          </View>
+
+          {/* Amount / Status badge */}
           {isCancelledOrder ? (
-            <Text style={{ fontSize: 14, color: '#9E9E9E', fontWeight: '500' }}>
-              <Text style={{ fontWeight: '800', color: '#FF5252' }}>{buyerName}</Text>
-              {' cancelled their booking of '}
-              <Text style={{ fontWeight: '700', color: '#757575' }}>{booking.portions}</Text>
-              {' portion'}{booking.portions > 1 ? 's' : ''}
-              {' of '}{mealTitle}
-            </Text>
+            <View style={styles.cancelledBadge}>
+              <Ionicons name="close-circle" size={12} color="#FF5252" style={{ marginRight: 3 }} />
+              <Text style={styles.cancelledBadgeText}>Cancelled</Text>
+            </View>
+          ) : booking.status === 'received' ? (
+            <View style={{ alignItems: 'flex-end' }}>
+              <Text style={{ fontSize: 15, fontWeight: '800', color: '#4CAF50' }}>+{formatCurrency(booking.totalCost)}</Text>
+              <Text style={{ fontSize: 10, color: '#4CAF50', fontWeight: '600' }}>Paid ✓</Text>
+            </View>
           ) : (
-            <Text style={{ fontSize: 14, color: '#424242', fontWeight: '500' }}>
-              <Text style={{ fontWeight: '800', color: '#1A1A1A' }}>{buyerName}</Text>
-              {' booked '}
-              <Text style={{ fontWeight: '700' }}>{booking.portions}</Text>
-              {' portion'}{booking.portions > 1 ? 's' : ''}
-              {' of '}{mealTitle}
-            </Text>
+            <View style={{ alignItems: 'flex-end' }}>
+              <Text style={{ fontSize: 15, fontWeight: '800', color: '#FF6B35' }}>{formatCurrency(booking.totalCost)}</Text>
+              <Text style={{ fontSize: 10, color: '#9E9E9E', fontWeight: '500' }}>On Hold</Text>
+            </View>
           )}
-          <Text style={{ fontSize: 12, color: '#9E9E9E', marginTop: 4 }}>
-            {new Date(booking.bookedAt || booking.booked_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
-          </Text>
         </View>
 
-        {/* Amount / Status badge */}
-        {isCancelledOrder ? (
-          <View style={styles.cancelledBadge}>
-            <Ionicons name="close-circle" size={12} color="#FF5252" style={{ marginRight: 3 }} />
-            <Text style={styles.cancelledBadgeText}>Cancelled</Text>
-          </View>
-        ) : booking.status === 'received' ? (
-          <View style={{ alignItems: 'flex-end' }}>
-            <Text style={{ fontSize: 15, fontWeight: '800', color: '#4CAF50' }}>+{formatCurrency(booking.totalCost)}</Text>
-            <Text style={{ fontSize: 10, color: '#4CAF50', fontWeight: '600' }}>Paid ✓</Text>
-          </View>
-        ) : (
-          <View style={{ alignItems: 'flex-end' }}>
-            <Text style={{ fontSize: 15, fontWeight: '800', color: '#FF6B35' }}>{formatCurrency(booking.totalCost)}</Text>
-            <Text style={{ fontSize: 10, color: '#9E9E9E', fontWeight: '500' }}>On Hold</Text>
-          </View>
+        {/* Cook action — inside card, below the row */}
+        {!isCancelledOrder && booking.status === 'confirmed' && !booking.isHandedOver && (
+          <TouchableOpacity
+            style={[styles.handoverButton, { marginTop: 10, marginBottom: 0 }]}
+            onPress={() =>
+              Alert.alert(
+                'Handed Over Food?',
+                'This will notify the buyer to confirm receipt so payment is released to you.',
+                [
+                  { text: 'Not Yet', style: 'cancel' },
+                  {
+                    text: 'Yes, Handed Over',
+                    onPress: async () => {
+                      const result = await markHandedOver(booking.id);
+                      if (result?.error) Alert.alert('Error', result.error);
+                      else Alert.alert('Buyer Notified!', 'The buyer has been asked to confirm receipt.');
+                    },
+                  },
+                ]
+              )
+            }
+          >
+            <Ionicons name="bag-check-outline" size={15} color="#fff" />
+            <Text style={styles.handoverButtonText}>Mark as Handed Over</Text>
+          </TouchableOpacity>
         )}
       </View>
-
-      {/* Cook action — only for confirmed, not yet handed over orders */}
-      {!isCancelledOrder && booking.status === 'confirmed' && !booking.isHandedOver && (
-        <TouchableOpacity
-          style={styles.handoverButton}
-          onPress={() =>
-            Alert.alert(
-              'Handed Over Food?',
-              'This will notify the buyer to confirm receipt so payment is released to you.',
-              [
-                { text: 'Not Yet', style: 'cancel' },
-                {
-                  text: 'Yes, Handed Over',
-                  onPress: async () => {
-                    const result = await markHandedOver(booking.id);
-                    if (result?.error) Alert.alert('Error', result.error);
-                    else Alert.alert('Buyer Notified!', 'The buyer has been asked to confirm receipt.');
-                  },
-                },
-              ]
-            )
-          }
-        >
-          <Ionicons name="bag-check-outline" size={15} color="#fff" />
-          <Text style={styles.handoverButtonText}>Mark as Handed Over</Text>
-        </TouchableOpacity>
-      )}
-      </>
     );
   };
 

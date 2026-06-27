@@ -6,7 +6,7 @@ from rest_framework.permissions import IsAdminUser
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import authenticate
 
-from api.models import User, Meal, Booking, OTP, Subscription
+from api.models import User, Meal, Booking, OTP, Subscription, PlatformWallet, PlatformTransaction
 from api.serializers import UserSerializer, MealSerializer, BookingSerializer
 
 
@@ -254,3 +254,44 @@ class AdminOTPsView(APIView):
         data = [{'id':o.id,'email':o.email,'code':o.code,'is_used':o.is_used,
                  'is_valid':o.is_valid(),'created_at':o.created_at} for o in OTP.objects.order_by('-created_at')[:100]]
         return Response({'otps':data})
+
+
+class AdminCommissionView(APIView):
+    permission_classes = [IsAdminUser]
+
+    def get(self, request):
+        """Return platform wallet balance + transaction history."""
+        wallet = PlatformWallet.get()
+        txns = PlatformTransaction.objects.filter(wallet=wallet).order_by('-created_at')[:100]
+        data = [{
+            'id': t.id,
+            'amount': t.amount,
+            'reason': t.reason,
+            'description': t.description,
+            'booking_id': t.booking_id,
+            'created_at': t.created_at,
+        } for t in txns]
+        return Response({
+            'balance': round(wallet.balance, 2),
+            'total_earned': round(wallet.total_earned, 2),
+            'transactions': data,
+            'transaction_count': len(data),
+        })
+
+    def post(self, request):
+        """Mark a withdrawal — resets balance to 0 and logs it."""
+        wallet = PlatformWallet.get()
+        amount = wallet.balance
+        if amount <= 0:
+            return Response({'error': 'No balance to withdraw'}, status=400)
+        note = request.data.get('note', 'Manual withdrawal to bank account')
+        PlatformTransaction.objects.create(
+            wallet=wallet,
+            amount=amount,
+            reason='withdrawal',
+            description=note,
+            booking_id='',
+        )
+        wallet.balance = 0.0
+        wallet.save()
+        return Response({'message': f'Withdrawal of Rs.{amount:.2f} recorded', 'new_balance': 0.0})

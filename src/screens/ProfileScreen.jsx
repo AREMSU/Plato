@@ -12,7 +12,6 @@ import {
   Switch,
   Linking,
   Platform,
-  AppState,
   RefreshControl,
   BackHandler,
   ActivityIndicator,
@@ -55,10 +54,7 @@ export default function ProfileScreen({ navigation, route }) {
     loggingOut,
     reviewsReceived,
     refreshUserData,
-    subscription,
-    getSubscription,
     wallet,
-    paySubscriptionWithWallet,
   } = useApp();
 
   const [refreshing, setRefreshing] = useState(false);
@@ -66,7 +62,6 @@ export default function ProfileScreen({ navigation, route }) {
   useEffect(() => {
     const unsub = navigation.addListener('focus', () => {
       refreshUserData();
-      getSubscription();
     });
     return unsub;
   }, [navigation]);
@@ -77,7 +72,6 @@ export default function ProfileScreen({ navigation, route }) {
       if (typeof refreshUserData === 'function') {
         await refreshUserData();
       }
-      await getSubscription();
     } catch (error) {
       console.error('Refresh profile error:', error.message);
     } finally {
@@ -97,19 +91,15 @@ export default function ProfileScreen({ navigation, route }) {
   const [paymentModalVisible, setPaymentModalVisible] = useState(false);
   const [reviewsModalVisible, setReviewsModalVisible] = useState(false);
   const [privacyModalVisible, setPrivacyModalVisible] = useState(false);
-  const [premiumModalVisible, setPremiumModalVisible] = useState(false);
   const [avatarLoading, setAvatarLoading] = useState(false);
   const [avatarOptionsVisible, setAvatarOptionsVisible] = useState(false);
-  const [pendingPickerType, setPendingPickerType] = useState(null); // 'camera' | 'gallery' | null
+  const [pendingPickerType, setPendingPickerType] = useState(null);
   const [changePwVisible, setChangePwVisible] = useState(false);
   const [pwForm, setPwForm] = useState({ current: '', newPw: '', confirm: '' });
   const [showPw, setShowPw] = useState({ current: false, newPw: false, confirm: false });
   const [pwLoading, setPwLoading] = useState(false);
   const changePwValidation = React.useMemo(() => validatePassword(pwForm.newPw), [pwForm.newPw]);
   const changePwStrength   = React.useMemo(() => getPasswordStrength(changePwValidation.passed), [changePwValidation.passed]);
-  const [subscriptionLoading] = useState(false);
-  const [subscriptionActionLoading, setSubscriptionActionLoading] = useState(false);
-  const [renewalCancelled, setRenewalCancelled] = useState(false);
 
 
   const [editForm, setEditForm] = useState({
@@ -152,49 +142,6 @@ export default function ProfileScreen({ navigation, route }) {
     0
   );
 
-  const isPro = Boolean(subscription?.isPro);
-  const daysRemaining = subscription?.daysRemaining ?? 0;
-  const expiresAt = subscription?.expiresAt;
-  const expiresLabel = expiresAt
-    ? new Date(expiresAt).toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-    })
-    : null;
-
-  // Re-fetch subscription on foreground return, and every 30s while pending
-  const appStateRef = useRef(AppState.currentState);
-  const pollIntervalRef = useRef(null);
-
-  useEffect(() => {
-    if (!user?.id) return;
-    const appStateSub = AppState.addEventListener('change', (nextState) => {
-      if (appStateRef.current.match(/inactive|background/) && nextState === 'active') {
-        getSubscription();
-      }
-      appStateRef.current = nextState;
-    });
-    return () => appStateSub.remove();
-  }, [user?.id]);
-
-  // 30-second polling while subscription is pending
-  useEffect(() => {
-    if (subscription?.status === 'pending') {
-      pollIntervalRef.current = setInterval(() => getSubscription(), 30000);
-    } else {
-      if (pollIntervalRef.current) {
-        clearInterval(pollIntervalRef.current);
-        pollIntervalRef.current = null;
-      }
-    }
-    return () => {
-      if (pollIntervalRef.current) {
-        clearInterval(pollIntervalRef.current);
-        pollIntervalRef.current = null;
-      }
-    };
-  }, [subscription?.status]);
 
 
   useEffect(() => {
@@ -202,7 +149,6 @@ export default function ProfileScreen({ navigation, route }) {
     const p = route?.params || {};
     if (p.openReviews)       { navigation.setParams({ openReviews: undefined });       setReviewsModalVisible(true); }
     if (p.openNotifications) { navigation.setParams({ openNotifications: undefined }); setNotifModalVisible(true); }
-    if (p.openPremium)       { navigation.setParams({ openPremium: undefined });        setPremiumModalVisible(true); }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -227,92 +173,6 @@ export default function ProfileScreen({ navigation, route }) {
     });
     return () => sub.remove();
   }, [editModalVisible, avatarOptionsVisible, changePwVisible]);
-
-  const handleUpgrade = () => {
-    const balance = wallet?.balance ?? 0;
-    const canAfford = balance >= 199;
-    Alert.alert(
-      'Upgrade to Pro — Rs.199/month',
-      canAfford
-        ? `Rs.199 will be deducted from your Plato Wallet (balance: Rs.${Math.round(balance)}). Your Pro badge activates instantly.`
-        : `Your wallet balance is Rs.${Math.round(balance)}. You need Rs.199. Top up your wallet first from Profile → Plato Wallet.`,
-      canAfford ? [
-        { text: 'Not Now', style: 'cancel' },
-        {
-          text: 'Pay Rs.199 from Wallet',
-          onPress: async () => {
-            setSubscriptionActionLoading(true);
-            const result = await paySubscriptionWithWallet('upgrade');
-            setSubscriptionActionLoading(false);
-            if (result?.error) {
-              Alert.alert('Payment Failed', result.error);
-            } else {
-              setPremiumModalVisible(false);
-              Alert.alert('🎉 You\'re Pro!', 'Your Plato Pro plan is now active. Enjoy premium features!');
-            }
-          },
-        },
-      ] : [
-        { text: 'OK' },
-      ]
-    );
-  };
-
-  const handleCancelSubscription = async () => {
-    Alert.alert(
-      'Turn Off Auto-Renew?',
-      `Your Pro benefits stay active until ${expiresLabel || 'the end of the period'}. After that your account returns to Free.`,
-      [
-        { text: 'Keep Pro', style: 'cancel' },
-        {
-          text: 'Turn Off Auto-Renew',
-          style: 'destructive',
-          onPress: async () => {
-            setSubscriptionActionLoading(true);
-            try {
-              await apiCall('/subscription/cancel/', 'POST', null, true);
-              setRenewalCancelled(true);
-              Alert.alert('Auto-Renew Off', `Your Pro plan remains active until ${expiresLabel || 'expiry'} and won't renew after that.`);
-            } catch (error) {
-              Alert.alert('Failed', 'Something went wrong. Please try again.');
-            } finally {
-              setSubscriptionActionLoading(false);
-            }
-          },
-        },
-      ]
-    );
-  };
-
-  const handleRenewSubscription = () => {
-    const balance = wallet?.balance ?? 0;
-    const canAfford = balance >= 199;
-    Alert.alert(
-      'Renew Pro — Rs.199',
-      canAfford
-        ? `Rs.199 will be deducted from your Plato Wallet (balance: Rs.${Math.round(balance)}). Your plan extends by 30 days instantly.`
-        : `Your wallet balance is Rs.${Math.round(balance)}. You need Rs.199. Top up your wallet first from Profile → Plato Wallet.`,
-      canAfford ? [
-        { text: 'Not Now', style: 'cancel' },
-        {
-          text: 'Pay Rs.199 from Wallet',
-          onPress: async () => {
-            setSubscriptionActionLoading(true);
-            const result = await paySubscriptionWithWallet('renew');
-            setSubscriptionActionLoading(false);
-            if (result?.error) {
-              Alert.alert('Payment Failed', result.error);
-            } else {
-              setPremiumModalVisible(false);
-              Alert.alert('✅ Pro Renewed!', `Your Pro plan has been extended by 30 days.`);
-            }
-          },
-        },
-      ] : [
-        { text: 'OK' },
-      ]
-    );
-  };
 
 
   // ─────────────────────────────────────
@@ -641,11 +501,6 @@ export default function ProfileScreen({ navigation, route }) {
 
             <View style={styles.nameRow}>
               <Text style={styles.userName}>{displayName}</Text>
-              {isPro && (
-                <View style={styles.proPill}>
-                  <Text style={styles.proPillText}>PRO</Text>
-                </View>
-              )}
             </View>
 
             <Text style={styles.userUniversity}>
@@ -713,13 +568,7 @@ export default function ProfileScreen({ navigation, route }) {
             color="#2196F3"
             onPress={() => setEditModalVisible(true)}
           />
-          <MenuItem
-            iconName="ribbon-outline"
-            label="Premium Plans"
-            value={isPro ? 'Pro Active' : 'Free Plan'}
-            color="#FF6B35"
-            onPress={() => setPremiumModalVisible(true)}
-          />
+
           <MenuItem
             iconName="notifications-outline"
             label="Notification Settings"
@@ -1444,136 +1293,7 @@ export default function ProfileScreen({ navigation, route }) {
         </View>
       </Modal >
 
-      {/* ══════════════════════════════════════
-          PREMIUM MODAL
-      ══════════════════════════════════════ */}
-      <Modal
-        visible={premiumModalVisible}
-        animationType="slide"
-        transparent
-        onRequestClose={() => setPremiumModalVisible(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContainer}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>💎 Premium Plans</Text>
-              <TouchableOpacity onPress={() => setPremiumModalVisible(false)}>
-                <Text style={styles.modalClose}>✕</Text>
-              </TouchableOpacity>
-            </View>
 
-            <View style={styles.premiumModalHeaderRow}>
-              <Text style={styles.premiumModalTitle}>Plato Pro</Text>
-              <View
-                style={[
-                  styles.premiumBadge,
-                  isPro ? styles.premiumBadgePro : (subscription?.status === 'pending' ? styles.premiumBadgePending : (subscription?.status === 'rejected' ? styles.premiumBadgeRejected : styles.premiumBadgeFree)),
-                ]}
-              >
-                <Text style={styles.premiumBadgeText}>
-                  {isPro ? 'ACTIVE' : (subscription?.status === 'pending' ? 'PENDING' : (subscription?.status === 'rejected' ? 'REJECTED' : 'FREE'))}
-                </Text>
-              </View>
-            </View>
-
-            <Text style={styles.premiumPrice}>NPR 199 / month</Text>
-            <Text style={styles.premiumSubtitle}>
-              Featured placement and AI priority to grow your sales.
-            </Text>
-
-            <View style={styles.premiumFeatureRow}>
-              <Ionicons name="cloud-upload-outline" size={18} color="#FF6B35" style={{ marginRight: 10 }} />
-              <Text style={styles.premiumFeatureText}>
-                Meals pushed to top of Explore and Home
-              </Text>
-            </View>
-            <View style={styles.premiumFeatureRow}>
-              <Text style={styles.premiumFeatureIcon}>🤖</Text>
-              <Text style={styles.premiumFeatureText}>
-                AI recommendations prioritize your meals
-              </Text>
-            </View>
-            <View style={styles.premiumFeatureRow}>
-              <Ionicons name="star-outline" size={18} color="#FF6B35" style={{ marginRight: 10 }} />
-              <Text style={styles.premiumFeatureText}>
-                Featured badge on your listings
-              </Text>
-            </View>
-
-            {subscriptionLoading ? (
-              <Text style={styles.premiumStatus}>Checking subscription...</Text>
-            ) : (
-              <Text style={styles.premiumStatus}>
-                {isPro
-                  ? (renewalCancelled
-                    ? 'Pro active • renewal cancelled'
-                    : `Pro active • ${daysRemaining} days left`)
-                  : (subscription?.status === 'pending'
-                    ? 'Upgrade request pending approval'
-                    : (subscription?.status === 'rejected'
-                      ? 'Previous request was rejected'
-                      : 'You are on the Free plan'))}
-              </Text>
-            )}
-
-            {isPro && expiresLabel && (
-              <Text style={styles.premiumExpiry}>Expires on {expiresLabel}</Text>
-            )}
-
-            {isPro ? (
-              <View style={styles.premiumActions}>
-                <TouchableOpacity
-                  style={[styles.premiumButton, styles.premiumButtonOutline]}
-                  onPress={handleCancelSubscription}
-                  disabled={subscriptionActionLoading}
-                >
-                  <Text style={styles.premiumButtonOutlineText}>Cancel Renewal</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.premiumButton}
-                  onPress={handleRenewSubscription}
-                  disabled={subscriptionActionLoading}
-                >
-                  <Text style={styles.premiumButtonText}>Renew 30 Days</Text>
-                </TouchableOpacity>
-              </View>
-            ) : subscription?.status === 'pending' ? (
-              <View style={styles.premiumActions}>
-                <TouchableOpacity
-                  style={[styles.premiumButton, styles.premiumButtonDisabled]}
-                  disabled={true}
-                >
-                  <Text style={styles.premiumButtonText}>Verification in Progress</Text>
-                </TouchableOpacity>
-              </View>
-            ) : (
-              <View style={styles.premiumActions}>
-                <TouchableOpacity
-                  style={styles.premiumButton}
-                  onPress={handleUpgrade}
-                  disabled={subscriptionActionLoading}
-                >
-                  <Text style={styles.premiumButtonText}>
-                    {subscription?.status === 'rejected' ? 'Retry Upgrade to Pro' : 'Upgrade to Pro'}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            )}
-
-            <TouchableOpacity
-              style={styles.modalSaveButton}
-              onPress={() => setPremiumModalVisible(false)}
-            >
-              <LinearGradient
-                colors={['#FF6B35', '#FF8C42']}
-                style={styles.modalSaveGradient}
-              >
-                <Text style={styles.modalSaveText}>Close</Text>
-              </LinearGradient>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal >
 
 
 
@@ -1809,120 +1529,6 @@ const styles = StyleSheet.create({
   },
   statDivider: { width: 1, backgroundColor: '#F0F0F0' },
 
-  // Premium
-  premiumCard: {
-    backgroundColor: '#fff',
-    marginHorizontal: 16,
-    marginTop: 16,
-    borderRadius: 20,
-    padding: 18,
-    elevation: 2,
-  },
-  premiumHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 10,
-  },
-  premiumTitle: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: '#1A1A1A',
-  },
-  premiumModalHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 10,
-  },
-  premiumModalTitle: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: '#1A1A1A',
-  },
-  premiumBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  premiumBadgePro: { backgroundColor: '#FF6B35' },
-  premiumBadgePending: { backgroundColor: '#F59E0B' },
-  premiumBadgeRejected: { backgroundColor: '#EF4444' },
-  premiumBadgeFree: { backgroundColor: '#BDBDBD' },
-  premiumButtonDisabled: { backgroundColor: '#BDBDBD' },
-  premiumBadgeText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#fff',
-    letterSpacing: 0.6,
-  },
-  premiumPrice: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: '#FF6B35',
-    marginBottom: 6,
-  },
-  premiumSubtitle: {
-    fontSize: 13,
-    color: '#6B6B6B',
-    marginBottom: 12,
-  },
-  premiumFeatureRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 6,
-  },
-  premiumFeatureText: {
-    fontSize: 13,
-    color: '#424242',
-    flex: 1,
-  },
-  premiumStatus: {
-    fontSize: 12,
-    color: '#9E9E9E',
-    marginTop: 10,
-  },
-  premiumExpiry: {
-    fontSize: 12,
-    color: '#607D8B',
-    marginTop: 4,
-  },
-  premiumActions: {
-    flexDirection: 'row',
-    gap: 10,
-    marginTop: 12,
-  },
-  premiumButton: {
-    flex: 1,
-    backgroundColor: '#FF6B35',
-    borderRadius: 14,
-    paddingVertical: 12,
-    alignItems: 'center',
-  },
-  premiumButtonText: {
-    color: '#fff',
-    fontWeight: '700',
-    fontSize: 14,
-  },
-  premiumButtonOutline: {
-    backgroundColor: '#fff',
-    borderWidth: 1.5,
-    borderColor: '#FF6B35',
-  },
-  premiumButtonOutlineText: {
-    color: '#FF6B35',
-    fontWeight: '700',
-    fontSize: 14,
-  },
-  premiumLearnMore: {
-    marginTop: 10,
-    alignItems: 'center',
-  },
-  premiumLearnMoreText: {
-    fontSize: 12,
-    color: '#2196F3',
-    fontWeight: '600',
-  },
 
   // SDG
   sdgCard: {

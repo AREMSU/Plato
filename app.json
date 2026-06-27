@@ -26,6 +26,7 @@
       }
     },
     "android": {
+      "googleServicesFile": "./google-services.json",
       "package": "com.platofood.plato",
       "versionCode": 1,
       "adaptiveIcon": {

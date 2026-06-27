@@ -297,3 +297,44 @@ class PushToken(models.Model):
 
     def __str__(self):
         return f"{self.user.email} — {self.token[:30]}"
+
+
+# ─── PLATFORM COMMISSION WALLET ────────────────────────────────────────────────
+
+class PlatformWallet(models.Model):
+    """Singleton model — always one row tracking total platform commission balance."""
+    balance = models.FloatField(default=0.0)
+    total_earned = models.FloatField(default=0.0)   # all-time cumulative total
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Platform Wallet'
+
+    def __str__(self):
+        return f"Platform Wallet — Rs.{self.balance:.2f}"
+
+    @classmethod
+    def get(cls):
+        wallet, _ = cls.objects.get_or_create(pk=1)
+        return wallet
+
+
+class PlatformTransaction(models.Model):
+    REASON_CHOICES = [
+        ('booking_commission', 'Booking Commission'),
+        ('cancellation_commission', 'Cancellation Commission'),
+        ('withdrawal', 'Withdrawal'),
+    ]
+
+    wallet = models.ForeignKey(PlatformWallet, on_delete=models.CASCADE, related_name='transactions')
+    amount = models.FloatField()
+    reason = models.CharField(max_length=30, choices=REASON_CHOICES)
+    description = models.CharField(max_length=300)
+    booking_id = models.CharField(max_length=50, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"Rs.{self.amount:.2f} — {self.get_reason_display()} ({self.created_at.strftime('%Y-%m-%d')})"
